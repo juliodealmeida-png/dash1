@@ -3310,6 +3310,7 @@
       prospeccao: 'prospecting',
       prospecao: 'prospecting',
       prospecting: 'prospecting',
+      qualification: 'qualified',
       qualificado: 'qualified',
       qualified: 'qualified',
       apresentacao: 'presentation',
@@ -3676,10 +3677,12 @@
     // ════════════════════════════════════════════
     var DB = {
       _headers: function (extra) {
+        var token = (typeof Auth !== 'undefined' && Auth.getToken()) || CONFIG.supabase.key || '';
         return Object.assign(
           {
             apikey: CONFIG.supabase.key,
-            Authorization: 'Bearer ' + CONFIG.supabase.key,
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token,
           },
           extra || {}
         );
@@ -5905,6 +5908,26 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    window.onerror = function(msg, src, line, col, err) {
+      console.error('[Guardline Error]', { msg: msg, src: src, line: line, col: col, err: err });
+      if (typeof showToast === 'function') showToast('error', 'Erro inesperado', String(msg).substring(0, 120));
+    };
+    window.onunhandledrejection = function(event) {
+      var reason = event && event.reason;
+      console.error('[Guardline Promise]', reason);
+      if (typeof showToast === 'function') showToast('error', 'Falha assíncrona', ((reason && reason.message) || 'Erro desconhecido').substring(0, 120));
+    };
+
+    function guardlineShowDemoBanner() {
+      if (document.getElementById('guardline-demo-banner')) return;
+      var banner = document.createElement('div');
+      banner.id = 'guardline-demo-banner';
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(251,146,60,0.15);border-bottom:1px solid rgba(251,146,60,0.5);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#fb923c;backdrop-filter:blur(4px)';
+      banner.innerHTML = '<span>⚠️ <strong>Supabase não configurado</strong> — KPIs via API Railway. Configure <code>GUARDLINE_SUPABASE_URL</code> e <code>GUARDLINE_SUPABASE_ANON_KEY</code> para acesso direto ao DB.</span>' +
+        '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fb923c;cursor:pointer;font-size:16px;padding:0 4px">×</button>';
+      document.body.prepend(banner);
+    }
+
     async function initGuardlineApp() {
       var params = new URLSearchParams(window.location.search || '');
       if (params.get('gmail') === 'connected') {
@@ -5947,6 +5970,11 @@
         var res = await API.get('/auth/me', { silent: true });
         Auth.setUser(res.data.user || res.data);
         showDashboard();
+        if (!CONFIG.supabase.url || !CONFIG.supabase.key) {
+          console.warn('[Guardline] Supabase não configurado — modo demonstração');
+          document.body.setAttribute('data-mode', 'demo');
+          guardlineShowDemoBanner();
+        }
         var gateOk = typeof guardlineRunOnboardingGate === 'function' ? await guardlineRunOnboardingGate() : true;
         if (!gateOk) return;
         navigateTo('command', true);
@@ -6216,7 +6244,8 @@
       ctx.fillText(label, cx, cy + 28);
     }
 
-    var FORECAST_TODAY_INDEX = 45;
+    var FORECAST_START_DATE = new Date('2025-12-30');
+    var FORECAST_TODAY_INDEX = Math.max(0, Math.floor((Date.now() - FORECAST_START_DATE.getTime()) / 86400000));
 
     function registerTodayLinePlugin() {
       if (todayLinePluginRegistered || typeof Chart === 'undefined') return;
@@ -14295,9 +14324,12 @@
 
   async function loadNewsFeeds() {
     const allItems = [];
+    const cutoff30d = new Date(Date.now() - 30 * 86400000);
     for (const feed of CFG.RSS_FEEDS) {
       const items = await fetchRSS(feed.url);
-      items.slice(0, 6).forEach(item => {
+      items.forEach(item => {
+        const pubDate = item.pubDate ? new Date(item.pubDate) : null;
+        if (pubDate && pubDate < cutoff30d) return;
         allItems.push({
           id: item.guid || item.link, title: item.title,
           description: (item.description || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...',
