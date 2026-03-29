@@ -164,7 +164,11 @@ app.get('/health/data', (req, res) => {
   proxyToDataApi(req, res, '/health');
 });
 
-const frontendDir = path.join(__dirname, '..', '..', 'frontend');
+const embeddedFrontendDir = path.join(__dirname, '..', 'public');
+const siblingFrontendDir = path.join(__dirname, '..', '..', 'frontend');
+const frontendDir = require('fs').existsSync(path.join(embeddedFrontendDir, 'guardline.html'))
+  ? embeddedFrontendDir
+  : siblingFrontendDir;
 app.use(express.static(frontendDir));
 
 // Serve uploaded documents
