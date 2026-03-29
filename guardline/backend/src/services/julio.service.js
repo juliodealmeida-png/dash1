@@ -106,35 +106,62 @@ async function nvidiaChatStream(messages, maxTokens = 600, onChunk) {
   return full;
 }
 
-const JULIO_SYSTEM_PROMPT = `
-Você é Julio, o AI Revenue Intelligence do Guardline Revenue OS.
-Seu papel é ser o Chief of Staff de Receita do usuário.
+function buildJulioSystemPrompt() {
+  const hour = new Date().getHours();
+  let greeting;
+  if (hour >= 5 && hour < 12) {
+    greeting = 'Bom dia! ☀️ Pipeline fresco para analisar — vamos nessa.';
+  } else if (hour >= 12 && hour < 18) {
+    greeting = 'Boa tarde! ⚡ Metade do dia passou — hora de garantir o forecast.';
+  } else if (hour >= 18 && hour < 23) {
+    greeting = 'Boa noite! 🌙 Revisão do dia — o que fechou, o que precisa de push amanhã.';
+  } else {
+    greeting = 'Madrugada produtiva! 🦉 Pipeline não dorme, então eu também não.';
+  }
 
-SUAS RESPONSABILIDADES PRINCIPAIS:
-1. Analisar o pipeline e identificar riscos antes que o usuário perceba
-2. Narrar mudanças de forecast em linguagem humana, não apenas números
-3. Recomendar próximas ações específicas e acionáveis, não genéricas
-4. Detectar padrões em dados históricos de perda e oportunidade
-5. Preparar o usuário para conversas com investidores
+  return `Você é Júlio, o Chief of Staff de Receita do Guardline Revenue OS.
+${greeting}
 
-ESTILO DE COMUNICAÇÃO:
-- Direto ao ponto. Sem enrolação.
-- Linguagem de startup operator, não de consultor
-- Números sempre em contexto (não "Win Rate: 28%", mas "28% — 6pp abaixo do mês passado")
-- Prioridades sempre claras: o que fazer AGORA vs. pode esperar
-- Honesto sobre riscos, mesmo quando são incômodos
+PERSONALIDADE:
+- Inteligente, descontraído, empático, direto e proativo
+- Fala como um sócio que conhece cada deal de cor, não como um consultor
+- Honesto mesmo quando o diagnóstico é ruim: não bajula, não suaviza riscos reais
+- Responde QUALQUER pergunta — vendas, vida pessoal, culinária, piadas, o que for
+  Se for fora do contexto de negócios, responde de forma leve e depois volta ao ponto
+- Usa linguagem de startup operator: "prioridade 1", "needle mover", "closing rate"
 
-FORMATO DAS RESPOSTAS NO CHAT:
-- Máximo 300 palavras por resposta
-- Use **negrito** (markdown) para números e nomes de empresas
-- Termine com UMA ação concreta recomendada
-- Quando relevante, mencione o deal específico pelo nome da empresa
+MEDDPICC — FRAMEWORK COMPLETO (7 dimensões com pesos):
+| Dimensão          | Peso | O que avalia                                      |
+|-------------------|------|---------------------------------------------------|
+| Metrics           | 20%  | ROI/valor quantificado para o comprador           |
+| Economic Buyer    | 20%  | Acesso ao decisor com orçamento real              |
+| Decision Criteria | 15%  | Critérios formais/informais de decisão conhecidos |
+| Decision Process  | 15%  | Passos e timeline do processo de compra mapeados  |
+| Paper Process     | 10%  | Jurídico, procurement, assinaturas mapeados       |
+| Identify Pain     | 10%  | Dor crítica confirmada e quantificada             |
+| Champion          | 10%  | Campeão interno identificado e treinado           |
+| Competition       | (bônus) | Competidores mapeados e diferenciação clara   |
+
+Score total = média ponderada de 0-100 de cada dimensão.
+Top 3 gaps = dimensões com menor score → maior risco de perda.
+
+FORMATO DAS RESPOSTAS:
+- Máximo 280 palavras para respostas de chat
+- **Negrito** para números, empresas e termos de ação
+- Termine com UMA próxima ação concreta
+- Para análises MEDDPICC: retorne JSON estruturado quando solicitado
+
+CONTEXTO INJETADO DINAMICAMENTE:
+- Hora atual: ${new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+- Pipeline, deals, win rate, ARR e fraudes são fornecidos abaixo
 
 RESTRIÇÕES:
-- Nunca invente dados. Só use os dados do pipeline fornecidos no contexto
-- Se não tiver dados suficientes para uma análise, diga claramente
-- Não seja bajulador. Se o pipeline está ruim, diga que está ruim
+- Nunca invente dados não presentes no contexto
+- Se dados insuficientes: diga claramente e peça informação específica
 `.trim();
+}
+
+const JULIO_SYSTEM_PROMPT = buildJulioSystemPrompt();
 
 function extractJsonObject(text) {
   const m = String(text).match(/\{[\s\S]*\}/);
@@ -336,7 +363,7 @@ async function chatWithJulio(userId, conversationId, userMessage) {
   messages = sanitizeApiMessages(messages);
 
   const fullMessages = [
-    { role: 'system', content: `${JULIO_SYSTEM_PROMPT}\n\n${context}` },
+    { role: 'system', content: `${buildJulioSystemPrompt()}\n\n${context}` },
     ...messages,
     { role: 'user', content: userMessage },
   ];
@@ -362,12 +389,12 @@ async function streamJulioChat(userId, conversationId, userMessage, onChunk) {
   messages = sanitizeApiMessages(messages);
 
   const fullMessages = [
-    { role: 'system', content: `${JULIO_SYSTEM_PROMPT}\n\n${context}` },
+    { role: 'system', content: `${buildJulioSystemPrompt()}\n\n${context}` },
     ...messages,
     { role: 'user', content: userMessage },
   ];
 
-  const fullText = await nvidiaChatStream(fullMessages, 600, onChunk);
+  const fullText = await nvidiaChatStream(fullMessages, parseInt(process.env.AI_MAX_TOKENS) || 16384, onChunk);
 
   messages.push({ role: 'user', content: userMessage });
   messages.push({ role: 'assistant', content: fullText });
@@ -464,7 +491,7 @@ async function listConversations(userId, take = 30) {
     where: { userId },
     orderBy: { updatedAt: 'desc' },
     take,
-    select: { id: true, title: true, createdAt: true, updatedAt: true },
+    select: { id: true, title: true, createdAt: true, updatedAt: true, context: true },
   });
 }
 
@@ -481,8 +508,241 @@ async function getLatestBrief(userId) {
   });
 }
 
+/**
+ * Analyze a deal's MEDDPICC score using AI.
+ * Saves to deal_meddpicc_scores + history.
+ */
+async function analyzeDealMeddpicc(userId, dealId) {
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
+
+  const deal = await prisma.deal.findFirst({
+    where: { id: dealId, ownerId: userId, deletedAt: null },
+    include: {
+      activities: { orderBy: { date: 'desc' }, take: 5 },
+      emails: { orderBy: { receivedAt: 'desc' }, take: 3 },
+    },
+  });
+  if (!deal) throw new Error('Deal não encontrado');
+
+  const dealContext = `
+Deal: ${deal.companyName}
+Valor: $${deal.value.toLocaleString('pt-BR')}
+Estágio: ${deal.stage}
+Probabilidade: ${deal.probability}%
+Risk Score: ${deal.riskScore}/100
+Contato: ${deal.contactName || 'não registrado'} (${deal.contactEmail || 'sem email'})
+Notas: ${deal.notes || 'nenhuma'}
+MEDDPICC atual: ${deal.meddpicc || 'não preenchido'}
+Último contato: ${deal.lastContactAt ? new Date(deal.lastContactAt).toLocaleDateString('pt-BR') : 'nunca'}
+Atividades recentes: ${deal.activities.map((a) => a.title).join('; ') || 'nenhuma'}
+`.trim();
+
+  const prompt = `${dealContext}
+
+Analise este deal pelo framework MEDDPICC com 7 dimensões. Retorne SOMENTE este JSON:
+
+{
+  "metrics": { "score": 0-100, "explanation": "o que está confirmado e o que falta", "evidence": "evidência do deal ou null" },
+  "economicBuyer": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "decisionCriteria": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "decisionProcess": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "paperProcess": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "identifyPain": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "champion": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "competition": { "score": 0-100, "explanation": "...", "evidence": "..." },
+  "totalScore": 0-100,
+  "top3Gaps": ["gap1", "gap2", "gap3"],
+  "recommendation": "ação específica mais urgente em 1-2 frases",
+  "riskLevel": "low|medium|high|critical",
+  "forecastImpact": "como este score impacta o forecast"
+}`;
+
+  const raw = await nvidiaChat(
+    [
+      { role: 'system', content: buildJulioSystemPrompt() },
+      { role: 'user', content: prompt },
+    ],
+    1200
+  );
+
+  const analysis = extractJsonObject(raw);
+  if (!analysis) throw new Error('Julio não retornou JSON válido para MEDDPICC');
+
+  const scores = {
+    metricsScore: analysis.metrics?.score || 0,
+    economicBuyerScore: analysis.economicBuyer?.score || 0,
+    decisionCriteriaScore: analysis.decisionCriteria?.score || 0,
+    decisionProcessScore: analysis.decisionProcess?.score || 0,
+    paperProcessScore: analysis.paperProcess?.score || 0,
+    identifyPainScore: analysis.identifyPain?.score || 0,
+    championScore: analysis.champion?.score || 0,
+    competitionScore: analysis.competition?.score || 0,
+    totalScore: analysis.totalScore || 0,
+    analysisJson: JSON.stringify(analysis),
+    top3Gaps: JSON.stringify(analysis.top3Gaps || []),
+    recommendation: analysis.recommendation || '',
+    analyzedAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Upsert score record
+  const existing = await prisma.dealMeddpiccScore.findUnique({ where: { dealId } });
+  const prevTotal = existing?.totalScore || 0;
+
+  await prisma.dealMeddpiccScore.upsert({
+    where: { dealId },
+    create: { dealId, ...scores },
+    update: scores,
+  });
+
+  // Save history entry
+  await prisma.dealMeddpiccHistory.create({
+    data: {
+      dealId,
+      totalScore: scores.totalScore,
+      deltaScore: scores.totalScore - prevTotal,
+      analysisJson: JSON.stringify(analysis),
+      triggeredBy: userId,
+    },
+  });
+
+  return { dealId, ...analysis };
+}
+
+/**
+ * Get MEDDPICC history for a deal.
+ */
+async function getDealMeddpiccHistory(dealId, take = 10) {
+  return prisma.dealMeddpiccHistory.findMany({
+    where: { dealId },
+    orderBy: { createdAt: 'desc' },
+    take,
+  });
+}
+
+/**
+ * Get all active deals MEDDPICC scores for dashboard.
+ */
+async function getMeddpiccDashboard(userId) {
+  const deals = await prisma.deal.findMany({
+    where: { ownerId: userId, deletedAt: null, stage: { notIn: ['won', 'lost'] } },
+    include: { meddpiccScore: true },
+    orderBy: { riskScore: 'desc' },
+    take: 50,
+  });
+
+  return deals.map((d) => ({
+    id: d.id,
+    companyName: d.companyName,
+    value: d.value,
+    stage: d.stage,
+    riskScore: d.riskScore,
+    meddpicc: d.meddpiccScore
+      ? {
+          totalScore: d.meddpiccScore.totalScore,
+          metricsScore: d.meddpiccScore.metricsScore,
+          economicBuyerScore: d.meddpiccScore.economicBuyerScore,
+          decisionCriteriaScore: d.meddpiccScore.decisionCriteriaScore,
+          decisionProcessScore: d.meddpiccScore.decisionProcessScore,
+          paperProcessScore: d.meddpiccScore.paperProcessScore,
+          identifyPainScore: d.meddpiccScore.identifyPainScore,
+          championScore: d.meddpiccScore.championScore,
+          competitionScore: d.meddpiccScore.competitionScore,
+          top3Gaps: (() => { try { return JSON.parse(d.meddpiccScore.top3Gaps || '[]'); } catch { return []; } })(),
+          recommendation: d.meddpiccScore.recommendation,
+          analyzedAt: d.meddpiccScore.analyzedAt,
+        }
+      : null,
+  }));
+}
+
+/**
+ * Analyze a document with AI: summary, risks, key clauses.
+ */
+async function analyzeDocument(userId, docName, docContent) {
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
+
+  const contentPreview = String(docContent || '').slice(0, 8000);
+
+  const prompt = `Analise este documento jurídico/comercial e retorne SOMENTE este JSON:
+
+Documento: "${docName}"
+Conteúdo:
+${contentPreview}
+
+{
+  "summary": "resumo executivo em 3-4 frases",
+  "documentType": "tipo do documento (NDA, contrato, proposta, etc.)",
+  "keyParties": ["parte1", "parte2"],
+  "keyDates": [{"label": "Vigência", "date": "..."}],
+  "keyObligations": ["obrigação 1", "obrigação 2"],
+  "risks": [
+    {"level": "high|medium|low", "description": "descrição do risco", "clause": "cláusula relacionada ou null"}
+  ],
+  "missingClauses": ["cláusula que deveria estar mas não está"],
+  "negotiationPoints": ["ponto 1 para negociar"],
+  "overallRisk": "low|medium|high|critical",
+  "recommendation": "ação recomendada em 1-2 frases"
+}`;
+
+  const raw = await nvidiaChat(
+    [
+      { role: 'system', content: buildJulioSystemPrompt() },
+      { role: 'user', content: prompt },
+    ],
+    1500
+  );
+
+  const analysis = extractJsonObject(raw);
+  if (!analysis) return { raw, summary: 'Análise concluída.', risks: [], overallRisk: 'unknown' };
+  return analysis;
+}
+
+/**
+ * Generate a document from a natural language prompt.
+ */
+async function generateDocument(userId, prompt, documentType) {
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
+
+  const systemMsg = `Você é um advogado especialista em contratos empresariais brasileiros e internacionais.
+Gere documentos juridicamente sólidos, em português do Brasil, seguindo as melhores práticas.
+Formato: Markdown estruturado com cabeçalhos, cláusulas numeradas e campos variáveis entre [COLCHETES].`;
+
+  const fullPrompt = `Tipo de documento: ${documentType || 'contrato'}
+Instrução: ${prompt}
+
+Gere o documento completo, profissional e pronto para uso, com todos os campos necessários.`;
+
+  return nvidiaChat(
+    [
+      { role: 'system', content: systemMsg },
+      { role: 'user', content: fullPrompt },
+    ],
+    4000
+  );
+}
+
+/**
+ * Log AI usage for billing/monitoring.
+ */
+async function logUsage(userId, type, metadata = {}) {
+  try {
+    await prisma.julioUsageLog.create({
+      data: {
+        userId,
+        type,
+        model: getModel(),
+        metadata: JSON.stringify(metadata),
+      },
+    });
+  } catch {
+    // non-critical — never throw
+  }
+}
+
 module.exports = {
   JULIO_SYSTEM_PROMPT,
+  buildJulioSystemPrompt,
   isConfigured,
   getModel,
   buildPipelineContext,
@@ -494,4 +754,10 @@ module.exports = {
   listConversations,
   getConversation,
   getLatestBrief,
+  analyzeDealMeddpicc,
+  getDealMeddpiccHistory,
+  getMeddpiccDashboard,
+  analyzeDocument,
+  generateDocument,
+  logUsage,
 };

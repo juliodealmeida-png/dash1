@@ -145,9 +145,12 @@ async function renderDocumentsScreen() {
 
     area.innerHTML =
       '<div class="pipeline-page-wrap">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">' +
       '<h2 style="margin:0">Documentos & Assinatura Digital</h2>' +
-      '<button type="button" class="act-btn" style="background:var(--gradient-purple);color:white;border:none;padding:10px 20px;font-size:13px" onclick="docShowCreateModal()">+ Novo documento</button></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+      '<button type="button" class="act-btn" style="font-size:12px;background:rgba(124,58,237,0.2);border-color:rgba(124,58,237,0.4);color:var(--accent-purple-light)" onclick="docJulioGenerateModal()">✨ Gerar com Júlio AI</button>' +
+      '<button type="button" class="act-btn" style="background:var(--gradient-purple);color:white;border:none;padding:10px 20px;font-size:13px" onclick="docShowCreateModal()">+ Novo documento</button>' +
+      '</div></div>' +
       kpiRow +
       (docCards || '<div class="card" style="padding:40px;text-align:center;color:var(--text-muted)">Nenhum documento. Clique em "+ Novo documento" para começar.</div>') +
       '</div>';
@@ -337,12 +340,169 @@ function docAskJulio(docId, docName, docStatus) {
     completed: 'Concluído', expired: 'Expirado', cancelled: 'Cancelado', refused: 'Recusado',
   };
   var statusPt = statusLabels[docStatus] || docStatus;
-  var prompt = 'Tenho um documento chamado "' + docName + '" com status "' + statusPt + '". ' +
-    'Pode me ajudar a entender o status, sugerir próximos passos ou resumir o conteúdo?';
-  if (typeof julioFloatOpen === 'function') {
-    julioFloatOpen(prompt);
-  } else if (typeof navigateTo === 'function') {
-    navigateTo('julio');
+
+  // Build Julio AI panel modal
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7)';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML =
+    '<div style="width:min(580px,94vw);max-height:90vh;overflow-y:auto;background:var(--bg-elevated);border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,0.5)">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+    '<div><div style="font-size:16px;font-weight:800;color:var(--text-primary)">🤖 Júlio AI — Documentos</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">' + escapeHtml(docName) + ' · <span style="color:var(--accent-amber)">' + escapeHtml(statusPt) + '</span></div></div>' +
+    '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px">✕</button></div>' +
+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">' +
+    '<button type="button" id="julio-doc-btn-summarize" style="padding:10px 14px;background:rgba(6,182,212,0.15);border:1px solid rgba(6,182,212,0.4);border-radius:10px;color:#06b6d4;font-size:12px;font-weight:700;cursor:pointer;text-align:left" onclick="docJulioAction(\'' + docId + '\',\'' + escapeHtml(docName).replace(/'/g,"\\'") + '\',\'summarize\',\'julio-doc-result\')">📝 Resumir documento<br><span style="font-size:10px;font-weight:400;opacity:0.8">Extraia pontos-chave e cláusulas principais</span></button>' +
+    '<button type="button" id="julio-doc-btn-risks" style="padding:10px 14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;color:#ef4444;font-size:12px;font-weight:700;cursor:pointer;text-align:left" onclick="docJulioAction(\'' + docId + '\',\'' + escapeHtml(docName).replace(/'/g,"\\'") + '\',\'risks\',\'julio-doc-result\')">⚠ Detectar riscos<br><span style="font-size:10px;font-weight:400;opacity:0.8">Identifique cláusulas problemáticas</span></button>' +
+    '<button type="button" id="julio-doc-btn-nextsteps" style="padding:10px 14px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.3);border-radius:10px;color:var(--accent-purple-light);font-size:12px;font-weight:700;cursor:pointer;text-align:left" onclick="docJulioAction(\'' + docId + '\',\'' + escapeHtml(docName).replace(/'/g,"\\'") + '\',\'nextsteps\',\'julio-doc-result\')">🎯 Próximas ações<br><span style="font-size:10px;font-weight:400;opacity:0.8">O que fazer agora para avançar</span></button>' +
+    '<button type="button" id="julio-doc-btn-negotiate" style="padding:10px 14px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;color:#10b981;font-size:12px;font-weight:700;cursor:pointer;text-align:left" onclick="docJulioAction(\'' + docId + '\',\'' + escapeHtml(docName).replace(/'/g,"\\'") + '\',\'negotiate\',\'julio-doc-result\')">💰 Dicas de negociação<br><span style="font-size:10px;font-weight:400;opacity:0.8">Sugestões para melhorar termos</span></button>' +
+    '</div>' +
+
+    '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Ou pergunte algo específico</div>' +
+    '<div style="display:flex;gap:8px">' +
+    '<input id="julio-doc-custom-ask" type="text" placeholder="Ex: Qual é o prazo de vigência deste contrato?" style="flex:1;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:inherit" />' +
+    '<button type="button" style="padding:10px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:8px;color:white;font-size:13px;font-weight:700;cursor:pointer" onclick="(function(){var v=document.getElementById(\'julio-doc-custom-ask\').value.trim();if(!v)return;if(typeof julioFloatOpen===\'function\')julioFloatOpen(\'Sobre o documento "\'+' + JSON.stringify(docName) + '+\'": \'+v);})()">→</button>' +
+    '</div></div>' +
+
+    '<div id="julio-doc-result" style="min-height:40px"></div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+async function docJulioAction(docId, docName, actionType, resultSlotId) {
+  var slot = document.getElementById(resultSlotId);
+  if (!slot) return;
+
+  // Disable all action buttons
+  ['summarize','risks','nextsteps','negotiate'].forEach(function(a) {
+    var b = document.getElementById('julio-doc-btn-' + a);
+    if (b) { b.disabled = true; b.style.opacity = '0.5'; }
+  });
+
+  slot.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px"><div class="loading-spinner" style="display:inline-block;margin-right:8px"></div>Júlio está analisando o documento…</div>';
+
+  var promptMap = {
+    summarize: 'Resuma o documento "' + docName + '" em bullet points: partes envolvidas, objeto, prazo, valor, obrigações principais e pontos de atenção.',
+    risks: 'Analise o documento "' + docName + '" e identifique os 5 maiores riscos jurídicos e comerciais. Para cada risco, explique o impacto e sugira como mitigar.',
+    nextsteps: 'O documento "' + docName + '" está com status atual. Quais são as 3 próximas ações mais importantes para avançar esse contrato até a assinatura?',
+    negotiate: 'Com base no documento "' + docName + '", quais cláusulas têm mais espaço para negociação? Dê sugestões específicas para melhorar os termos em favor do vendedor.',
+  };
+
+  var prompt = promptMap[actionType] || ('Analise o documento "' + docName + '".');
+
+  try {
+    var base = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.GUARDLINE_API_BASE;
+    var token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+    var res = await fetch(base + '/julio/document/analyze', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+      body: JSON.stringify({ docName: docName, docContent: prompt }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.success) throw new Error((data && data.error) || 'Erro na análise');
+    var analysis = data.data || {};
+
+    // Render result
+    var html = '<div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:10px;padding:14px;margin-top:4px">';
+    if (analysis.summary) html += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:var(--accent-cyan);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Resumo</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.7">' + escapeHtml(analysis.summary) + '</div></div>';
+    if (analysis.risks && analysis.risks.length) {
+      html += '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Riscos detectados</div>';
+      analysis.risks.forEach(function(r) {
+        html += '<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px"><span style="color:#ef4444;font-weight:700;flex-shrink:0">•</span><span style="font-size:12px;color:var(--text-secondary)">' + escapeHtml(String(r)) + '</span></div>';
+      });
+      html += '</div>';
+    }
+    if (analysis.recommendations && analysis.recommendations.length) {
+      html += '<div><div style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Recomendações</div>';
+      analysis.recommendations.forEach(function(r) {
+        html += '<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px"><span style="color:#10b981;font-weight:700;flex-shrink:0">→</span><span style="font-size:12px;color:var(--text-secondary)">' + escapeHtml(String(r)) + '</span></div>';
+      });
+      html += '</div>';
+    }
+    if (!analysis.summary && !analysis.risks && !analysis.recommendations) {
+      html += '<div style="font-size:12px;color:var(--text-secondary);line-height:1.7">Resultado vazio — tente novamente ou pergunte via chat.</div>';
+    }
+    html += '</div>';
+    slot.innerHTML = html;
+  } catch (e) {
+    slot.innerHTML = '<div style="padding:10px;color:#ef4444;font-size:12px">⚠ ' + escapeHtml((e && e.message) || String(e)) + '</div>';
+  } finally {
+    ['summarize','risks','nextsteps','negotiate'].forEach(function(a) {
+      var b = document.getElementById('julio-doc-btn-' + a);
+      if (b) { b.disabled = false; b.style.opacity = '1'; }
+    });
+  }
+}
+
+function docJulioGenerateModal() {
+  var overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7)';
+  overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML =
+    '<div style="width:min(600px,94vw);max-height:90vh;overflow-y:auto;background:var(--bg-elevated);border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,0.5)">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+    '<div><div style="font-size:16px;font-weight:800;color:var(--text-primary)">✨ Gerar Documento com Júlio AI</div>' +
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">Descreva o documento que precisa e o Júlio o cria para você</div></div>' +
+    '<button onclick="this.closest(\'div[style*=fixed]\').remove()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px;padding:4px">✕</button></div>' +
+
+    '<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Tipo de documento</label>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap" id="julio-gen-type-pills">' +
+    ['Contrato de Serviço','NDA','Proposta Comercial','Termo de Uso','SLA','LOI','MSA','Adendo'].map(function(t) {
+      return '<button type="button" onclick="document.getElementById(\'julio-gen-type\').value=\'' + t + '\';this.parentElement.querySelectorAll(\'button\').forEach(function(b){b.style.background=\'var(--bg-surface)\';b.style.color=\'var(--text-secondary)\'});this.style.background=\'rgba(124,58,237,0.25)\';this.style.color=\'var(--accent-purple-light)\'" style="padding:5px 12px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:20px;color:var(--text-secondary);font-size:11px;cursor:pointer">' + escapeHtml(t) + '</button>';
+    }).join('') +
+    '</div>' +
+    '<input id="julio-gen-type" type="text" placeholder="Ou descreva o tipo..." style="margin-top:8px;width:100%;padding:8px 12px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:inherit" /></div>' +
+
+    '<div style="margin-bottom:12px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:6px">Descreva o que precisa *</label>' +
+    '<textarea id="julio-gen-prompt" rows="5" placeholder="Ex: Crie um contrato de prestação de serviços de software entre minha empresa (Guardline Ltda) e cliente (ACME Corp), com valor mensal de R$ 5.000, prazo de 12 meses, cláusula de confidencialidade e SLA de 99.5% de uptime." style="width:100%;padding:10px 12px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:8px;color:var(--text-primary);font-size:13px;font-family:inherit;resize:vertical"></textarea></div>' +
+
+    '<div id="julio-gen-result" style="min-height:20px;margin-bottom:12px"></div>' +
+
+    '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+    '<button type="button" class="act-btn" onclick="this.closest(\'div[style*=fixed]\').remove()">Cancelar</button>' +
+    '<button type="button" id="julio-gen-submit" style="padding:10px 24px;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;border-radius:8px;color:white;font-size:13px;font-weight:700;cursor:pointer" onclick="docJulioGenSubmit()">✨ Gerar documento</button>' +
+    '</div></div>';
+
+  document.body.appendChild(overlay);
+}
+
+async function docJulioGenSubmit() {
+  var prompt = (document.getElementById('julio-gen-prompt') || {}).value || '';
+  var docType = (document.getElementById('julio-gen-type') || {}).value || 'contrato';
+  var slot = document.getElementById('julio-gen-result');
+  var btn = document.getElementById('julio-gen-submit');
+  if (!prompt.trim()) { if (typeof showToast === 'function') showToast('error', 'Gerar', 'Descreva o documento'); return; }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Gerando…'; }
+  if (slot) slot.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:12px"><div class="loading-spinner" style="display:inline-block;margin-right:8px"></div>Júlio está escrevendo o documento…</div>';
+  try {
+    var base = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.GUARDLINE_API_BASE;
+    var token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+    var res = await fetch(base + '/julio/document/generate', {
+      method: 'POST',
+      headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+      body: JSON.stringify({ prompt: prompt, documentType: docType }),
+    });
+    var data = await res.json();
+    if (!res.ok || !data.success) throw new Error((data && data.error) || 'Erro na geração');
+    var markdown = (data.data && data.data.markdown) || '';
+    if (slot) {
+      slot.innerHTML =
+        '<div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:10px;padding:14px;margin-top:4px">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">' +
+        '<span style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:1px">✅ Documento gerado</span>' +
+        '<button type="button" onclick="navigator.clipboard.writeText(this.parentElement.nextElementSibling.textContent||this.parentElement.nextElementSibling.innerText).then(function(){if(typeof showToast===\'function\')showToast(\'success\',\'Copiado\',\'Documento copiado!\');})" style="padding:4px 12px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:6px;color:#10b981;font-size:11px;cursor:pointer">📋 Copiar</button>' +
+        '</div>' +
+        '<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;color:var(--text-secondary);line-height:1.7;max-height:400px;overflow-y:auto;font-family:inherit">' + escapeHtml(markdown) + '</pre>' +
+        '</div>';
+    }
+  } catch(e) {
+    if (slot) slot.innerHTML = '<div style="padding:10px;color:#ef4444;font-size:12px">⚠ ' + escapeHtml((e && e.message) || String(e)) + '</div>';
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '✨ Gerar documento'; }
   }
 }
 

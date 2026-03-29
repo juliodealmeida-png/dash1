@@ -35,4 +35,34 @@ router.post('/loss-analysis', requireRole('founder', 'admin'), julio.postLossAna
 
 router.post('/investor-update', requireRole('founder', 'admin'), julio.postInvestorUpdate);
 
+router.post(
+  '/meddpicc/:dealId',
+  [param('dealId').notEmpty()],
+  validateRequest,
+  julio.postMeddpiccAnalyze
+);
+
+router.get(
+  '/meddpicc/:dealId/history',
+  [param('dealId').notEmpty()],
+  validateRequest,
+  julio.getMeddpiccHistory
+);
+
+router.get('/meddpicc-dashboard', julio.getMeddpiccDashboard);
+
+router.post(
+  '/document/analyze',
+  [body('docName').trim().notEmpty(), body('docContent').optional()],
+  validateRequest,
+  julio.postDocumentAnalyze
+);
+
+router.post(
+  '/document/generate',
+  [body('prompt').trim().notEmpty(), body('documentType').optional().trim()],
+  validateRequest,
+  julio.postDocumentGenerate
+);
+
 module.exports = router;

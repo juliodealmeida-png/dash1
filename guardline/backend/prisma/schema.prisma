@@ -81,6 +81,7 @@ model Deal {
   emails         DealEmail[]
   signals        Signal[]
   automationLogs AutomationLog[]
+  meddpiccScore  DealMeddpiccScore?
 
   @@map("deals")
 }
@@ -273,10 +274,59 @@ model JulioConversation {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  String
   title     String?
+  context   String?  // optional deal/doc context injected
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("julio_conversations")
+}
+
+model JulioUsageLog {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String   // chat | brief | meddpicc | document_analyze | document_generate | loss_analysis | investor_update
+  tokensIn    Int      @default(0)
+  tokensOut   Int      @default(0)
+  latencyMs   Int?
+  model       String?
+  metadata    String?  // JSON: dealId, docId, conversationId, etc.
+  createdAt   DateTime @default(now())
+
+  @@map("julio_usage_logs")
+}
+
+model DealMeddpiccScore {
+  id            String   @id @default(cuid())
+  dealId        String   @unique
+  deal          Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  metricsScore       Int @default(0)
+  economicBuyerScore Int @default(0)
+  decisionCriteriaScore Int @default(0)
+  decisionProcessScore  Int @default(0)
+  paperProcessScore     Int @default(0)
+  identifyPainScore     Int @default(0)
+  championScore         Int @default(0)
+  competitionScore      Int @default(0)
+  totalScore    Int      @default(0)
+  analysisJson  String?  // full AI analysis JSON
+  top3Gaps      String?  // JSON array of top gap strings
+  recommendation String?
+  analyzedAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("deal_meddpicc_scores")
+}
+
+model DealMeddpiccHistory {
+  id            String   @id @default(cuid())
+  dealId        String
+  totalScore    Int
+  deltaScore    Int      @default(0)  // change from previous
+  analysisJson  String?
+  triggeredBy   String?  // user_id or "auto"
+  createdAt     DateTime @default(now())
+
+  @@map("deal_meddpicc_history")
 }
 
 // ──────────────────────────────────

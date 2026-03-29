@@ -122,6 +122,7 @@ async function postLossAnalysis(req, res, next) {
   try {
     if (!requireJulio(res)) return;
     const data = await julio.analyzeLossPatterns(req.user.id);
+    julio.logUsage(req.user.id, 'loss_analysis');
     return ok(res, data);
   } catch (e) {
     next(e);
@@ -132,6 +133,66 @@ async function postInvestorUpdate(req, res, next) {
   try {
     if (!requireJulio(res)) return;
     const markdown = await julio.generateInvestorUpdate(req.user.id);
+    julio.logUsage(req.user.id, 'investor_update');
+    return ok(res, { markdown });
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function postMeddpiccAnalyze(req, res, next) {
+  try {
+    if (!requireJulio(res)) return;
+    const { dealId } = req.params;
+    if (!dealId) return fail(res, 400, 'dealId obrigatório', 'VALIDATION_ERROR');
+    const result = await julio.analyzeDealMeddpicc(req.user.id, dealId);
+    julio.logUsage(req.user.id, 'meddpicc', { dealId });
+    return ok(res, result);
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function getMeddpiccHistory(req, res, next) {
+  try {
+    const { dealId } = req.params;
+    const take = Math.min(parseInt(req.query.take) || 10, 50);
+    const history = await julio.getDealMeddpiccHistory(dealId, take);
+    return ok(res, history);
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function getMeddpiccDashboard(req, res, next) {
+  try {
+    const data = await julio.getMeddpiccDashboard(req.user.id);
+    return ok(res, data);
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function postDocumentAnalyze(req, res, next) {
+  try {
+    if (!requireJulio(res)) return;
+    const { docName, docContent } = req.body;
+    if (!docName) return fail(res, 400, 'docName obrigatório', 'VALIDATION_ERROR');
+    const result = await julio.analyzeDocument(req.user.id, docName, docContent || '');
+    julio.logUsage(req.user.id, 'document_analyze', { docName });
+    return ok(res, result);
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function postDocumentGenerate(req, res, next) {
+  try {
+    if (!requireJulio(res)) return;
+    const { prompt, documentType } = req.body;
+    if (!prompt) return fail(res, 400, 'prompt obrigatório', 'VALIDATION_ERROR');
+    const markdown = await julio.generateDocument(req.user.id, prompt, documentType || 'contrato');
+    julio.logUsage(req.user.id, 'document_generate', { documentType });
     return ok(res, { markdown });
   } catch (e) {
     next(e);
@@ -147,4 +208,9 @@ module.exports = {
   getConversation,
   postLossAnalysis,
   postInvestorUpdate,
+  postMeddpiccAnalyze,
+  getMeddpiccHistory,
+  getMeddpiccDashboard,
+  postDocumentAnalyze,
+  postDocumentGenerate,
 };

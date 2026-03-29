@@ -3678,6 +3678,79 @@
       return renderMeddpiccComponent(meddpicc);
     }
 
+    function renderMeddpiccAiScore(analysis) {
+      if (!analysis) return '';
+      var dims = [
+        { key: 'metrics',         label: 'Metrics',           icon: '📊', weight: 20 },
+        { key: 'economicBuyer',   label: 'Economic Buyer',    icon: '💰', weight: 20 },
+        { key: 'decisionCriteria',label: 'Decision Criteria', icon: '📋', weight: 15 },
+        { key: 'decisionProcess', label: 'Decision Process',  icon: '🗂️', weight: 15 },
+        { key: 'paperProcess',    label: 'Paper Process',     icon: '📝', weight: 10 },
+        { key: 'identifyPain',    label: 'Identify Pain',     icon: '🎯', weight: 10 },
+        { key: 'champion',        label: 'Champion',          icon: '🏆', weight: 10 },
+        { key: 'competition',     label: 'Competition',       icon: '⚔️',  weight: 0  },
+      ];
+      var total = analysis.totalScore || 0;
+      var totalColor = total >= 70 ? '#10b981' : total >= 45 ? '#f59e0b' : '#ef4444';
+      var gaps = analysis.top3Gaps || [];
+      var barsHtml = dims.map(function(d) {
+        var dim = analysis[d.key] || {};
+        var score = dim.score || 0;
+        var barColor = score >= 70 ? '#10b981' : score >= 45 ? '#f59e0b' : '#ef4444';
+        var explanation = escapeHtml((dim.explanation || '').slice(0, 100));
+        return '<div style="margin-bottom:10px">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+          '<span style="font-size:11px;font-weight:700;color:var(--text-primary)">' + d.icon + ' ' + d.label +
+          (d.weight ? ' <span style="color:var(--text-muted);font-weight:400">(' + d.weight + '%)</span>' : '') + '</span>' +
+          '<span style="font-size:12px;font-weight:800;color:' + barColor + '">' + score + '</span></div>' +
+          '<div style="height:6px;background:var(--bg-elevated);border-radius:3px;overflow:hidden">' +
+          '<div style="height:100%;width:' + score + '%;background:' + barColor + ';border-radius:3px;transition:width .6s ease"></div></div>' +
+          (explanation ? '<div style="font-size:10px;color:var(--text-muted);margin-top:3px">' + explanation + '</div>' : '') +
+          '</div>';
+      }).join('');
+      var gapsHtml = gaps.length ? '<div style="margin-top:12px;padding:10px 12px;background:#ef444412;border:1px solid #ef444422;border-radius:8px">' +
+        '<div style="font-size:11px;font-weight:700;color:#ef4444;margin-bottom:6px">⚠ Top 3 Gaps (maior risco de perda)</div>' +
+        gaps.map(function(g) { return '<div style="font-size:11px;color:#94a3b8;margin-bottom:2px">• ' + escapeHtml(String(g)) + '</div>'; }).join('') +
+        '</div>' : '';
+      var recHtml = analysis.recommendation ? '<div style="margin-top:10px;padding:10px 12px;background:rgba(124,58,237,0.1);border:1px solid rgba(124,58,237,0.25);border-radius:8px">' +
+        '<div style="font-size:11px;font-weight:700;color:var(--accent-purple-light);margin-bottom:4px">💡 Ação recomendada</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary)">' + escapeHtml(analysis.recommendation) + '</div></div>' : '';
+      var riskLevel = analysis.riskLevel || 'medium';
+      var riskColor = riskLevel === 'critical' ? '#ef4444' : riskLevel === 'high' ? '#f97316' : riskLevel === 'medium' ? '#f59e0b' : '#10b981';
+
+      return '<div style="background:var(--bg-card);border:1px solid var(--border-default);border-radius:12px;padding:16px;margin-top:14px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<span style="font-size:13px;font-weight:700;color:var(--text-primary)">🤖 MEDDPICC · Análise Júlio AI</span>' +
+        '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="font-size:10px;padding:2px 8px;border-radius:10px;background:' + riskColor + '22;color:' + riskColor + ';font-weight:700">' + riskLevel.toUpperCase() + '</span>' +
+        '<span style="font-size:20px;font-weight:900;color:' + totalColor + '">' + total + '</span>' +
+        '<span style="font-size:11px;color:var(--text-muted)">/100</span></div></div>' +
+        barsHtml + gapsHtml + recHtml + '</div>';
+    }
+
+    async function julioDealMeddpiccAnalyze(dealId, slotId, btnId) {
+      var slot = document.getElementById(slotId);
+      var btn = document.getElementById(btnId);
+      if (!slot) return;
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Analisando…'; }
+      slot.innerHTML = '<div style="padding:20px;text-align:center"><div class="loading-spinner" style="display:inline-block"></div><div style="font-size:12px;color:var(--text-muted);margin-top:8px">Júlio está analisando o MEDDPICC…</div></div>';
+      try {
+        var base = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : window.GUARDLINE_API_BASE;
+        var token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+        var res = await fetch(base + '/julio/meddpicc/' + encodeURIComponent(dealId), {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+        });
+        var data = await res.json();
+        if (!res.ok || !data.success) throw new Error((data && data.error) || 'Erro na análise');
+        slot.innerHTML = renderMeddpiccAiScore(data.data);
+      } catch(e) {
+        slot.innerHTML = '<div style="padding:12px;color:#ef4444;font-size:12px">⚠ ' + escapeHtml((e && e.message) || String(e)) + '</div>';
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🤖 Analisar com Júlio'; }
+      }
+    }
+
     var API_BASE = CONFIG.api.base;
 
     // ════════════════════════════════════════════
@@ -6996,6 +7069,25 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    async function _loadJulioConversations() {
+      try {
+        var res = await API.get('/julio/conversations', { silent: true });
+        return (res && res.data) ? res.data : [];
+      } catch(e) { return []; }
+    }
+
+    function startNewJulioConversation() {
+      window.currentJulioConversationId = null;
+      try { sessionStorage.removeItem(JULIO_CHAT_SESSION_KEY); } catch(e) {}
+      var hist = document.getElementById('julio-chat-history');
+      if (hist) {
+        hist.innerHTML = '<div class="chat-msg julio">Nova conversa iniciada. O que você quer analisar?</div>';
+        hist.scrollTop = hist.scrollHeight;
+      }
+      var titleEl = document.getElementById('julio-conv-title');
+      if (titleEl) titleEl.textContent = 'Nova Conversa';
+    }
+
     async function _loadJulioBriefItems() {
       try {
         var res = await API.get('/julio/brief/latest', { silent: true });
@@ -7021,38 +7113,36 @@
       '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Automações</strong> — 2 falhas noturnas no sync Gmail.</span></summary><div class="bf-body">Ver log em Integrações; reiniciar workflow WF-Sync-02 após reconectar OAuth.</div></details>';
 
     function renderJulio() {
+      var hour = new Date().getHours();
+      var greeting = hour < 12 ? 'Bom dia! ☀️' : hour < 18 ? 'Boa tarde! ⚡' : hour < 23 ? 'Boa noite! 🌙' : 'Madrugada! 🦉';
+
       document.getElementById('content-area').innerHTML =
         '<div class="julio-page-grid">' +
         '<div class="julio-left-col">' +
+
         '<div class="card briefing-full">' +
-        '<div class="card-header"><span class="card-title">Briefing completo</span><span class="card-subtitle">Julio AI · hoje</span>' +
-        '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-brief-refresh-btn\');if(b)b.disabled=true;_loadJulioBriefItems().then(function(h){var slot=document.getElementById(\'julio-brief-items\');if(slot&&h)slot.innerHTML=h;if(b)b.disabled=false;});})()" id="julio-brief-refresh-btn" style="margin-left:auto;font-size:11px">↻ Atualizar</button></div>' +
+        '<div class="card-header"><span class="card-title">Daily Brief</span><span class="card-subtitle">Julio AI · hoje</span>' +
+        '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-brief-refresh-btn\');if(b)b.disabled=true;_loadJulioBriefItems().then(function(h){var slot=document.getElementById(\'julio-brief-items\');if(slot&&h)slot.innerHTML=h;if(b)b.disabled=false;});})()" id="julio-brief-refresh-btn" style="margin-left:auto;font-size:11px">↻ Atualizar</button>' +
+        '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-gen-brief-btn\');if(b)b.disabled=true;API.post(\'/julio/brief\').then(function(r){var brief=r&&r.data&&r.data.brief;if(!brief)return;var slot=document.getElementById(\'julio-brief-items\');if(slot&&brief.items){var prioClass={1:\'p1\',2:\'p2\',3:\'p3\'};var typeLabel={risk:\'Risco\',alert:\'Alerta\',opportunity:\'Oportunidade\',info:\'Info\',celebration:\'🎉\'};slot.innerHTML=brief.items.map(function(item){var cls=prioClass[item.priority]||\'p3\';var lbl=typeLabel[item.type]||item.type;return \'<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio \'+cls+\'">\'+escapeHtml(lbl)+\'</span><span>\'+(item.dealName?\'<strong>\'+escapeHtml(item.dealName)+\'</strong> — \':\'\')+escapeHtml(item.title||\'\')+\'</span></summary><div class="bf-body">\'+escapeHtml(item.detail||\'\')+(item.action?\'<br><em>→ \'+escapeHtml(item.action)+\'</em>\':\'\')+\'</div></details>\';}).join(\'\');}}).catch(function(e){showToast(\'error\',\'Brief\',(e&&e.message)||String(e));}).finally(function(){if(b)b.disabled=false;});})()" id="julio-gen-brief-btn" style="margin-left:4px;font-size:11px;background:var(--accent-purple-dim);color:var(--accent-purple-light)">✨ Gerar novo</button></div>' +
         '<div id="julio-brief-items">' + JULIO_STATIC_BRIEF_HTML + '</div>' +
         '</div>' +
 
         '<div class="card">' +
-        '<div class="card-header"><span class="card-title">Risk Alerts</span></div>' +
-        '<div class="risk-alert-block critical">' +
-        '<div class="risk-alert-title">🔴 CRÍTICO · Deal: Empresa Alfa</div>' +
-        '<div class="risk-alert-text">Sem atividade há 8 dias + proposta não aberta. Probabilidade de perda: 87%</div>' +
-        '<div class="risk-alert-actions"><button type="button" class="primary">Ligar agora</button><button type="button">Enviar email</button></div></div>' +
-        '<div class="risk-alert-block warn">' +
-        '<div class="risk-alert-title">🟡 ATENÇÃO · Deal: Tech Ventures</div>' +
-        '<div class="risk-alert-text">Estagnado em Negociação há 15 dias. Histórico: 80% dos deals perdidos nesta etapa.</div>' +
-        '<div class="risk-alert-actions"><button type="button">Ver deal</button><button type="button">Pedir sugestão ao Julio</button></div></div></div>' +
-
-        '<div class="card">' +
-        '<div class="card-header"><span class="card-title">Forecast Narrative</span><span class="card-subtitle">Semana 12</span></div>' +
-        '<div class="narrative-card">📈 <strong>SEMANA 12 — Forecast Update</strong>\n\n' +
-        'Seu pipeline committed subiu de $58k para $68k (+17%) em relação à semana passada. O principal driver foi o avanço do deal Tech Ventures para a fase de Contrato.\n\n' +
-        '⚠️ <strong>Ponto de atenção:</strong> 3 deals com mais de 20 dias em Proposta. Historicamente, deals nessa situação têm 3× mais chance de serem perdidos.\n\n' +
-        '🎯 Para bater $85k este mês, você precisa fechar pelo menos 2 dos 5 deals em Negociação antes do dia 25. Julio recomenda priorizar: Alfa Solutions e Global Commerce.</div></div>' +
+        '<div class="card-header"><span class="card-title">Histórico de conversas</span>' +
+        '<button type="button" class="act-btn" style="margin-left:auto;font-size:11px;background:var(--accent-purple-dim);color:var(--accent-purple-light)" onclick="startNewJulioConversation()">+ Nova</button></div>' +
+        '<div id="julio-conv-list" style="display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto;padding:4px 0">' +
+        '<div style="font-size:12px;color:var(--text-muted);padding:8px 4px">Carregando conversas…</div>' +
+        '</div></div>' +
 
         '<div class="card">' +
         '<div class="card-header"><span class="card-title">Loss Pattern</span><span class="card-subtitle">Atualizado semanalmente</span></div>' +
         '<div class="loss-pie-wrap">' +
         '<canvas id="loss-pie-chart" width="140" height="140"></canvas>' +
-        '<div class="loss-copy"><strong>67%</strong> das perdas ocorrem quando o follow-up demora mais de 5 dias após envio de proposta. Reduza esse intervalo para mover o needle no win rate.</div></div></div>' +
+        '<div class="loss-copy"><strong>67%</strong> das perdas ocorrem quando o follow-up demora mais de 5 dias após envio de proposta. Reduza esse intervalo para mover o needle no win rate.</div></div>' +
+        '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button type="button" class="act-btn" style="font-size:11px" onclick="julioFloatOpen(\'Analise os padrões de perda do meu pipeline e me dê 3 ações para melhorar\')">🔍 Analisar padrões</button>' +
+        '<button type="button" class="act-btn" style="font-size:11px" onclick="API.post(\'/julio/loss-analysis\').then(function(r){var d=r&&r.data;if(d&&d.patterns)showToast(\'success\',\'Loss Analysis\',\'Razão principal: \'+(d.mainReason||\'ver resultado\'));}).catch(function(e){showToast(\'error\',\'Loss Analysis\',(e&&e.message)||String(e));})">📊 Gerar análise</button>' +
+        '</div></div>' +
 
         '<div class="card">' +
         '<button type="button" class="investor-gen-btn" onclick="openInvestorModal()">📄 Gerar Investor Update</button></div>' +
@@ -7061,18 +7151,23 @@
 
         '<div class="julio-chat-wrap">' +
         '<div class="julio-chat">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border-subtle);flex-shrink:0">' +
+        '<div><div style="font-weight:700;font-size:14px">🤖 Júlio AI <span style="font-size:10px;color:var(--accent-purple-light);font-weight:600">Kimi K2.5</span></div>' +
+        '<div style="font-size:11px;color:var(--text-muted)">' + greeting + ' · <kbd style="font-size:10px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:4px;padding:1px 5px">Ctrl+J</kbd></div></div>' +
+        '<button type="button" class="act-btn" style="font-size:11px" onclick="startNewJulioConversation()">+ Nova conversa</button></div>' +
+        '<div id="julio-conv-title" style="font-size:11px;color:var(--text-muted);padding:6px 16px;border-bottom:1px solid var(--border-subtle);background:var(--bg-surface)">Conversa atual</div>' +
         '<div class="chat-history" id="julio-chat-history">' +
-        '<div class="chat-msg julio">Olá, Julio aqui. Pergunte sobre pipeline, forecast, leads ou peça o <strong>Investor Update</strong>.</div></div>' +
+        '<div class="chat-msg julio">' + greeting + ' Sou o Júlio, seu Chief of Staff de Receita. Posso analisar pipeline, MEDDPICC, criar documentos, narrar o forecast — ou responder qualquer outra pergunta. O que precisa?</div></div>' +
         '<div class="quick-asks">' +
-        '<button type="button" class="quick-chip" data-ask="Quais deals fechar essa semana?">Quais deals fechar essa semana?</button>' +
-        '<button type="button" class="quick-chip" data-ask="Por que minha win rate caiu?">Por que minha win rate caiu?</button>' +
-        '<button type="button" class="quick-chip" data-ask="Gerar investor update">Gerar investor update</button>' +
-        '<button type="button" class="quick-chip" data-ask="Analisar meu pipeline">Analisar meu pipeline</button>' +
-        '<button type="button" class="quick-chip" data-ask="Quais leads priorizar hoje?">Quais leads priorizar hoje?</button>' +
-        '<button type="button" class="quick-chip" data-ask="Qual campanha teve melhor ROI?">Qual campanha teve melhor ROI?</button>' +
+        '<button type="button" class="quick-chip" data-ask="Quais deals tenho mais chance de fechar essa semana?">Deals para fechar essa semana</button>' +
+        '<button type="button" class="quick-chip" data-ask="Por que minha win rate caiu? Analise os dados.">Por que win rate caiu?</button>' +
+        '<button type="button" class="quick-chip" data-ask="Gere um investor update profissional do meu pipeline">Investor Update</button>' +
+        '<button type="button" class="quick-chip" data-ask="Quais são os 3 maiores riscos do meu pipeline agora?">Top 3 riscos do pipeline</button>' +
+        '<button type="button" class="quick-chip" data-ask="Crie um modelo de contrato de prestação de serviços de software">Criar contrato SaaS</button>' +
+        '<button type="button" class="quick-chip" data-ask="Analise meu pipeline completo e me dê o forecast realista para o mês">Forecast realista do mês</button>' +
         '</div>' +
         '<div class="chat-input-area">' +
-        '<input type="text" id="julio-chat-input" placeholder="Pergunte ao Julio…" autocomplete="off" />' +
+        '<input type="text" id="julio-chat-input" placeholder="Pergunte qualquer coisa ao Júlio… (Enter para enviar)" autocomplete="off" />' +
         '<button type="button" class="chat-send-btn" id="julio-chat-send">Enviar</button></div></div></div></div>';
 
       setTimeout(initJulioPage, 0);
@@ -7081,6 +7176,22 @@
           if (!html) return;
           var slot = document.getElementById('julio-brief-items');
           if (slot) slot.innerHTML = html;
+        }).catch(function() {});
+        _loadJulioConversations().then(function(convs) {
+          var listEl = document.getElementById('julio-conv-list');
+          if (!listEl) return;
+          if (!convs || !convs.length) {
+            listEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:8px 4px">Nenhuma conversa anterior.</div>';
+            return;
+          }
+          listEl.innerHTML = convs.slice(0, 15).map(function(c) {
+            var cid = String(c.id || '').replace(/'/g, "\\'");
+            var title = escapeHtml((c.title || 'Sem título').slice(0, 50));
+            var date = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString('pt-BR') : '';
+            return '<div class="deal-row" style="padding:8px 10px;cursor:pointer;border-radius:8px;margin-bottom:2px;font-size:12px" onclick="window.currentJulioConversationId=\'' + cid + '\';var t=document.getElementById(\'julio-conv-title\');if(t)t.textContent=\'' + title.replace(/'/g, "\\'") + '\';API.get(\'/julio/conversations/\'+\'' + cid + '\').then(function(r){if(r&&r.data&&r.data.messages){var h=document.getElementById(\'julio-chat-history\');if(!h)return;h.innerHTML=r.data.messages.map(function(m){return\'<div class="chat-msg \'+(m.role===\'user\'?\'user\':\'julio\')+\'">\'+(m.role===\'user\'?escapeHtml(m.content):m.content)+\'</div>\';}).join(\'\');h.scrollTop=h.scrollHeight;}}).catch(function(){});">' +
+              '<div style="font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + title + '</div>' +
+              '<div style="color:var(--text-muted);font-size:10px;margin-top:2px">' + date + '</div></div>';
+          }).join('');
         }).catch(function() {});
       }
     }
@@ -7371,20 +7482,21 @@
         '<h4 style="margin:20px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">TIMELINE</h4>' +
         tlHtml +
         '<button type="button" class="btn-full" style="margin-top:16px" onclick="guardlineRegisterActivity(\'' + String(deal.id || '').replace(/'/g, "\\'") + '\')">Registrar atividade</button></div>' +
-        '<div class="deal-modal-col"><h4 style="margin:0 0 12px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">JULIO AI — ANÁLISE</h4>' +
-        '<div class="julio-deal-box"><strong>Risk Score: ' +
-        deal.risk +
-        '/100</strong><br/>"' +
-        (ui && ui.julioNote
-          ? escapeHtml(String(ui.julioNote).slice(0, 320))
-          : deal.id === 'D-001'
-            ? '8 dias sem contato, proposta não aberta, historicamente 87% de chance de perda neste cenário'
-            : deal.risk >= 70
-              ? 'Deal com atrito elevado — priorize toque humano nas próximas 48h.'
-              : 'Pipeline saudável para este estágio; mantenha cadência de follow-up.') +
-        '"</div>' +
-        '<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text-primary)">PRÓXIMAS AÇÕES RECOMENDADAS</div>' +
-        '<ol style="font-size:12px;color:var(--text-secondary);line-height:1.6;padding-left:18px"><li>Ligar hoje antes das 14h</li><li>Enviar case study por email</li><li>Agendar demo de 20 min se responder</li></ol>' +
+        '<div class="deal-modal-col">' +
+        '<h4 style="margin:0 0 12px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">JULIO AI — ANÁLISE</h4>' +
+        '<div class="julio-deal-box" style="margin-bottom:12px">' +
+        '<strong>Risk Score: ' + deal.risk + '/100</strong>' +
+        (deal.risk >= 70 ? ' 🔴 Alto risco' : deal.risk >= 40 ? ' 🟡 Risco moderado' : ' 🟢 Saudável') +
+        '</div>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
+        '<button type="button" class="btn-full" id="julio-meddpicc-btn-' + String(deal.id || '').replace(/[^a-zA-Z0-9]/g,'') + '" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);font-size:12px" onclick="julioDealMeddpiccAnalyze(' +
+        '\'' + String(deal.id || '').replace(/'/g, "\\'") + '\'' +
+        ',\'deal-meddpicc-julio-slot\'' +
+        ',\'julio-meddpicc-btn-' + String(deal.id || '').replace(/[^a-zA-Z0-9]/g,'') + '\'' +
+        ')">🤖 Analisar com Júlio (MEDDPICC)</button>' +
+        '<button type="button" class="act-btn" style="font-size:11px" onclick="(function(){var msg=\'Analise o deal ' + escapeHtml(deal.company).replace(/'/g, "\\'") + ' — valor $' + (deal.value||0).toLocaleString('en-US') + ', estágio ' + escapeHtml(deal.stage) + ', risk ' + (deal.risk||0) + '/100. Quais são as 3 ações MAIS urgentes agora?\';if(typeof julioFloatOpen===\'function\')julioFloatOpen(msg);})()">💬 Perguntar ao Júlio</button>' +
+        '</div>' +
+        '<div id="deal-meddpicc-julio-slot" style="min-height:40px"></div>' +
         '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">EMAILS AUTO-LINKADOS (' +
         (deal.emails || []).length +
         ')</h4>' +
@@ -7392,7 +7504,6 @@
         '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">AUTOMAÇÕES DISPARADAS</h4>' +
         autosHtml +
         '<button type="button" class="btn-full" style="margin-top:14px" onclick="guardlineN8nManualShow()">Disparar automação manual</button>' +
-        '<button type="button" class="btn-full" style="margin-top:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5)" onclick="(function(){var d=dealById(\'' + String(deal.id || '').replace(/'/g, "\\'") + '\');if(!d)return;var msg=\'Analise o deal \' + escapeHtml(deal.company) + \' — valor $\' + (deal.value||0).toLocaleString(\'en-US\') + \', estágio \' + escapeHtml(deal.stage) + \', risk score \' + (deal.risk||0) + \'/100. Quais são as 3 ações mais urgentes?\';if(typeof julioFloatOpen===\'function\')julioFloatOpen(msg);else if(typeof navigateTo===\'function\')navigateTo(\'julio\',true);})()">🤖 Perguntar ao Júlio sobre este deal</button>' +
         '<div id="deal-meddpicc-slot"></div><div id="deal-next-questions"></div></div></div>';
 
       document.getElementById('deal-layer-backdrop').classList.add('visible');
@@ -11652,6 +11763,8 @@
               })
               .join('');
             var did = String(d.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            var slotId = 'meddpicc-julio-slot-' + String(d.id || '').replace(/[^a-zA-Z0-9]/g,'');
+            var btnId  = 'meddpicc-julio-btn-'  + String(d.id || '').replace(/[^a-zA-Z0-9]/g,'');
             return (
               '<details class="deal-row" style="display:block;margin-bottom:10px;padding:12px 14px;cursor:pointer;animation:slide-up .35s ease"><summary style="list-style:none;cursor:pointer;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center">' +
               '<div class="risk-badge ' +
@@ -11663,22 +11776,54 @@
               '</div><div style="margin-top:8px">' +
               tagHtml +
               '</div></div><div style="font-size:11px;color:var(--text-muted)">expandir</div></summary>' +
-              '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)"><div class="health-score-bar-track" style="height:10px;border-radius:6px;overflow:hidden;background:var(--bg-surface)"><div style="height:100%;width:' +
-              m.score +
-              '%;background:' +
-              fillGrad +
-              ';border-radius:6px"></div></div><p style="font-size:12px;color:var(--text-secondary);margin:12px 0 0">Faltando: ' +
+              '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle)">' +
+              '<div class="health-score-bar-track" style="height:10px;border-radius:6px;overflow:hidden;background:var(--bg-surface)"><div style="height:100%;width:' +
+              m.score + '%;background:' + fillGrad + ';border-radius:6px"></div></div>' +
+              '<p style="font-size:12px;color:var(--text-secondary);margin:12px 0 8px">Faltando: ' +
               escapeHtml(m.missing.join(', ') || 'nada crítico') +
-              '</p><button type="button" class="act-btn" style="margin-top:10px" onclick="event.stopPropagation();guardlineForecastOpenDeal(\'' +
-              did +
-              "')\">Abrir deal</button></div></details>"
+              '</p>' +
+              '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+              '<button type="button" class="act-btn" style="margin-top:2px" onclick="event.stopPropagation();guardlineForecastOpenDeal(\'' + did + '\')">Abrir deal</button>' +
+              '<button type="button" id="' + btnId + '" class="act-btn" style="margin-top:2px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:11px" onclick="event.stopPropagation();julioDealMeddpiccAnalyze(\'' + did + '\',\'' + slotId + '\',\'' + btnId + '\')">🤖 Analisar com Júlio</button>' +
+              '<button type="button" class="act-btn" style="margin-top:2px;font-size:11px" onclick="event.stopPropagation();if(typeof julioFloatOpen===\'function\')julioFloatOpen(\'Explique os top 3 gaps do MEDDPICC do deal ' + escapeHtml(d.companyName||'').replace(/'/g,"\\'") + ' e me dê ações específicas para fechar cada gap\')">💬 Pedir ações ao Júlio</button>' +
+              '</div>' +
+              '<div id="' + slotId + '"></div>' +
+              '</div></details>'
             );
           })
           .join('');
+        // Compute weakest dimension across all enriched deals
+        var dimKeys = ['M','E','D','D2','P','I','C','C2'];
+        var dimLabels = ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Paper Process','Identify Pain','Champion','Competition'];
+        var dimMissCount = [0,0,0,0,0,0,0,0];
+        enriched.forEach(function(x) {
+          var d = x.d;
+          var checks = [
+            (d.value||0) > 0,
+            !!(d.contactName||d.contactEmail),
+            d.stage !== 'prospecting',
+            d.stage === 'negotiation' || d.stage === 'proposal' || d.stage === 'contract',
+            d.stage === 'contract',
+            !!(d.notes||d.description),
+            (d.probability||0) >= 50,
+            d.source && d.source !== 'other',
+          ];
+          checks.forEach(function(ok, i) { if (!ok) dimMissCount[i]++; });
+        });
+        var sortedDims = dimKeys.map(function(k,i) { return { k:k, label:dimLabels[i], miss:dimMissCount[i], i:i }; })
+          .sort(function(a,b) { return b.miss - a.miss; }).slice(0,4);
+        var filterTabsHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+          '<button type="button" class="act-btn" style="font-size:11px;background:rgba(124,58,237,0.2);color:var(--accent-purple-light)" onclick="this.parentElement.querySelectorAll(\'.act-btn\').forEach(function(b){b.style.opacity=\'0.5\'});this.style.opacity=\'1\';document.querySelectorAll(\'.meddpicc-deal-item\').forEach(function(el){el.style.display=\'block\'})">Todos (' + enriched.length + ')</button>' +
+          sortedDims.map(function(dim) {
+            return '<button type="button" class="act-btn" style="font-size:11px;opacity:0.7" onclick="this.style.opacity=\'1\'" title="Dimensão mais fraca">⚠ ' + escapeHtml(dim.label) + ' (' + dim.miss + ')</button>';
+          }).join('') +
+          '<button type="button" class="act-btn" style="font-size:11px;margin-left:auto;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff" onclick="if(typeof julioFloatOpen===\'function\')julioFloatOpen(\'Analise o MEDDPICC de todo o meu pipeline. Qual dimensão está mais fraca? Dê um plano de ação priorizado por impacto no revenue.\')">🤖 Analisar pipeline MEDDPICC</button>' +
+          '</div>';
+
         area.innerHTML =
-          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 8px">MEDDPICC</h2><p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">Média do pipeline: ' +
-          avg +
-          '%</p>' +
+          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 4px">MEDDPICC</h2>' +
+          '<p style="font-size:13px;color:var(--text-muted);margin:0 0 12px">Média do pipeline: ' + avg + '% · ' + enriched.length + ' deals ativos</p>' +
+          filterTabsHtml +
           '<div class="card" style="margin-bottom:16px;animation:slide-up .35s ease"><div class="card-header"><span class="card-title">Saúde MEDDPICC</span><span class="card-subtitle">Gradiente por completude</span></div>' +
           '<div class="health-score-bar-wrap" style="padding:8px 0 4px"><div class="health-score-bar-label">Média geral · ' +
           avg +
@@ -11687,7 +11832,7 @@
           '%;background:' +
           fillGrad +
           '"></div></div></div>' +
-          '<div class="brief-item info">Distribuição: deals abaixo de 50% precisam de campos econômicos e critérios explícitos.</div></div>' +
+          '<div class="brief-item info">Distribuição: deals abaixo de 50% precisam de campos econômicos e critérios explícitos. Clique em "🤖 Analisar pipeline MEDDPICC" para uma análise completa.</div></div>' +
           '<div class="card" style="padding:14px;animation:slide-up .4s ease">' +
           (html || '<p class="placeholder-note">Nenhum deal aberto.</p>') +
           '</div></div>';
@@ -14076,11 +14221,11 @@
 
         var messages = sessionHistory.concat([{ role: 'user', content: text }]);
 
-        // Determine URL
-        var apiBase = (typeof guardlineDataApiRoot === 'function')
-          ? guardlineDataApiRoot()
-          : (window.GUARDLINE_DATA_API_BASE || window.location.origin + '/api');
-        var julioUrl = apiBase ? (apiBase.replace(/\/$/, '') + '/julio/chat') : '';
+        // Determine URL — Julio is on the main engine, not data API
+        var _julioBase = (typeof API_BASE !== 'undefined' && API_BASE)
+          ? API_BASE
+          : (window.GUARDLINE_API_BASE || (window.location.origin + '/api'));
+        var julioUrl = _julioBase.replace(/\/$/, '') + '/julio/chat';
         var jwtToken = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
 
         if (!julioUrl) {
@@ -14173,6 +14318,7 @@
       window.julioFloatOpen = function (msg) {
         panel.classList.add('open');
         document.getElementById('julio-fab-badge').style.display = 'none';
+        input.focus();
         if (msg) sendMessage(msg);
       };
 
@@ -14182,6 +14328,44 @@
         history.innerHTML = '<div class="jfp-msg julio">Olá! Em que posso ajudar?</div>';
         chipsEl.style.display = 'flex';
       };
+
+      // Ctrl+J / Cmd+J global shortcut
+      document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'j') {
+          e.preventDefault();
+          togglePanel();
+        }
+      });
+
+      // Signal badge: poll unread count every 60s
+      function updateJulioBadge() {
+        try {
+          var base = (typeof API_BASE !== 'undefined' && API_BASE)
+            ? API_BASE : (window.GUARDLINE_API_BASE || '');
+          if (!base) return;
+          var token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+          if (!token) return;
+          fetch(base + '/signals?take=20&read=false', {
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+          }).then(function(r) { return r.ok ? r.json() : null; })
+            .then(function(data) {
+              if (!data) return;
+              var items = (data.data && Array.isArray(data.data)) ? data.data : (Array.isArray(data) ? data : []);
+              var unread = items.filter(function(s) { return !s.read; }).length;
+              var badge = document.getElementById('julio-fab-badge');
+              if (!badge) return;
+              if (unread > 0 && !panel.classList.contains('open')) {
+                badge.textContent = unread > 9 ? '9+' : String(unread);
+                badge.style.display = 'flex';
+              } else {
+                badge.style.display = 'none';
+              }
+            }).catch(function() {});
+        } catch(e) {}
+      }
+      // Run after login is settled
+      setTimeout(updateJulioBadge, 4000);
+      setInterval(updateJulioBadge, 60000);
     })();
   </script>
 
