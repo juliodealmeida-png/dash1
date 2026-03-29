@@ -5718,21 +5718,19 @@
     }
 
     async function streamJulioChat(message, conversationId, onChunk, onDone, onError) {
-      var julioUrl = guardlineAiApiUrl('/julio');
-      if (!julioUrl) {
-        if (onError) onError('API de IA n\u00e3o configurada (defina NVIDIA_API_KEY no servidor)');
+      var apiBase = guardlineDataApiRoot();
+      if (!apiBase) {
+        if (onError) onError('API não configurada');
         return;
       }
-      var history = window.julioAnthropicHistory || [];
-      var messages = history.concat([{ role: 'user', content: message }]);
-      var ctx = '';
-      try { ctx = await buildJulioPipelineContext(); } catch(e) {}
+      var julioUrl = apiBase + '/julio/chat';
+      var token = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
       var res;
       try {
         res = await fetch(julioUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: messages, context: ctx }),
+          headers: Object.assign({ 'Content-Type': 'application/json' }, token ? { 'Authorization': 'Bearer ' + token } : {}),
+          body: JSON.stringify({ message: message, conversationId: conversationId || null }),
         });
       } catch (fetchErr) {
         if (onError) onError(fetchErr.message);
@@ -5759,17 +5757,15 @@
             var line = lines[li];
             if (line.indexOf('data: ') !== 0) continue;
             var raw = line.slice(6).trim();
-            if (raw === '[DONE]') {
-              if (!window.julioAnthropicHistory) window.julioAnthropicHistory = [];
-              window.julioAnthropicHistory.push({ role: 'user', content: message });
-              window.julioAnthropicHistory.push({ role: 'assistant', content: full });
-              if (window.julioAnthropicHistory.length > 20) window.julioAnthropicHistory = window.julioAnthropicHistory.slice(-20);
-              if (onDone) onDone();
-              continue;
-            }
+            if (raw === '[DONE]') { if (onDone) onDone(); continue; }
             try {
               var ev = JSON.parse(raw);
-              var chunk = (ev.choices && ev.choices[0] && ev.choices[0].delta && ev.choices[0].delta.content) || '';
+              if (ev.done) {
+                window.currentJulioConversationId = ev.conversationId || window.currentJulioConversationId;
+                if (onDone) onDone();
+                continue;
+              }
+              var chunk = ev.text || '';
               if (chunk) { full += chunk; if (onChunk) onChunk(chunk); }
               if (ev.error && onError) onError(ev.error);
             } catch (parseErr) {}
@@ -6871,39 +6867,6 @@
         julioTypewriterTimer = null;
       }
       removeTypingIndicator();
-
-      if (guardlineSupabaseReady() && guardlineAnthropicReady()) {
-        appendChatUser(text);
-        var hist = document.getElementById('julio-chat-history');
-        if (!hist) return;
-        var bubble = document.createElement('div');
-        bubble.className = 'chat-msg julio';
-        var textSpan = document.createElement('span');
-        textSpan.className = 'chat-text';
-        textSpan.textContent = '…';
-        bubble.appendChild(textSpan);
-        hist.appendChild(bubble);
-        hist.scrollTop = hist.scrollHeight;
-        var full = '';
-        askJulioViaProxy(text, window.julioAnthropicHistory || [])
-          .then(function (replyText) {
-            full = replyText || '';
-            textSpan.textContent = full;
-            hist.scrollTop = hist.scrollHeight;
-            if (!window.julioAnthropicHistory) window.julioAnthropicHistory = [];
-            window.julioAnthropicHistory.push({ role: 'user', content: text });
-            window.julioAnthropicHistory.push({ role: 'assistant', content: full });
-            if (window.julioAnthropicHistory.length > 20) window.julioAnthropicHistory = window.julioAnthropicHistory.slice(-20);
-          })
-          .catch(function (err) {
-            textSpan.textContent = '';
-            streamJulioReply('Erro ao falar com o Julio: ' + (err && err.message ? err.message : String(err)));
-          })
-          .finally(function () {
-            persistJulioChatHistory();
-          });
-        return;
-      }
 
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
         appendChatUser(text);
@@ -14087,9 +14050,11 @@
         var messages = sessionHistory.concat([{ role: 'user', content: text }]);
 
         // Determine URL
-        var julioUrl = (typeof guardlineAiApiUrl === 'function')
-          ? guardlineAiApiUrl('/julio')
-          : (window.GUARDLINE_DATA_API_BASE || window.location.origin + '/api') + '/ai/julio';
+        var apiBase = (typeof guardlineDataApiRoot === 'function')
+          ? guardlineDataApiRoot()
+          : (window.GUARDLINE_DATA_API_BASE || window.location.origin + '/api');
+        var julioUrl = apiBase ? (apiBase.replace(/\/$/, '') + '/julio/chat') : '';
+        var jwtToken = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
 
         if (!julioUrl) {
           removeTyping();
@@ -14102,13 +14067,15 @@
         var typing = appendTyping();
         var bubble = null;
         var full = '';
-        var cursor = null;
 
         try {
           var res = await fetch(julioUrl, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages: messages, context: ctx }),
+            headers: Object.assign(
+              { 'Content-Type': 'application/json' },
+              jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {}
+            ),
+            body: JSON.stringify({ message: text, conversationId: window.currentJulioConversationId || null }),
           });
 
           if (!res.ok) {
@@ -14118,7 +14085,7 @@
 
           removeTyping();
           bubble = appendMsg('julio', '');
-          cursor = document.createElement('span');
+          var cursor = document.createElement('span');
           cursor.className = 'jfp-cursor';
           bubble.appendChild(cursor);
 
@@ -14139,7 +14106,11 @@
               if (raw === '[DONE]') continue;
               try {
                 var ev = JSON.parse(raw);
-                var chunk = (ev.choices && ev.choices[0] && ev.choices[0].delta && ev.choices[0].delta.content) || '';
+                if (ev.done) {
+                  window.currentJulioConversationId = ev.conversationId || window.currentJulioConversationId;
+                  continue;
+                }
+                var chunk = ev.text || '';
                 if (chunk) {
                   full += chunk;
                   bubble.innerHTML = renderMd(full);
@@ -14152,7 +14123,6 @@
             }
           }
 
-          // Remove cursor, finalise
           if (bubble) bubble.innerHTML = renderMd(full);
           sessionHistory.push({ role: 'user', content: text });
           sessionHistory.push({ role: 'assistant', content: full });

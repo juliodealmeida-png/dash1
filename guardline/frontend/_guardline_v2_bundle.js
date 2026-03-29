@@ -118,19 +118,30 @@
 
     async function renderMeetings() {
       var area = document.getElementById('content-area');
-      if (!guardlineSupabaseReady()) {
-        area.innerHTML = guardlineV2Page('Reuniões', null, '<p class="placeholder-note">Supabase não configurado.</p>');
-        return;
-      }
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       var meetings = [];
       try {
-        meetings = await DB.query('meetings', { order: 'scheduled_at.desc', limit: 80 });
+        if (typeof API !== 'undefined') {
+          var res = await API.get('/meetings?perPage=80');
+          meetings = res.data || [];
+        } else if (guardlineSupabaseReady()) {
+          meetings = await DB.query('meetings', { order: 'scheduled_at.desc', limit: 80 });
+        }
       } catch (e) {
         meetings = [];
       }
       try {
+        var emptyState =
+          '<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-muted)">' +
+          '<div style="font-size:32px;margin-bottom:12px">📅</div>' +
+          '<div style="font-size:15px;font-weight:600;margin-bottom:6px">Nenhuma reunião agendada</div>' +
+          '<div style="font-size:13px">As reuniões sincronizadas via WF07 ou registradas manualmente aparecerão aqui.</div>' +
+          '</td></tr>';
         var rows = (meetings || [])
           .map(function (m) {
+            var dateStr = m.scheduled_at
+              ? new Date(m.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+              : '—';
             return (
               '<tr><td>' +
               escapeHtml(m.company_name || '—') +
@@ -139,7 +150,7 @@
               '</td><td>' +
               escapeHtml(m.status || '') +
               '</td><td>' +
-              escapeHtml(m.scheduled_at || '—') +
+              escapeHtml(dateStr) +
               '</td><td><button type="button" class="act-btn" onclick="ingestMeetingSummary(\'' +
               String(m.id) +
               "','Resumo registrado no dashboard','')\">Completar</button></td></tr>"
@@ -150,7 +161,7 @@
           'Reuniões',
           'meetings · use WF07 para enriquecer MEDDPICC.',
           '<div class="card"><div class="leads-table-wrap"><table class="leads-table"><thead><tr><th>Empresa</th><th>Título</th><th>Status</th><th>Data</th><th></th></tr></thead><tbody>' +
-            (rows || '<tr><td colspan="5">Nenhuma reunião.</td></tr>') +
+            (rows || emptyState) +
             '</tbody></table></div></div>'
         );
       } catch (e2) {
