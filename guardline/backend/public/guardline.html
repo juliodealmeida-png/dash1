@@ -14341,8 +14341,7 @@
   }
 
   function renderMapMarkers() {
-    const mapInstance = window.map || window.fraudMap || window.mapboxMap ||
-      Object.values(window).find(v => v && typeof v === 'object' && typeof v.addLayer === 'function' && typeof v.flyTo === 'function');
+    const mapInstance = window.fraudMapInstance || window.map || window.fraudMap;
     if (!mapInstance) { setTimeout(renderMapMarkers, 2000); return; }
     STATE.mapInstance = mapInstance;
     STATE.mapMarkers.forEach(m => { try { m.remove(); } catch(e){} });
@@ -14369,7 +14368,7 @@
   }
 
   function renderFraudTypeChart() {
-    const heading = Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim() === 'Fraudes por tipo' && el.children.length === 0);
+    const heading = Array.from(document.querySelectorAll('.card-title')).find(el => el.textContent.trim() === 'Fraudes por tipo');
     if (!heading) return;
     const container = heading.parentElement;
     const old = container.querySelector('#gl-fraud-type-chart'); if (old) old.remove();
@@ -14401,7 +14400,7 @@
   }
 
   function renderTrendChart() {
-    const heading = Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim() === 'Tendência 30 dias' && el.children.length === 0);
+    const heading = Array.from(document.querySelectorAll('.card-title')).find(el => el.textContent.trim() === 'Tendência 30 dias');
     if (!heading) return;
     const container = heading.parentElement;
     const old = container.querySelector('#gl-trend-svg'); if (old) old.remove();
@@ -14446,8 +14445,7 @@
     try {
       await fetchAllData();
       renderAlerts(); updateFraudKPIs(); renderFraudTypeChart(); renderTrendChart(); renderMapMarkers();
-      const liveEl = Array.from(document.querySelectorAll('*')).find(el => el.textContent.includes('atualizado há'));
-      if (liveEl) liveEl.textContent = '· atualizado agora';
+      document.querySelectorAll('*').forEach(function(el){ if (el.children.length === 0 && el.textContent.includes('atualizado há')) el.textContent = '· atualizado agora'; });
       console.log('[FraudMap] ✅ Refresh — ' + STATE.alerts.length + ' alertas | ' + STATE.mapMarkers.length + ' marcadores');
     } catch(e) { console.error('[FraudMap] Erro:', e); }
   }
