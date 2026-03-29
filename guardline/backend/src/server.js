@@ -109,13 +109,12 @@ const isProd = process.env.NODE_ENV === 'production';
 
 function corsAllowOrigin(origin, callback) {
   if (!origin) return callback(null, true);
-  if (!isProd) {
-    try {
-      const host = new URL(origin).hostname;
-      if (host === 'localhost' || host === '127.0.0.1') return callback(null, true);
-    } catch (e) {
-      return callback(null, false);
-    }
+  try {
+    const host = new URL(origin).hostname;
+    if (host === 'localhost' || host === '127.0.0.1') return callback(null, true);
+    if (host.endsWith('.netlify.app') || host.endsWith('.railway.app') || host.endsWith('.up.railway.app')) return callback(null, true);
+  } catch (e) {
+    return callback(null, false);
   }
   if (corsOrigins.includes(origin)) return callback(null, true);
   callback(null, false);
