@@ -1994,6 +1994,8 @@
       display: flex;
       flex-direction: column;
       max-height: 480px;
+      overflow: hidden;
+      min-width: 0;
     }
     .fraud-feed .feed-header {
       padding: 14px;
@@ -2014,6 +2016,8 @@
       margin-bottom: 8px;
       font-size: 11px;
       border-left: 3px solid var(--border-strong);
+      min-width: 0;
+      overflow: hidden;
     }
     .feed-item.feed-red { border-left-color: var(--accent-red); }
     .feed-item.feed-orange { border-left-color: var(--accent-orange); }
@@ -14132,6 +14136,55 @@
     NG: { lat: 9.1,   lng: 8.7,    name: 'Nigéria' },   UA: { lat: 48.4,  lng: 31.2,   name: 'Ucrânia' },
   };
 
+  const GEO_KEYWORDS = [
+    ['united states','usa','u.s.','american','microsoft','google','apple','github','npm','pypi','macos','windows android','silicon valley'], [37.1,-95.7,'EUA'],
+    ['russia','russian','kremlin','apt28','apt29','cozy bear','fancy bear','sandworm'], [55.8,37.6,'Rússia'],
+    ['china','chinese','prc','apt41','apt10','mustang panda','volt typhoon','beijing','shanghai'], [35.9,104.2,'China'],
+    ['iran','iranian','charming kitten','phosphorus','tehran'], [32.4,53.7,'Irã'],
+    ['north korea','dprk','lazarus','kimsuky','pyongyang'], [40.3,127.5,'Coreia do Norte'],
+    ['ukraine','ukrainian','kyiv'], [48.4,31.2,'Ucrânia'],
+    ['brazil','brasil','brazilians','são paulo','brasília'], [-14.2,-51.9,'Brasil'],
+    ['mexico','méxico','mexican','cdmx'], [23.6,-102.5,'México'],
+    ['india','indian','new delhi','mumbai'], [20.6,78.9,'Índia'],
+    ['germany','german','deutschland','berlin'], [51.2,10.5,'Alemanha'],
+    ['france','french','paris'], [46.2,2.2,'França'],
+    ['united kingdom','uk','britain','british','england','london'], [55.4,-3.4,'Reino Unido'],
+    ['australia','australian','sydney','melbourne'], [-25.3,133.8,'Austrália'],
+    ['canada','canadian','toronto','ottawa'], [56.1,-106.3,'Canadá'],
+    ['japan','japanese','tokyo'], [36.2,138.3,'Japão'],
+    ['south korea','korean','seoul'], [35.9,127.8,'Coreia do Sul'],
+    ['israel','israeli','tel aviv'], [31.1,34.9,'Israel'],
+    ['nigeria','nigerian','lagos'], [9.1,8.7,'Nigéria'],
+    ['argentina','buenos aires'], [-38.4,-63.6,'Argentina'],
+    ['colombia','bogotá','colombian'], [4.6,-74.1,'Colômbia'],
+    ['netherlands','dutch','amsterdam'], [52.1,5.3,'Países Baixos'],
+    ['spain','spanish','madrid','españa'], [40.5,-3.7,'Espanha'],
+    ['italy','italian','rome','milan'], [42.5,12.6,'Itália'],
+    ['poland','polish','warsaw'], [51.9,19.1,'Polônia'],
+    ['europe','european'], [54.5,15.3,'Europa'],
+    ['asia','asian'], [34.1,100.6,'Ásia'],
+  ];
+
+  function extractGeo(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    for (let i = 0; i < GEO_KEYWORDS.length; i += 2) {
+      const keywords = GEO_KEYWORDS[i];
+      const coords = GEO_KEYWORDS[i + 1];
+      if (!Array.isArray(keywords)) continue;
+      for (const kw of keywords) {
+        if (lower.includes(kw)) {
+          return {
+            lat: coords[0] + (Math.random() - 0.5) * 3,
+            lng: coords[1] + (Math.random() - 0.5) * 3,
+            country: coords[2]
+          };
+        }
+      }
+    }
+    return null;
+  }
+
   const STATE = { alerts: [], markers: [], cisaVulns: [], feodoIPs: [], newsItems: [], mapInstance: null, mapMarkers: [], lastUpdate: null };
 
   function timeAgo(dateStr) {
@@ -14175,11 +14228,15 @@
       .filter(v => new Date(v.dateAdded) > cutoff)
       .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
       .slice(0, 20)
-      .map(v => ({
-        id: v.cveID, title: v.cveID + ' — ' + v.product, description: v.shortDescription,
-        source: 'CISA KEV', risk: 'critical', type: 'CVE Explorado', date: v.dateAdded,
-        url: 'https://nvd.nist.gov/vuln/detail/' + v.cveID, lat: null, lng: null
-      }));
+      .map(v => {
+        const geo = extractGeo(v.shortDescription + ' ' + v.product + ' ' + (v.vendorProject||''));
+        return {
+          id: v.cveID, title: v.cveID + ' — ' + v.product, description: v.shortDescription,
+          source: 'CISA KEV', risk: 'critical', type: 'CVE Explorado', date: v.dateAdded,
+          url: 'https://nvd.nist.gov/vuln/detail/' + v.cveID,
+          lat: geo ? geo.lat : null, lng: geo ? geo.lng : null, country: geo ? geo.country : null
+        };
+      });
   }
 
   async function loadNVD() {
@@ -14196,9 +14253,11 @@
           (cve.metrics.cvssMetricV31 && cve.metrics.cvssMetricV31[0] && cve.metrics.cvssMetricV31[0].cvssData && cve.metrics.cvssMetricV31[0].cvssData.baseScore) ||
           (cve.metrics.cvssMetricV30 && cve.metrics.cvssMetricV30[0] && cve.metrics.cvssMetricV30[0].cvssData && cve.metrics.cvssMetricV30[0].cvssData.baseScore)
         )) || 5;
+        const geo = extractGeo(desc);
         results.push({ id: cve.id, title: cve.id + ' [CVSS ' + cvss + '] — ' + kw, description: desc.substring(0, 150) + '...',
           source: 'NVD', risk: severityToRisk(cvss), type: 'Vulnerabilidade', date: cve.published,
-          url: 'https://nvd.nist.gov/vuln/detail/' + cve.id, lat: null, lng: null });
+          url: 'https://nvd.nist.gov/vuln/detail/' + cve.id,
+          lat: geo ? geo.lat : null, lng: geo ? geo.lng : null, country: geo ? geo.country : null });
       });
     }
     return results;
@@ -14243,7 +14302,8 @@
           id: item.guid || item.link, title: item.title,
           description: (item.description || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...',
           source: feed.name, region: feed.region, icon: feed.icon, date: item.pubDate,
-          url: item.link, risk: detectRiskFromTitle(item.title), type: 'Notícia', lat: null, lng: null
+          url: item.link, risk: detectRiskFromTitle(item.title), type: 'Notícia',
+          ...( () => { const geo = extractGeo((item.title||'') + ' ' + (item.description||'')); return geo ? { lat: geo.lat, lng: geo.lng, country: geo.country } : { lat: null, lng: null, country: null }; } )()
         });
       });
       await new Promise(r => setTimeout(r, 300));
@@ -14278,7 +14338,7 @@
     var cEl  = document.getElementById('fraud-kpi-countries');
     var vEl  = document.getElementById('fraud-kpi-value');
     var lEl  = document.getElementById('fraud-kpi-leads');
-    var countries = new Set(STATE.feodoIPs.map(function(i){ return i.country; }).filter(Boolean)).size;
+    var countries = new Set(STATE.alerts.map(function(i){ return i.country; }).filter(Boolean)).size;
     if (evEl) { evEl.textContent = STATE.alerts.length; evEl.style.color = '#ff4757'; }
     if (cEl)  { cEl.textContent  = countries || '—'; }
     if (vEl)  { vEl.textContent  = STATE.cisaVulns.length + ' CVEs'; vEl.style.color = '#ffa502'; }
@@ -14289,55 +14349,28 @@
 
   function renderAlerts() {
     var feedList = document.getElementById('fraud-feed-list');
-    if (feedList) {
-      feedList.querySelectorAll('.gl-real-alert').forEach(function(e){ e.remove(); });
-      STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(function(alert) {
-        var color = riskColor(alert.risk);
-        var srcIcon = { 'CISA KEV': '🛡️', 'NVD': '🔍', 'Abuse.ch Feodo': '🕷️', 'AlienVault OTX': '👁️' }[alert.source] || alert.icon || '📰';
-        var div = document.createElement('div');
-        div.className = 'gl-real-alert feed-item feed-' + (alert.risk === 'critical' ? 'red' : alert.risk === 'high' ? 'orange' : 'amber');
-        div.style.cssText = 'display:flex;gap:8px;padding:8px 10px;margin:2px 0;background:' + color + '15;border-left:3px solid ' + color + ';border-radius:4px;cursor:pointer;animation:glFadeIn .4s ease';
-        div.innerHTML = '<div style="font-size:14px;line-height:1.8">' + srcIcon + '</div>' +
-          '<div style="flex:1;min-width:0">' +
-            '<div style="display:flex;justify-content:space-between">' +
-              '<span style="font-size:10px;color:' + color + ';font-weight:700;text-transform:uppercase">' + alert.type + '</span>' +
-              '<span style="font-size:9px;color:#666">' + timeAgo(alert.date) + '</span>' +
-            '</div>' +
-            '<div style="font-size:11px;color:#ddd;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + alert.title + '</div>' +
-            '<div style="font-size:9px;color:#888;margin-top:1px">' + alert.source + '</div>' +
-          '</div>';
-        div.addEventListener('click', function(){ if (alert.url) window.open(alert.url, '_blank'); });
-        feedList.insertBefore(div, feedList.firstChild);
-      });
-    }
-    const verBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Ver todos os sinais'));
-    if (!verBtn) return;
-    const container = verBtn.parentElement;
-    container.querySelectorAll('.gl-real-alert-side').forEach(e => e.remove());
-    const fragment = document.createDocumentFragment();
-    STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(alert => {
-      const color = riskColor(alert.risk);
-      const div = document.createElement('div');
-      div.className = 'gl-real-alert';
-      div.dataset.url = alert.url || '';
-      div.style.cssText = 'display:flex;gap:8px;padding:8px 12px;margin:3px 0;background:' + color + '18;border-left:3px solid ' + color + ';border-radius:4px;cursor:pointer;transition:background .2s;animation:glFadeIn .4s ease';
-      const srcIcon = { 'CISA KEV': '🛡️', 'NVD': '🔍', 'Abuse.ch Feodo': '🕷️', 'AlienVault OTX': '👁️' }[alert.source] || alert.icon || '📰';
-      div.innerHTML = '<div style="padding-top:2px;font-size:16px;line-height:1">' + srcIcon + '</div>' +
+    if (!feedList) return;
+    feedList.querySelectorAll('.gl-real-alert').forEach(function(e){ e.remove(); });
+    STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(function(alert) {
+      var color = riskColor(alert.risk);
+      var srcIcon = { 'CISA KEV': '🛡️', 'NVD': '🔍', 'Abuse.ch Feodo': '🕷️', 'AlienVault OTX': '👁️' }[alert.source] || alert.icon || '📰';
+      var geo = alert.lat && alert.lng ? ' 📍' + (alert.country || '') : '';
+      var div = document.createElement('div');
+      div.className = 'gl-real-alert feed-item feed-' + (alert.risk === 'critical' ? 'red' : alert.risk === 'high' ? 'orange' : 'amber');
+      div.style.cssText = 'cursor:pointer;animation:glFadeIn .4s ease';
+      div.innerHTML =
+        '<div style="font-size:14px;line-height:1.8;flex-shrink:0">' + srcIcon + '</div>' +
         '<div style="flex:1;min-width:0;overflow:hidden">' +
-          '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px">' +
-            '<span style="font-size:10px;color:' + color + ';font-weight:700;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">' + alert.type + '</span>' +
-            '<span style="font-size:9px;color:#666;white-space:nowrap">' + timeAgo(alert.date) + '</span>' +
+          '<div style="display:flex;justify-content:space-between;gap:4px">' +
+            '<span style="font-size:10px;color:' + color + ';font-weight:700;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + alert.type + geo + '</span>' +
+            '<span style="font-size:9px;color:#666;white-space:nowrap;flex-shrink:0">' + timeAgo(alert.date) + '</span>' +
           '</div>' +
-          '<div style="font-size:11px;color:#ddd;margin-top:2px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + alert.title + '</div>' +
-          '<div style="font-size:9px;color:#888;margin-top:2px">' + alert.source + '</div>' +
+          '<div style="font-size:11px;color:#ddd;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + alert.title + '</div>' +
+          '<div style="font-size:9px;color:#888;margin-top:1px">' + alert.source + '</div>' +
         '</div>';
-      div.addEventListener('mouseenter', () => { div.style.background = color + '30'; });
-      div.addEventListener('mouseleave', () => { div.style.background = color + '18'; });
-      div.addEventListener('click', () => { if (alert.url) window.open(alert.url, '_blank'); });
-      div.className = 'gl-real-alert gl-real-alert-side';
-      fragment.appendChild(div);
+      div.addEventListener('click', function(){ if (alert.url) window.open(alert.url, '_blank'); });
+      feedList.insertBefore(div, feedList.firstChild);
     });
-    container.insertBefore(fragment, verBtn);
   }
 
   function renderMapMarkers() {
