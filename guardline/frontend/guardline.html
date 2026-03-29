@@ -13777,10 +13777,12 @@
       if (!msg) {
         el.hidden = true;
         el.textContent = '';
+        el.style.cssText = '';
         return;
       }
       el.hidden = false;
       el.textContent = msg;
+      el.style.cssText = 'display:block!important;padding:10px 14px;margin:12px 0;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:#f87171;font-size:13px;word-break:break-word';
     }
 
     document.getElementById('login-form').addEventListener('submit', async function (e) {
