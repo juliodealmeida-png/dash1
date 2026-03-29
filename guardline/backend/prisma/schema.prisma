@@ -1,0 +1,496 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────
+// USUÁRIOS E AUTH
+// ──────────────────────────────────
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  name          String
+  company       String?
+  role          String         @default("founder") // founder | sdr | admin
+  avatar        String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deals         Deal[]
+  leads         Lead[]
+  automations   AutomationLog[]
+  refreshTokens RefreshToken[]
+  julioConversations JulioConversation[]
+  campaigns       Campaign[]
+  investorDeals   InvestorDeal[]
+  integrations    Integration[]
+  documents       Document[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ──────────────────────────────────
+// DEALS
+// ──────────────────────────────────
+
+model Deal {
+  id               String    @id @default(cuid())
+  title            String
+  companyName      String
+  contactName      String?
+  contactEmail     String?
+  contactPhone     String?
+  value            Float
+  stage            String
+  source           String?
+  probability      Int       @default(50)
+  riskScore        Int       @default(0)
+  forecastCategory String?
+  expectedCloseDate DateTime?
+  actualCloseDate  DateTime?
+  lostReason       String?
+  lostNote         String?
+  notes            String?
+  tags             String?
+  ownerId          String
+  owner            User      @relation(fields: [ownerId], references: [id])
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastContactAt    DateTime?
+  stageChangedAt   DateTime  @default(now())
+  deletedAt        DateTime?
+
+  activities     DealActivity[]
+  emails         DealEmail[]
+  signals        Signal[]
+  automationLogs AutomationLog[]
+
+  @@map("deals")
+}
+
+model DealActivity {
+  id        String   @id @default(cuid())
+  dealId    String
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  note      String?
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@map("deal_activities")
+}
+
+model DealEmail {
+  id         String   @id @default(cuid())
+  dealId     String
+  deal       Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  gmailId    String?  @unique
+  from       String
+  to         String
+  subject    String
+  snippet    String?
+  receivedAt DateTime
+  direction  String
+  createdAt  DateTime @default(now())
+
+  @@map("deal_emails")
+}
+
+// ──────────────────────────────────
+// LEADS
+// ──────────────────────────────────
+
+model Lead {
+  id              String     @id @default(cuid())
+  name            String
+  email           String?
+  phone           String?
+  company         String?
+  jobTitle        String?
+  source          String?
+  status          String     @default("new")
+  score           Int        @default(0)
+  scoreBreakdown  String?
+  notes           String?
+  tags            String?
+  ownerId         String
+  owner           User       @relation(fields: [ownerId], references: [id])
+  convertedDealId String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  lastContactAt   DateTime?
+  campaigns       Campaign[] @relation("CampaignLeads")
+
+  @@map("leads")
+}
+
+// ──────────────────────────────────
+// CAMPANHAS
+// ──────────────────────────────────
+
+model Campaign {
+  id          String    @id @default(cuid())
+  name        String
+  type        String
+  status      String    @default("active")
+  startDate   DateTime
+  endDate     DateTime?
+  budget      Float?
+  targetLeads Int?
+  description String?
+  ownerId     String?
+  owner       User?     @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  leads       Lead[]    @relation("CampaignLeads")
+
+  @@map("campaigns")
+}
+
+// ──────────────────────────────────
+// FRAUD EVENTS
+// ──────────────────────────────────
+
+model FraudEvent {
+  id           String    @id @default(cuid())
+  externalId   String?   @unique
+  lat          Float
+  lng          Float
+  city         String?
+  country      String?
+  type         String
+  amount       Float
+  currency     String    @default("USD")
+  severity     String
+  status       String    @default("detected")
+  riskScore    Int
+  sourceIp     String?
+  merchantName String?
+  notes        String?
+  resolvedAt   DateTime?
+  detectedAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("fraud_events")
+}
+
+// ──────────────────────────────────
+// SIGNALS (tempo real)
+// ──────────────────────────────────
+
+model Signal {
+  id        String   @id @default(cuid())
+  type      String
+  severity  String   @default("info")
+  title     String
+  message   String
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  metadata  String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("signals")
+}
+
+// ──────────────────────────────────
+// AUTOMAÇÕES
+// ──────────────────────────────────
+
+model AutomationRecipe {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  trigger         String
+  actions         String
+  config          String?
+  active          Boolean  @default(false)
+  n8nWorkflowId   String?
+  timesActivated  Int      @default(0)
+  lastActivated   DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  logs            AutomationLog[]
+
+  @@map("automation_recipes")
+}
+
+model AutomationLog {
+  id           String           @id @default(cuid())
+  recipeId     String
+  recipe       AutomationRecipe @relation(fields: [recipeId], references: [id])
+  dealId       String?
+  deal         Deal?            @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  triggeredBy  String?
+  status       String
+  result       String?
+  errorMessage String?
+  duration     Int?
+  createdAt    DateTime         @default(now())
+  userId       String?
+  user         User?            @relation(fields: [userId], references: [id])
+
+  @@map("automation_logs")
+}
+
+// ──────────────────────────────────
+// JULIO AI
+// ──────────────────────────────────
+
+model JulioBrief {
+  id        String   @id @default(cuid())
+  content   String
+  date      DateTime @default(now())
+  type      String   @default("daily")
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@map("julio_briefs")
+}
+
+model JulioConversation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("julio_conversations")
+}
+
+// ──────────────────────────────────
+// INTEGRAÇÕES
+// ──────────────────────────────────
+
+model Integration {
+  id           String    @id @default(cuid())
+  type         String
+  status       String    @default("disconnected")
+  config       String?
+  lastSyncAt   DateTime?
+  errorMessage String?
+  metadata     String?
+  userId       String?
+  user         User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@map("integrations")
+}
+
+// ──────────────────────────────────
+// INVESTOR PIPELINE
+// ──────────────────────────────────
+
+model InvestorDeal {
+  id              String    @id @default(cuid())
+  investorName    String
+  firm            String?
+  type            String    @default("vc")
+  ticketMin       Float?
+  ticketMax       Float?
+  contactName     String?
+  contactEmail    String?
+  stage           String    @default("cold_outreach")
+  status          String    @default("active")
+  probability     Int       @default(20)
+  notes           String?
+  lastContactAt   DateTime?
+  nextMeeting     DateTime?
+  ownerId         String?
+  owner           User?     @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@map("investor_deals")
+}
+
+// ──────────────────────────────────
+// MÓDULO DE ASSINATURA DIGITAL
+// ──────────────────────────────────
+
+// Envelope/documento de assinatura — contêiner principal
+model Document {
+  id              String    @id @default(cuid())
+  name            String                              // Nome do documento (ex: "Contrato de Serviço")
+  description     String?                             // Descrição opcional
+  status          String    @default("draft")         // draft | sent | in_progress | completed | expired | cancelled | refused
+  fileUrl         String                              // URL do PDF original no Supabase Storage
+  fileHash        String                              // SHA-256 do arquivo original
+  finalFileUrl    String?                             // URL do PDF final assinado (após conclusão)
+  finalFileHash   String?                             // SHA-256 do PDF final
+  blockchainTxHash    String?                         // Polygon transaction hash
+  blockchainBlock     Int?                            // Block number
+  blockchainUrl       String?                         // Polygonscan URL
+  blockchainTimestamp DateTime?                       // Blockchain timestamp
+  version         Int       @default(1)               // Versionamento do documento
+  signerOrder     String    @default("parallel")      // parallel | sequential — ordem de assinatura
+  expiresAt       DateTime?                           // Prazo de expiração
+  completedAt     DateTime?                           // Data de conclusão (todos assinaram)
+  cancelledAt     DateTime?                           // Data de cancelamento
+  reminderDays    Int       @default(2)               // Dias antes do prazo para lembrete automático
+  message         String?                             // Mensagem personalizada para signatários
+  ownerId         String                              // Usuário que criou o documento
+  owner           User      @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  signers         DocumentSigner[]
+  fields          DocumentField[]
+  auditLog        DocumentAuditLog[]
+  notifications   DocNotification[]
+
+  @@map("documents")
+}
+
+// Signatário de um documento — cada pessoa que precisa assinar/aprovar
+model DocumentSigner {
+  id              String    @id @default(cuid())
+  documentId      String
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  name            String                              // Nome completo
+  email           String                              // E-mail para envio do link
+  cpf             String?                             // CPF (para validade jurídica BR)
+  role            String    @default("signer")        // signer | approver | witness | observer
+  order           Int       @default(0)               // Ordem na sequência (0 = primeiro)
+  status          String    @default("pending")       // pending | notified | viewed | signed | refused | expired
+  signedAt        DateTime?                           // Quando assinou
+  refusedAt       DateTime?                           // Quando recusou
+  refuseReason    String?                             // Motivo da recusa
+  viewedAt        DateTime?                           // Quando visualizou o documento
+  signerIp        String?                             // IP no momento da assinatura
+  signerAgent     String?                             // User-Agent do browser
+  signerGeoLat    Float?                              // Latitude (geolocalização)
+  signerGeoLon    Float?                              // Longitude
+  signatureData   String?                             // PNG base64 da assinatura capturada
+  signatureMethod String?                             // draw | type | upload
+  geoAddress      String?                             // Reverse geocoded address
+  geoSource       String?                             // browser | ip_fallback | denied
+  geoAccuracy     Float?                              // Accuracy in meters
+  deviceType      String?                             // mobile | tablet | desktop
+  browser         String?                             // Chrome 120 / Safari 17 etc
+  operatingSystem String?                             // Windows 11 / iOS 17 etc
+  timezone        String?                             // America/Sao_Paulo
+  language        String?                             // pt-BR
+  fingerprint     String?                             // FingerprintJS visitor ID
+  fingerprintJson String?                             // Full components JSON
+  securityType    String    @default("none")          // none | otp_email | otp_sms | custom_code
+  customCode      String?                             // Hashed custom code (set by sender)
+  customCodeHint  String?                             // Hint shown to signer
+  color           String    @default("#7c3aed")       // Cor associada ao signatário no editor
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  token           SignatureToken?
+  fields          DocumentField[]
+
+  @@map("document_signers")
+}
+
+// Campo posicionado no PDF — cada "caixinha" de assinatura, rubrica, data, etc.
+model DocumentField {
+  id              String    @id @default(cuid())
+  documentId      String
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  signerId        String?                             // Qual signatário deve preencher
+  signer          DocumentSigner? @relation(fields: [signerId], references: [id], onDelete: SetNull)
+  type            String                              // signature | initials | date | name | cpf | text | checkbox
+  page            Int                                 // Número da página (1-indexed)
+  x               Float                               // Posição X em % (0-100)
+  y               Float                               // Posição Y em % (0-100)
+  width           Float                               // Largura em % (0-100)
+  height          Float                               // Altura em % (0-100)
+  required        Boolean   @default(true)
+  value           String?                             // Valor preenchido pelo signatário
+  filledAt        DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@map("document_fields")
+}
+
+// Token único de acesso — link de assinatura por signatário
+model SignatureToken {
+  id              String    @id @default(cuid())
+  token           String    @unique                   // UUID v4 — usado na URL /assinar/{token}
+  signerId        String    @unique
+  signer          DocumentSigner @relation(fields: [signerId], references: [id], onDelete: Cascade)
+  expiresAt       DateTime                            // Expiração do token
+  usedAt          DateTime?                           // Quando foi usado para assinar
+  otpCode         String?                             // Código OTP de 6 dígitos (hash)
+  otpExpiresAt    DateTime?                           // Expiração do OTP
+  otpVerified     Boolean   @default(false)           // Se o OTP foi verificado
+  createdAt       DateTime  @default(now())
+
+  @@map("signature_tokens")
+}
+
+// Trilha de auditoria — log imutável de TODOS os eventos
+model DocumentAuditLog {
+  id              String    @id @default(cuid())
+  documentId      String
+  document        Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  action          String                              // created | sent | viewed | signed | refused | expired | cancelled | reminder_sent | otp_verified | downloaded | completed
+  actorName       String?                             // Quem executou a ação
+  actorEmail      String?                             // E-mail do ator
+  ip              String?                             // IP do ator
+  userAgent       String?                             // Navegador/dispositivo
+  geoLat          Float?                              // Latitude
+  geoLon          Float?                              // Longitude
+  geoCity         String?                             // Cidade (reverse geocode)
+  metadata        String?                             // JSON com dados extras
+  documentHash    String?                             // Hash do documento naquele momento
+  createdAt       DateTime  @default(now())           // Timestamp ISO 8601 com timezone
+
+  @@index([documentId, createdAt])
+  @@map("document_audit_log")
+}
+
+// Notificações in-app
+model DocNotification {
+  id              String    @id @default(cuid())
+  documentId      String?
+  document        Document? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  userId          String                              // Destinatário da notificação
+  type            String                              // signature_requested | signed | refused | completed | expired | reminder
+  title           String
+  message         String
+  read            Boolean   @default(false)
+  readAt          DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId, read])
+  @@map("doc_notifications")
+}
+
+// Log de lembretes enviados — controle anti-spam
+model ReminderLog {
+  id              String    @id @default(cuid())
+  signerId        String                              // ID do DocumentSigner
+  type            String                              // manual | auto_2d | auto_24h | auto_day
+  sentAt          DateTime  @default(now())
+  sentBy          String?                             // userId de quem enviou (null = automático)
+  message         String?                             // Mensagem personalizada
+
+  @@index([signerId, sentAt])
+  @@map("reminder_logs")
+}

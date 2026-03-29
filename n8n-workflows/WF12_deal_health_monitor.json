@@ -1,0 +1,283 @@
+{
+  "name": "WF12 — Deal Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wf12-guardline-deal-health-monitor-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf12-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "wf12-guardline-deal-health-monitor-v1"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "hoursInterval": 6 }]
+        }
+      },
+      "id": "wf12-schedule",
+      "name": "Schedule Every 6h",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "leads",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "status=neq.closed_won&status=neq.closed_lost&status=neq.disqualified",
+        "options": {}
+      },
+      "id": "wf12-get-leads",
+      "name": "Get Active Leads",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [550, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "assistant_interactions",
+        "returnAll": true,
+        "options": {
+          "order": "sent_at.desc"
+        }
+      },
+      "id": "wf12-get-interactions",
+      "name": "Get All Interactions",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [550, 600],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "meetings",
+        "returnAll": true,
+        "options": {
+          "order": "meeting_date.desc"
+        }
+      },
+      "id": "wf12-get-meetings",
+      "name": "Get All Meetings",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [550, 800],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build enriched deal data for Claude analysis\nconst leads = $('Get Active Leads').all().map(l => l.json);\nconst interactions = $('Get All Interactions').all().map(i => i.json);\nconst meetings = $('Get All Meetings').all().map(m => m.json);\n\nconst now = new Date();\n\nconst enrichedDeals = leads.map(lead => {\n  const leadInteractions = interactions.filter(i => i.lead_id === (lead.id || lead.lead_id));\n  const leadMeetings = meetings.filter(m => m.lead_id === (lead.id || lead.lead_id));\n  const lastInteraction = leadInteractions[0];\n  const lastMeeting = leadMeetings[0];\n\n  const daysSinceContact = lastInteraction\n    ? Math.floor((now - new Date(lastInteraction.sent_at)) / (1000 * 60 * 60 * 24))\n    : 999;\n  const daysSinceMeeting = lastMeeting\n    ? Math.floor((now - new Date(lastMeeting.meeting_date)) / (1000 * 60 * 60 * 24))\n    : 999;\n  const daysInPipeline = lead.created_at\n    ? Math.floor((now - new Date(lead.created_at)) / (1000 * 60 * 60 * 24))\n    : 0;\n\n  return {\n    company_name: lead.company_name,\n    lead_id: lead.id || lead.lead_id,\n    lead_score: lead.lead_score || 0,\n    last_contact_at: lastInteraction?.sent_at || null,\n    last_meeting_date: lastMeeting?.meeting_date || null,\n    last_deal_signal: lastMeeting?.deal_signal || null,\n    contact_attempts: leadInteractions.filter(i => i.direction === 'outbound').length,\n    days_since_contact: daysSinceContact,\n    days_since_meeting: daysSinceMeeting,\n    days_in_pipeline: daysInPipeline,\n    pipeline_stage: lead.status || lead.pipeline_stage || 'unknown',\n    assigned_to: lead.owner_id || lead.assigned_to,\n    has_replied: leadInteractions.some(i => i.direction === 'inbound')\n  };\n});\n\n// Process in batches of 15 to avoid token limits\nconst batchSize = 15;\nconst batches = [];\nfor (let i = 0; i < enrichedDeals.length; i += batchSize) {\n  batches.push(enrichedDeals.slice(i, i + batchSize));\n}\n\nreturn batches.map(batch => ({ json: { deals: batch } }));"
+      },
+      "id": "wf12-enrich",
+      "name": "Enrich Deal Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "claude-sonnet-4-20250514",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=Você é o sistema de monitoramento de saúde de deals do Guardline.\nAnalise cada deal e classifique o alerta apropriado.\n\nDEALS PARA ANALISAR:\n{{ $json.deals.map(d => `\\nDeal: ${d.company_name}\\n- Score: ${d.lead_score}\\n- Último contato: ${d.last_contact_at || 'nunca'} (${d.days_since_contact} dias atrás)\\n- Última reunião: ${d.last_meeting_date || 'nenhuma'} (${d.days_since_meeting} dias atrás)\\n- Deal signal: ${d.last_deal_signal || 'sem reunião'}\\n- Tentativas de contato: ${d.contact_attempts}\\n- Dias no pipeline: ${d.days_in_pipeline}\\n- Respondeu alguma vez: ${d.has_replied ? 'sim' : 'não'}\\n- Status: ${d.pipeline_stage}`).join('\\n---\\n') }}\n\nCRITÉRIOS:\n- close_now: deal_signal=strong_buy, ou prospect pediu proposta, ou score subiu 20+ pts em 7 dias\n- at_risk: sem resposta há 10+ dias após reunião, ou deal_signal=risk, ou reunião cancelada 2x\n- ghost: sem contato há 21+ dias, ou 5+ tentativas sem resposta\n- nurture: interessado mas sem urgência, respondeu mas postergou\n- disqualify: deal_signal=lost, ou score<30, ou 8+ tentativas sem resposta\n- healthy: tudo ok, continuar normalmente\n\nResponda SOMENTE com JSON array:\n[\n  {\n    \"company_name\": \"...\",\n    \"lead_id\": \"...\",\n    \"alert_type\": \"close_now | at_risk | ghost | nurture | disqualify | healthy\",\n    \"urgency\": \"critical | high | medium | low\",\n    \"reason\": \"por que esse alerta em 1 frase\",\n    \"recommendation\": \"o que o vendedor deve fazer agora\",\n    \"suggested_message_angle\": \"ângulo para próxima mensagem se aplicável\"\n  }\n]"
+            }
+          ]
+        },
+        "options": {
+          "maxTokensToSample": 2000,
+          "temperature": 0.2
+        }
+      },
+      "id": "wf12-claude",
+      "name": "Claude — Analyze Deal Health",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [1150, 400],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude response and filter actionable alerts\nconst raw = $('Claude — Analyze Deal Health').first().json;\nlet alerts;\ntry {\n  const text = typeof raw === 'string' ? raw : (raw.text || raw.content || JSON.stringify(raw));\n  const jsonMatch = text.match(/\\[[\\s\\S]*\\]/);\n  alerts = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch (e) {\n  alerts = [];\n}\n\n// Filter out healthy deals — only return actionable alerts\nconst actionableAlerts = alerts.filter(a => a.alert_type !== 'healthy');\n\nreturn actionableAlerts.map(alert => ({ json: alert }));"
+      },
+      "id": "wf12-parse",
+      "name": "Parse & Filter Alerts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "deal_health_alerts",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "fieldName": "lead_id", "fieldValue": "={{ $json.lead_id }}" },
+            { "fieldName": "company_name", "fieldValue": "={{ $json.company_name }}" },
+            { "fieldName": "alert_type", "fieldValue": "={{ $json.alert_type }}" },
+            { "fieldName": "urgency", "fieldValue": "={{ $json.urgency }}" },
+            { "fieldName": "reason", "fieldValue": "={{ $json.reason }}" },
+            { "fieldName": "recommendation", "fieldValue": "={{ $json.recommendation }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf12-save-alert",
+      "name": "Save Alert to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1650, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Slack alert messages for urgent items\nconst alert = $json;\n\nconst emoji = {\n  close_now: '🎯',\n  at_risk: '⚠️',\n  ghost: '👻',\n  nurture: '🌱',\n  disqualify: '❌'\n};\n\nconst isUrgent = ['close_now', 'at_risk', 'ghost'].includes(alert.alert_type) &&\n  ['critical', 'high'].includes(alert.urgency);\n\nif (!isUrgent) return [];\n\nconst message = `${emoji[alert.alert_type] || '⚪'} *${(alert.alert_type || '').toUpperCase().replace('_', ' ')}: ${alert.company_name}*\\n_${alert.reason}_\\n\\n*O que fazer:* ${alert.recommendation}\\n${alert.suggested_message_angle ? `*Ângulo sugerido:* ${alert.suggested_message_angle}` : ''}`;\n\nreturn [{ json: { message } }];"
+      },
+      "id": "wf12-build-slack",
+      "name": "Build Slack Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1650, 500]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#guardline-alerts\",\n  \"text\": \"{{ $json.message }}\"\n}",
+        "options": {}
+      },
+      "id": "wf12-slack",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 500],
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"alerts_generated\": {{ $('Parse & Filter Alerts').all().length }}\n}",
+        "options": {}
+      },
+      "id": "wf12-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2150, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "Get Active Leads", "type": "main", "index": 0 }]
+      ]
+    },
+    "Schedule Every 6h": {
+      "main": [
+        [{ "node": "Get Active Leads", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Active Leads": {
+      "main": [
+        [
+          { "node": "Get All Interactions", "type": "main", "index": 0 },
+          { "node": "Get All Meetings", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get All Interactions": {
+      "main": [
+        [{ "node": "Enrich Deal Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get All Meetings": {
+      "main": [
+        [{ "node": "Enrich Deal Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Enrich Deal Data": {
+      "main": [
+        [{ "node": "Claude — Analyze Deal Health", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — Analyze Deal Health": {
+      "main": [
+        [{ "node": "Parse & Filter Alerts", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse & Filter Alerts": {
+      "main": [
+        [
+          { "node": "Save Alert to Supabase", "type": "main", "index": 0 },
+          { "node": "Build Slack Alert", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Save Alert to Supabase": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Slack Alert": {
+      "main": [
+        [{ "node": "Send Slack Alert", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "guardline" },
+    { "name": "deal-health" },
+    { "name": "alerts" }
+  ]
+}

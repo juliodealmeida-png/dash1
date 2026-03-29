@@ -1,0 +1,38 @@
+# Dependências (reinstalar noutro PC: npm install em cada pasta com package.json)
+node_modules/
+**/node_modules/
+
+# Segredos — nunca commitar; copiar .env.example para .env e preencher
+.env
+.env.*
+!.env.example
+!.env*.example
+
+# Build
+dist/
+**/dist/
+build/
+*.tsbuildinfo
+
+# Logs e sistema
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE / ferramentas locais
+.claude/
+.idea/
+.vscode/
+*.swp
+.cursor/
+
+# Supabase local (se existir)
+.supabase/
+
+# Outra cópia do projeto noutro IDE (o código atual está em guardline/)
+CascadeProjects/
+
+# Uploads locais (PDFs de teste — não versionar)
+guardline/backend/uploads/

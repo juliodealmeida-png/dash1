@@ -1,0 +1,7 @@
+node_modules/
+.env
+*.log
+prisma/guardline.db
+prisma/guardline.db-journal
+.DS_Store
+coverage/

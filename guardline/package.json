@@ -1,0 +1,16 @@
+{
+  "name": "guardline-revenue-os",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Guardline Revenue OS — monorepo app (backend + frontend estático)",
+  "scripts": {
+    "dev": "npm run dev --prefix backend",
+    "start": "npm run start --prefix backend",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "db:generate": "npm run db:generate --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "db:studio": "npm run db:studio --prefix backend",
+    "setup": "npm install --prefix backend && npm run db:migrate --prefix backend && npm run db:seed --prefix backend",
+    "test": "npm test --prefix backend"
+  }
+}

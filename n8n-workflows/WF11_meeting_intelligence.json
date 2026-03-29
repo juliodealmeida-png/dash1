@@ -1,0 +1,326 @@
+{
+  "name": "WF11 — Meeting Intelligence",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wf11-guardline-meeting-intelligence-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf11-webhook",
+      "name": "Webhook Fireflies",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "wf11-guardline-meeting-intelligence-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Fireflies webhook data\nconst payload = $input.first().json;\n\n// Fireflies webhook sends different formats — normalize\nconst data = {\n  fireflies_id: payload.meetingId || payload.id,\n  title: payload.title || payload.meetingTitle || '',\n  transcript_text: payload.transcript || payload.sentences?.map(s => `${s.speaker_name}: ${s.text}`).join('\\n') || '',\n  summary: payload.summary || payload.action_items || '',\n  duration_minutes: payload.duration ? Math.round(payload.duration / 60) : null,\n  participants: payload.participants || payload.attendees || [],\n  date: payload.date || payload.dateString || new Date().toISOString(),\n  platform: payload.meeting_source || 'google_meet'\n};\n\n// Find external participants (not @guardline.io)\nconst externalParticipants = data.participants.filter(\n  p => !(p.email || p).includes('guardline')\n);\n\nreturn [{ json: { ...data, external_participants: externalParticipants } }];"
+      },
+      "id": "wf11-extract",
+      "name": "Extract Fireflies Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [500, 400]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "leads",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=contact_email=eq.{{ $json.external_participants[0]?.email || $json.external_participants[0] || '' }}",
+        "options": {}
+      },
+      "id": "wf11-find-lead",
+      "name": "Find Lead by Email",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "team_members",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "active=eq.true",
+        "options": {}
+      },
+      "id": "wf11-get-members",
+      "name": "Get Team Members",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [750, 500],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Identify which team member was in the meeting\nconst extracted = $('Extract Fireflies Data').first().json;\nconst members = $('Get Team Members').all().map(m => m.json);\nconst lead = $('Find Lead by Email').first()?.json || {};\n\nconst participants = extracted.participants.map(p => (p.email || p || '').toLowerCase());\nconst assignedMember = members.find(m =>\n  participants.includes(m.email.toLowerCase())\n) || members.find(m => m.id === lead.owner_id) || members[0];\n\nreturn [{ json: { extracted, lead, member: assignedMember } }];"
+      },
+      "id": "wf11-identify",
+      "name": "Identify Member & Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "claude-sonnet-4-20250514",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=Você é o sistema de inteligência de reuniões do Guardline Revenue OS.\nAnalise esta transcrição de reunião de vendas e extraia insights acionáveis.\n\nCONTEXTO:\n- Empresa do prospect: {{ $json.lead.company_name || 'Não identificada' }}\n- Contato: {{ $json.lead.contact_name || 'Não identificado' }}\n- País: {{ $json.lead.company_country || 'Não identificado' }}\n- Solução apresentada: {{ $json.lead.primary_solution || 'Não identificada' }}\n- Vendedor: {{ $json.member.name }}\n- Score do lead: {{ $json.lead.lead_score || 'N/A' }}/100\n\nTRANSCRIÇÃO:\n{{ $json.extracted.transcript_text }}\n\nResponda SOMENTE com JSON:\n{\n  \"summary\": [\n    \"bullet 1 — o que foi discutido\",\n    \"bullet 2 — interesse demonstrado\",\n    \"bullet 3 — objeções levantadas\",\n    \"bullet 4 — o que ficou pendente\",\n    \"bullet 5 — tom geral da reunião\"\n  ],\n  \"next_steps\": [\n    {\n      \"action\": \"o que fazer\",\n      \"responsible\": \"vendedor ou prospect\",\n      \"deadline\": \"prazo sugerido\",\n      \"channel\": \"email | whatsapp | linkedin | call\"\n    }\n  ],\n  \"deal_signal\": \"strong_buy | interested | neutral | risk | lost\",\n  \"deal_signal_reason\": \"por que esse sinal\",\n  \"objections\": [\"objeção 1\"],\n  \"unanswered_questions\": [\"pergunta sem resposta 1\"],\n  \"recommended_next_contact\": {\n    \"timing\": \"em X dias\",\n    \"channel\": \"email | whatsapp | linkedin\",\n    \"suggested_message_angle\": \"ângulo da próxima mensagem\"\n  },\n  \"close_probability_delta\": 0,\n  \"julio_recommendation\": \"recomendação estratégica em 2-3 frases\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokensToSample": 1500,
+          "temperature": 0.3
+        }
+      },
+      "id": "wf11-claude",
+      "name": "Claude — Analyze Meeting",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [1300, 400],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude analysis\nconst raw = $('Claude — Analyze Meeting').first().json;\nlet analysis;\ntry {\n  const text = typeof raw === 'string' ? raw : (raw.text || raw.content || JSON.stringify(raw));\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  analysis = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch (e) {\n  analysis = {\n    summary: ['Erro ao processar transcrição'],\n    next_steps: [],\n    deal_signal: 'neutral',\n    deal_signal_reason: 'Erro na análise',\n    objections: [],\n    unanswered_questions: [],\n    recommended_next_contact: { timing: 'em 3 dias', channel: 'email', suggested_message_angle: 'Follow-up geral' },\n    close_probability_delta: 0,\n    julio_recommendation: 'Revisar transcrição manualmente'\n  };\n}\n\nconst prev = $('Identify Member & Lead').first().json;\nreturn [{ json: { analysis, ...prev } }];"
+      },
+      "id": "wf11-parse",
+      "name": "Parse Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1550, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "meetings",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "fieldName": "lead_id", "fieldValue": "={{ $json.lead.id || '' }}" },
+            { "fieldName": "company_name", "fieldValue": "={{ $json.lead.company_name || $json.extracted.title }}" },
+            { "fieldName": "contact_name", "fieldValue": "={{ $json.lead.contact_name || '' }}" },
+            { "fieldName": "contact_email", "fieldValue": "={{ $json.lead.contact_email || '' }}" },
+            { "fieldName": "assigned_to", "fieldValue": "={{ $json.member.id }}" },
+            { "fieldName": "meeting_date", "fieldValue": "={{ $json.extracted.date }}" },
+            { "fieldName": "duration_minutes", "fieldValue": "={{ $json.extracted.duration_minutes }}" },
+            { "fieldName": "platform", "fieldValue": "={{ $json.extracted.platform }}" },
+            { "fieldName": "fireflies_id", "fieldValue": "={{ $json.extracted.fireflies_id }}" },
+            { "fieldName": "transcript_summary", "fieldValue": "={{ $json.analysis.summary.join(' | ') }}" },
+            { "fieldName": "transcript_full", "fieldValue": "={{ $json.extracted.transcript_text }}" },
+            { "fieldName": "next_steps", "fieldValue": "={{ JSON.stringify($json.analysis.next_steps) }}" },
+            { "fieldName": "deal_signal", "fieldValue": "={{ $json.analysis.deal_signal }}" },
+            { "fieldName": "julio_analysis", "fieldValue": "={{ $json.analysis.julio_recommendation }}" },
+            { "fieldName": "status", "fieldValue": "done" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf11-save-meeting",
+      "name": "Save Meeting to Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1800, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-risk",
+              "leftValue": "={{ $json.analysis.deal_signal }}",
+              "rightValue": "",
+              "operator": { "type": "string", "operation": "regex" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wf11-if-risk",
+      "name": "IF Risk or Lost Signal",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1800, 500],
+      "notes": "Check if deal_signal is risk or lost"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://guardline.app.n8n.cloud/webhook/wf12-guardline-deal-health-monitor-v1",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"trigger\": \"meeting_signal\",\n  \"lead_id\": \"{{ $json.lead.id }}\",\n  \"company_name\": \"{{ $json.lead.company_name }}\",\n  \"deal_signal\": \"{{ $json.analysis.deal_signal }}\",\n  \"reason\": \"{{ $json.analysis.deal_signal_reason }}\"\n}",
+        "options": {}
+      },
+      "id": "wf11-trigger-wf12",
+      "name": "Trigger WF12 Deal Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2050, 600]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://guardline.app.n8n.cloud/webhook/wf10-guardline-virtual-assistant-v1",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"trigger\": \"meeting_done\",\n  \"lead_id\": \"{{ $json.lead.id }}\",\n  \"company_name\": \"{{ $json.lead.company_name }}\",\n  \"contact_name\": \"{{ $json.lead.contact_name }}\",\n  \"contact_email\": \"{{ $json.lead.contact_email }}\",\n  \"assigned_member_id\": \"{{ $json.member.id }}\",\n  \"meeting_summary\": \"{{ $json.analysis.summary.join(' | ') }}\",\n  \"next_steps\": {{ JSON.stringify($json.analysis.next_steps) }},\n  \"channel_preference\": \"{{ $json.analysis.recommended_next_contact.channel }}\"\n}",
+        "options": {}
+      },
+      "id": "wf11-trigger-wf10",
+      "name": "Trigger WF10 Follow-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2050, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Slack notification\nconst d = $('Parse Analysis').first().json;\nconst analysis = d.analysis;\n\nconst signalEmoji = {\n  strong_buy: '🟢',\n  interested: '🟡',\n  neutral: '⚪',\n  risk: '🟠',\n  lost: '🔴'\n};\n\nconst message = `${signalEmoji[analysis.deal_signal] || '⚪'} *Reunião analisada: ${d.lead.company_name || d.extracted.title}*\\n\\n*Resumo:*\\n${analysis.summary.map((b, i) => `${i+1}. ${b}`).join('\\n')}\\n\\n*Próximos passos:*\\n${analysis.next_steps.map(s => `→ ${s.action} (${s.responsible}) — ${s.deadline}`).join('\\n')}\\n\\n*Deal Signal:* ${(analysis.deal_signal || '').toUpperCase()} — ${analysis.deal_signal_reason}\\n\\n*Julio recomenda:* _${analysis.julio_recommendation}_\\n\\n_Follow-up automático será enviado em ${analysis.recommended_next_contact.timing} via ${analysis.recommended_next_contact.channel}_`;\n\nreturn [{ json: { message, member_name: d.member.name } }];"
+      },
+      "id": "wf11-build-slack",
+      "name": "Build Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2050, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#guardline-sales\",\n  \"text\": \"{{ $json.message }}\"\n}",
+        "options": {}
+      },
+      "id": "wf11-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2300, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"deal_signal\": \"{{ $('Parse Analysis').first().json.analysis.deal_signal }}\",\n  \"meeting_id\": \"{{ $('Save Meeting to Supabase').first().json.id }}\"\n}",
+        "options": {}
+      },
+      "id": "wf11-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2550, 400]
+    }
+  ],
+  "connections": {
+    "Webhook Fireflies": {
+      "main": [
+        [{ "node": "Extract Fireflies Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Fireflies Data": {
+      "main": [
+        [
+          { "node": "Find Lead by Email", "type": "main", "index": 0 },
+          { "node": "Get Team Members", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Find Lead by Email": {
+      "main": [
+        [{ "node": "Identify Member & Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Team Members": {
+      "main": [
+        [{ "node": "Identify Member & Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Identify Member & Lead": {
+      "main": [
+        [{ "node": "Claude — Analyze Meeting", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — Analyze Meeting": {
+      "main": [
+        [{ "node": "Parse Analysis", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Analysis": {
+      "main": [
+        [
+          { "node": "Save Meeting to Supabase", "type": "main", "index": 0 },
+          { "node": "IF Risk or Lost Signal", "type": "main", "index": 0 },
+          { "node": "Trigger WF10 Follow-up", "type": "main", "index": 0 },
+          { "node": "Build Slack Message", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "IF Risk or Lost Signal": {
+      "main": [
+        [{ "node": "Trigger WF12 Deal Health", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Build Slack Message": {
+      "main": [
+        [{ "node": "Notify Slack", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Slack": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "guardline" },
+    { "name": "meetings" },
+    { "name": "fireflies" }
+  ]
+}

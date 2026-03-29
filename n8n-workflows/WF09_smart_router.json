@@ -1,0 +1,281 @@
+{
+  "name": "WF09 — Smart Router",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wf09-guardline-smart-router-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf09-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "wf09-guardline-smart-router-v1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "routing_rules",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "active=eq.true&order=priority.asc",
+        "options": {}
+      },
+      "id": "wf09-get-rules",
+      "name": "Get Active Routing Rules",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "team_members",
+        "returnAll": true,
+        "filterType": "string",
+        "filterString": "active=eq.true",
+        "options": {}
+      },
+      "id": "wf09-get-members",
+      "name": "Get Active Team Members",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// CAMADA 1: Match exato de regras por produto/país\nconst lead = $('Webhook').first().json.lead;\nconst rules = $('Get Active Routing Rules').all().map(r => r.json);\nconst members = $('Get Active Team Members').all().map(m => m.json);\n\nconst product = (lead.primary_solution || '').toLowerCase();\nconst country = (lead.company_country || '').toLowerCase();\n\nlet matchedRule = null;\nlet matchedMemberIds = [];\n\nfor (const rule of rules) {\n  const cond = rule.conditions || {};\n  const productMatch = !cond.product || cond.product.toLowerCase() === product;\n  const countryMatch = !cond.country || cond.country.toLowerCase() === country;\n  const territoryMatch = !cond.territories || \n    cond.territories.some(t => t.toLowerCase() === country);\n\n  if (productMatch && (countryMatch || territoryMatch)) {\n    // Empty conditions = fallback rule, skip if priority < 50\n    if (Object.keys(cond).length === 0 && rule.priority < 50) continue;\n    matchedRule = rule;\n    matchedMemberIds = rule.assign_to || [];\n    break;\n  }\n}\n\nif (matchedRule && matchedMemberIds.length > 0) {\n  const eligibleMembers = members.filter(m => matchedMemberIds.includes(m.id));\n  return [{\n    json: {\n      routing_layer: 'layer_1_rules',\n      matched_rule: matchedRule.name,\n      eligible_members: eligibleMembers,\n      lead,\n      use_round_robin: matchedRule.round_robin,\n      all_members: members\n    }\n  }];\n}\n\n// No exact match — go to layer 2 (AI)\nreturn [{\n  json: {\n    routing_layer: 'layer_2_ai',\n    matched_rule: null,\n    eligible_members: members,\n    lead,\n    use_round_robin: false,\n    all_members: members\n  }\n}];"
+      },
+      "id": "wf09-layer1",
+      "name": "Layer 1 — Rule Matching",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "check-layer",
+              "leftValue": "={{ $json.routing_layer }}",
+              "rightValue": "layer_2_ai",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wf09-if-needs-ai",
+      "name": "IF Needs AI Routing",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "routing_history",
+        "returnAll": false,
+        "limit": 50,
+        "options": {
+          "order": "assigned_at.desc"
+        }
+      },
+      "id": "wf09-get-history",
+      "name": "Get Routing History",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1300, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "claude-sonnet-4-20250514",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "=Você é o sistema de roteamento inteligente do Guardline Revenue OS.\n\nLEAD A ROTEAR:\n- Empresa: {{ $('Layer 1 — Rule Matching').first().json.lead.company_name }}\n- País: {{ $('Layer 1 — Rule Matching').first().json.lead.company_country }}\n- Solução primária: {{ $('Layer 1 — Rule Matching').first().json.lead.primary_solution }}\n- Setor: {{ $('Layer 1 — Rule Matching').first().json.lead.company_industry }}\n- Score: {{ $('Layer 1 — Rule Matching').first().json.lead.lead_score }}/100\n- Temperatura: {{ $('Layer 1 — Rule Matching').first().json.lead.lead_temperature }}\n\nMEMBROS DISPONÍVEIS:\n{{ $('Layer 1 — Rule Matching').first().json.all_members.map(m => `- ${m.name} (${m.role}) | Esp: ${(m.specialties||[]).join(', ')} | Terr: ${(m.territories||[]).join(', ')}`).join('\\n') }}\n\nHISTÓRICO RECENTE:\n{{ $('Get Routing History').all().slice(0,20).map(h => `${h.json.assigned_to} em ${h.json.assigned_at}`).join('\\n') }}\n\nREGRA:\n1. Priorize match de especialidade com a solução do lead\n2. Priorize match de território com o país do lead\n3. Desempate: menor número de leads ativos\n4. Desempate final: quem há mais tempo sem receber lead\n\nResponda SOMENTE com JSON:\n{\n  \"assigned_to_id\": \"uuid do membro escolhido\",\n  \"reason\": \"explicação em 1 frase de por que essa pessoa\"\n}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokensToSample": 300,
+          "temperature": 0.2
+        }
+      },
+      "id": "wf09-claude-route",
+      "name": "Claude — AI Routing Decision",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [1550, 200],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Round-robin or select from AI response\nconst input = $('Layer 1 — Rule Matching').first().json;\nconst lead = input.lead;\nlet assignedMember;\nlet reason;\n\nif (input.routing_layer === 'layer_1_rules') {\n  // Layer 1: round-robin among eligible members\n  const eligible = input.eligible_members;\n  const history = $('Get Routing History').all().map(h => h.json);\n  \n  if (input.use_round_robin && eligible.length > 1) {\n    // Find member with fewest recent assignments\n    const counts = {};\n    eligible.forEach(m => counts[m.id] = 0);\n    history.forEach(h => {\n      if (counts[h.assigned_to] !== undefined) counts[h.assigned_to]++;\n    });\n    const sorted = eligible.sort((a, b) => (counts[a.id] || 0) - (counts[b.id] || 0));\n    assignedMember = sorted[0];\n    reason = `Round-robin: ${assignedMember.name} tem menos atribuições recentes (regra: ${input.matched_rule})`;\n  } else {\n    assignedMember = eligible[0];\n    reason = `Regra fixa: ${input.matched_rule}`;\n  }\n} else {\n  // Layer 2: parse Claude response\n  try {\n    const claudeResponse = $('Claude — AI Routing Decision').first().json;\n    const parsed = typeof claudeResponse === 'string' ? JSON.parse(claudeResponse) : claudeResponse;\n    const aiId = parsed.assigned_to_id;\n    assignedMember = input.all_members.find(m => m.id === aiId) || input.all_members[0];\n    reason = parsed.reason || 'AI routing';\n  } catch (e) {\n    // Fallback: first active member\n    assignedMember = input.all_members[0];\n    reason = 'Fallback: primeiro membro ativo';\n  }\n}\n\nreturn [{\n  json: {\n    assigned_to: assignedMember,\n    reason,\n    lead,\n    routing_layer: input.routing_layer\n  }\n}];"
+      },
+      "id": "wf09-select-member",
+      "name": "Select Final Member",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "routing_history",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "fieldName": "lead_id", "fieldValue": "={{ $json.lead.id || $json.lead.lead_id }}" },
+            { "fieldName": "assigned_to", "fieldValue": "={{ $json.assigned_to.id }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf09-save-history",
+      "name": "Save to routing_history",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2050, 200],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#guardline-sales\",\n  \"text\": \"📥 *Novo lead atribuído:*\\n• Empresa: {{ $json.lead.company_name }}\\n• Solução: {{ $json.lead.primary_solution }}\\n• Atribuído a: *{{ $json.assigned_to.name }}*\\n• Motivo: {{ $json.reason }}\"\n}",
+        "options": {}
+      },
+      "id": "wf09-slack",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2050, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"assigned_to\": {{ JSON.stringify($('Select Final Member').first().json.assigned_to) }},\n  \"reason\": \"{{ $('Select Final Member').first().json.reason }}\",\n  \"routing_layer\": \"{{ $('Select Final Member').first().json.routing_layer }}\"\n}",
+        "options": {}
+      },
+      "id": "wf09-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2300, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Get Active Routing Rules", "type": "main", "index": 0 },
+          { "node": "Get Active Team Members", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Active Routing Rules": {
+      "main": [
+        [{ "node": "Layer 1 — Rule Matching", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Active Team Members": {
+      "main": [
+        [{ "node": "Layer 1 — Rule Matching", "type": "main", "index": 0 }]
+      ]
+    },
+    "Layer 1 — Rule Matching": {
+      "main": [
+        [{ "node": "IF Needs AI Routing", "type": "main", "index": 0 }]
+      ]
+    },
+    "IF Needs AI Routing": {
+      "main": [
+        [{ "node": "Get Routing History", "type": "main", "index": 0 }],
+        [{ "node": "Get Routing History", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Routing History": {
+      "main": [
+        [{ "node": "Claude — AI Routing Decision", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — AI Routing Decision": {
+      "main": [
+        [{ "node": "Select Final Member", "type": "main", "index": 0 }]
+      ]
+    },
+    "Select Final Member": {
+      "main": [
+        [
+          { "node": "Save to routing_history", "type": "main", "index": 0 },
+          { "node": "Notify Slack", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Save to routing_history": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Slack": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "guardline" },
+    { "name": "routing" },
+    { "name": "smart-router" }
+  ]
+}

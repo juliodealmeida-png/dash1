@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Assinar Documento — Guardline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Dancing+Script:wght@700&family=Great+Vibes&family=Pacifico&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@4/dist/fp.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0b0e18;--bg-card:#131728;--bg-surface:#0f1220;--bg-elevated:#1a1f35;
+      --border:#1e2540;--border-strong:#2a3255;
+      --purple:#7c3aed;--purple-light:#9d5cf5;--purple-dim:rgba(124,58,237,0.15);
+      --cyan:#06b6d4;--cyan-dim:rgba(6,182,212,0.15);
+      --red:#ef4444;--green:#10b981;--amber:#f59e0b;
+      --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+    }
+    body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .container{max-width:960px;margin:0 auto;padding:20px}
+    .logo{font-weight:800;font-size:18px;letter-spacing:3px;color:var(--purple-light);text-align:center;margin-bottom:24px}
+    .card{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px}
+    .btn{padding:12px 24px;border-radius:10px;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:all 0.2s}
+    .btn-primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);color:white}
+    .btn-primary:hover{box-shadow:0 0 20px rgba(124,58,237,0.4)}
+    .btn-danger{background:rgba(239,68,68,0.12);border:1px solid var(--red);color:var(--red)}
+    .btn-outline{background:transparent;border:1px solid var(--border-strong);color:var(--text)}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    input,textarea{width:100%;padding:12px;background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:14px}
+    input:focus,textarea:focus{outline:none;border-color:var(--purple)}
+    .label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:6px}
+    .badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+    .step-indicator{display:flex;gap:8px;margin-bottom:20px;justify-content:center}
+    .step-dot{width:10px;height:10px;border-radius:50%;background:var(--border-strong);transition:all 0.3s}
+    .step-dot.active{background:var(--purple);box-shadow:0 0 10px rgba(124,58,237,0.5)}
+    .step-dot.done{background:var(--green)}
+    .signer-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    .signer-badge{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid}
+    .pdf-viewer{background:#1a1a2e;border-radius:10px;overflow:auto;max-height:60vh;display:flex;justify-content:center;padding:16px;position:relative}
+    .pdf-viewer canvas{box-shadow:0 4px 24px rgba(0,0,0,0.5)}
+    .field-highlight{position:absolute;border:2px solid;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;animation:pulse-field 2s infinite}
+    @keyframes pulse-field{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.4)}50%{box-shadow:0 0 0 8px rgba(124,58,237,0)}}
+    .sig-canvas-wrap{border:1px solid var(--border);border-radius:10px;background:white;overflow:hidden}
+    .sig-canvas-wrap canvas{display:block;width:100%;touch-action:none;cursor:crosshair}
+    .sig-tabs{display:flex;gap:8px;margin-bottom:12px}
+    .sig-tab-btn{flex:1;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;text-align:center;font-family:inherit}
+    .sig-tab-btn.active{border-color:var(--purple);background:var(--purple-dim);color:var(--purple-light)}
+    .font-btns{display:flex;gap:6px;margin-bottom:8px}
+    .font-btn{padding:6px 12px;border-radius:6px;border:1px solid var(--border);background:var(--bg-surface);color:var(--text2);font-size:12px;cursor:pointer;font-family:inherit}
+    .font-btn.active{border-color:var(--purple);background:var(--purple-dim);color:var(--purple-light)}
+    .toast{position:fixed;top:20px;right:20px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;animation:slideIn 0.3s ease}
+    .toast.success{background:rgba(16,185,129,0.15);border:1px solid var(--green);color:var(--green)}
+    .toast.error{background:rgba(239,68,68,0.15);border:1px solid var(--red);color:var(--red)}
+    @keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+    .consent-box{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0;font-size:12px;color:var(--text2);line-height:1.6}
+    @media(max-width:600px){.container{padding:12px}.card{padding:14px}.btn{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">GUARDLINE</div>
+    <div id="app"></div>
+  </div>
+
+<script>
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  var API_BASE = window.location.origin + '/api/documents';
+  var TOKEN = window.location.pathname.split('/').pop() || new URLSearchParams(window.location.search).get('token') || '';
+  var STATE = { doc: null, signer: null, fields: [], allSigners: [], otpRequired: true, otpVerified: false, step: 'loading', pdfDoc: null, currentPage: 1, totalPages: 1, fingerprint: null, geoData: null };
+
+  function toast(msg, type) {
+    var t = document.createElement('div');
+    t.className = 'toast ' + (type || 'success');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function() { t.remove(); }, 4000);
+  }
+
+  async function api(method, path, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    var res = await fetch(API_BASE + path, opts);
+    var data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Erro');
+    return data.data;
+  }
+
+  // ─── FINGERPRINT ──────────────────────────────────
+  async function collectFingerprint() {
+    try {
+      if (typeof FingerprintJS !== 'undefined') {
+        var fp = await FingerprintJS.load();
+        var result = await fp.get();
+        STATE.fingerprint = { id: result.visitorId, components: result.components };
+      }
+    } catch(e) { console.warn('Fingerprint error:', e); }
+  }
+
+  // ─── GEOLOCATION ──────────────────────────────────
+  async function collectGeo() {
+    return new Promise(function(resolve) {
+      if (!navigator.geolocation) { resolve({ source: 'denied' }); return; }
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude, accuracy: pos.coords.accuracy, source: 'browser' });
+        },
+        function() { resolve({ source: 'denied' }); },
+        { timeout: 10000, enableHighAccuracy: true }
+      );
+    });
+  }
+
+  // ─── LOAD DOCUMENT ────────────────────────────────
+  async function loadDocument() {
+    try {
+      var data = await api('GET', '/sign/' + TOKEN);
+      STATE.doc = data.document;
+      STATE.signer = data.signer;
+      STATE.fields = data.fields || [];
+      STATE.allSigners = data.allSigners || [];
+      STATE.otpRequired = data.otpRequired;
+
+      if (STATE.signer.status === 'signed') { STATE.step = 'already_signed'; }
+      else if (STATE.signer.status === 'refused') { STATE.step = 'refused'; }
+      else if (STATE.otpRequired) { STATE.step = 'otp'; }
+      else { STATE.step = 'consent'; }
+
+      collectFingerprint();
+      render();
+    } catch(e) {
+      STATE.step = 'error';
+      STATE.errorMsg = e.message;
+      render();
+    }
+  }
+
+  // ─── RENDER ───────────────────────────────────────
+  function render() {
+    var app = document.getElementById('app');
+    var fns = {
+      loading: renderLoading, error: renderError, otp: renderOtp,
+      consent: renderConsent, document: renderDocument, sign: renderSign,
+      already_signed: renderAlreadySigned, refused: renderRefused, done: renderDone,
+    };
+    (fns[STATE.step] || renderError)(app);
+  }
+
+  function renderLoading(el) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:12px">📄</div><div style="color:var(--text2)">Carregando documento...</div></div>';
+  }
+
+  function renderError(el) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:12px">⚠️</div><div style="color:var(--red);font-weight:700;margin-bottom:8px">' + (STATE.errorMsg || 'Link inválido ou expirado') + '</div><div style="color:var(--text3);font-size:13px">Verifique se o link está correto ou entre em contato com o remetente.</div></div>';
+  }
+
+  function renderAlreadySigned(el) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">✅</div><div style="font-size:18px;font-weight:700;color:var(--green);margin-bottom:8px">Documento já assinado</div><div style="color:var(--text2);font-size:13px">Você assinou este documento em ' + new Date(STATE.signer.signedAt || '').toLocaleString('pt-BR') + '.</div></div>';
+  }
+
+  function renderRefused(el) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">❌</div><div style="font-size:18px;font-weight:700;color:var(--red);margin-bottom:8px">Documento recusado</div></div>';
+  }
+
+  function renderDone(el) {
+    el.innerHTML = '<div class="card" style="text-align:center;padding:40px"><div style="font-size:48px;margin-bottom:12px">🎉</div><div style="font-size:18px;font-weight:700;color:var(--green);margin-bottom:12px">Assinatura concluída!</div><div style="color:var(--text2);font-size:13px;margin-bottom:16px">Sua assinatura foi registrada com sucesso. Todos os participantes receberão uma cópia do documento assinado.</div><div style="font-size:12px;color:var(--text3)">Você pode fechar esta janela.</div></div>';
+  }
+
+  // ─── OTP VERIFICATION ─────────────────────────────
+  function renderOtp(el) {
+    el.innerHTML =
+      '<div class="card" style="max-width:420px;margin:0 auto">' +
+      '<div style="text-align:center;margin-bottom:20px"><div style="font-size:40px;margin-bottom:8px">🔐</div>' +
+      '<div style="font-weight:700;font-size:16px">Verificação de identidade</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-top:4px">Para acessar este documento, confirme sua identidade.</div></div>' +
+      '<div class="label">Código de verificação (6 dígitos)</div>' +
+      '<input id="otp-input" type="text" maxlength="6" placeholder="000000" style="text-align:center;font-size:24px;letter-spacing:8px;font-weight:800;margin-bottom:12px"/>' +
+      '<button class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="verifyOtp()">Verificar</button>' +
+      '<button class="btn btn-outline" style="width:100%" onclick="requestOtp()">Enviar código por e-mail</button>' +
+      '<div id="otp-msg" style="margin-top:12px;font-size:12px;color:var(--text3);text-align:center"></div></div>';
+  }
+
+  async function requestOtp() {
+    try {
+      var data = await api('POST', '/sign/' + TOKEN + '/otp');
+      document.getElementById('otp-msg').innerHTML = '<span style="color:var(--green)">✓ ' + data.message + '</span>' +
+        (data.devOtp ? '<br><span style="color:var(--amber)">DEV: ' + data.devOtp + '</span>' : '');
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  async function verifyOtp() {
+    var code = document.getElementById('otp-input').value.trim();
+    if (code.length !== 6) { toast('Digite 6 dígitos', 'error'); return; }
+    try {
+      await api('POST', '/sign/' + TOKEN + '/otp/verify', { code: code });
+      STATE.otpVerified = true;
+      STATE.step = 'consent';
+      toast('Identidade verificada!');
+      render();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ─── CONSENT ──────────────────────────────────────
+  function renderConsent(el) {
+    var signerList = STATE.allSigners.map(function(s) {
+      var icon = s.status === 'signed' ? '✅' : s.status === 'refused' ? '❌' : '⏳';
+      return '<span class="signer-badge" style="border-color:' + (s.color || 'var(--border)') + ';color:' + (s.color || 'var(--text2)') + '">' + icon + ' ' + s.name + '</span>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="card">' +
+      '<div style="font-weight:700;font-size:16px;margin-bottom:4px">📄 ' + esc(STATE.doc.name) + '</div>' +
+      (STATE.doc.description ? '<div style="color:var(--text2);font-size:13px;margin-bottom:12px">' + esc(STATE.doc.description) + '</div>' : '') +
+      (STATE.doc.message ? '<div style="background:var(--purple-dim);border:1px solid rgba(124,58,237,0.3);border-radius:8px;padding:12px;font-size:13px;color:var(--text2);margin-bottom:12px"><strong>Mensagem do remetente:</strong> ' + esc(STATE.doc.message) + '</div>' : '') +
+      '<div class="label" style="margin-top:8px">Participantes</div>' +
+      '<div class="signer-list">' + signerList + '</div></div>' +
+      '<div class="consent-box">' +
+      '<strong>Aviso de coleta de dados (LGPD)</strong><br><br>' +
+      'Ao prosseguir, você consente com a coleta dos seguintes dados para fins de validade jurídica da assinatura digital:' +
+      '<ul style="margin:8px 0 0 16px"><li>Endereço IP do dispositivo</li><li>Geolocalização (se permitida)</li><li>Identificação do dispositivo e navegador</li><li>Data e hora da assinatura</li></ul>' +
+      'Estes dados serão armazenados de forma segura e utilizados exclusivamente para comprovação da autenticidade da assinatura.' +
+      '</div>' +
+      '<div style="display:flex;gap:8px">' +
+      '<button class="btn btn-primary" style="flex:1" onclick="acceptConsent()">Aceitar e visualizar documento</button>' +
+      '<button class="btn btn-danger" onclick="showRefuseModal()">Recusar</button></div>';
+  }
+
+  async function acceptConsent() {
+    STATE.geoData = await collectGeo();
+    STATE.step = 'document';
+    render();
+  }
+
+  // ─── DOCUMENT VIEW ────────────────────────────────
+  function renderDocument(el) {
+    var steps = ['Verificar', 'Revisar', 'Assinar'];
+    var stepIdx = 1;
+    var dots = steps.map(function(s, i) {
+      return '<div class="step-dot ' + (i < stepIdx ? 'done' : i === stepIdx ? 'active' : '') + '" title="' + s + '"></div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="step-indicator">' + dots + '</div>' +
+      '<div class="card"><div style="font-weight:700;margin-bottom:12px">Revise o documento abaixo</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">' +
+      '<button class="btn btn-outline" onclick="signPrevPage()" style="padding:8px 12px">◀</button>' +
+      '<span style="font-size:12px;color:var(--text3)">Página <span id="sign-page-num">1</span>/<span id="sign-page-total">1</span></span>' +
+      '<button class="btn btn-outline" onclick="signNextPage()" style="padding:8px 12px">▶</button></div>' +
+      '<div class="pdf-viewer" id="sign-pdf-viewer">' +
+      '<canvas id="sign-pdf-canvas"></canvas>' +
+      '<div id="sign-fields-layer" style="position:absolute;inset:0;pointer-events:none"></div>' +
+      '</div></div>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+      '<button class="btn btn-primary" style="flex:1" onclick="goToSign()">Prosseguir para assinar →</button>' +
+      '<button class="btn btn-danger" onclick="showRefuseModal()">Recusar</button></div>';
+
+    setTimeout(loadPdf, 100);
+  }
+
+  async function loadPdf() {
+    try {
+      var url = STATE.doc.fileUrl;
+      var loadingTask;
+      if (url.startsWith('data:')) {
+        var b64 = url.split(',')[1];
+        var raw = atob(b64);
+        var arr = new Uint8Array(raw.length);
+        for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+        loadingTask = pdfjsLib.getDocument({ data: arr });
+      } else {
+        loadingTask = pdfjsLib.getDocument(url);
+      }
+      STATE.pdfDoc = await loadingTask.promise;
+      STATE.totalPages = STATE.pdfDoc.numPages;
+      document.getElementById('sign-page-total').textContent = STATE.totalPages;
+      await renderPdfPage(1);
+    } catch(e) { toast('Erro ao carregar PDF: ' + e.message, 'error'); }
+  }
+
+  async function renderPdfPage(num) {
+    STATE.currentPage = num;
+    var page = await STATE.pdfDoc.getPage(num);
+    var vp = page.getViewport({ scale: 1.5 });
+    var canvas = document.getElementById('sign-pdf-canvas');
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    document.getElementById('sign-page-num').textContent = num;
+    renderSignFields();
+  }
+
+  function renderSignFields() {
+    var layer = document.getElementById('sign-fields-layer');
+    var canvas = document.getElementById('sign-pdf-canvas');
+    if (!layer || !canvas) return;
+    layer.innerHTML = '';
+    layer.style.width = canvas.width + 'px';
+    layer.style.height = canvas.height + 'px';
+
+    STATE.fields.filter(function(f) { return f.page === STATE.currentPage; }).forEach(function(f) {
+      var el = document.createElement('div');
+      el.className = 'field-highlight';
+      var color = STATE.signer.color || '#7c3aed';
+      el.style.cssText = 'left:' + (f.x/100*canvas.width) + 'px;top:' + (f.y/100*canvas.height) + 'px;width:' + (f.width/100*canvas.width) + 'px;height:' + (f.height/100*canvas.height) + 'px;border-color:' + color + ';background:' + color + '22;color:' + color;
+      var labels = { signature: '✍️ Assine aqui', initials: '🔤 Rubrica', date: '📅', name: '👤', cpf: '🆔', text: '📝', checkbox: '☑️' };
+      el.textContent = labels[f.type] || f.type;
+      layer.appendChild(el);
+    });
+  }
+
+  function signPrevPage() { if (STATE.currentPage > 1) renderPdfPage(STATE.currentPage - 1); }
+  function signNextPage() { if (STATE.currentPage < STATE.totalPages) renderPdfPage(STATE.currentPage + 1); }
+  function goToSign() { STATE.step = 'sign'; render(); }
+
+  // ─── SIGNATURE CAPTURE ────────────────────────────
+  function renderSign(el) {
+    var steps = ['Verificar', 'Revisar', 'Assinar'];
+    var dots = steps.map(function(s, i) {
+      return '<div class="step-dot ' + (i < 2 ? 'done' : 'active') + '" title="' + s + '"></div>';
+    }).join('');
+
+    el.innerHTML =
+      '<div class="step-indicator">' + dots + '</div>' +
+      '<div class="card"><div style="font-weight:700;font-size:16px;margin-bottom:4px">Assine o documento</div>' +
+      '<div style="color:var(--text2);font-size:13px;margin-bottom:16px">Escolha como deseja assinar:</div>' +
+      '<div class="sig-tabs">' +
+      '<div class="sig-tab-btn active" data-tab="draw" onclick="sigTab(\'draw\')">✍️ Desenhar</div>' +
+      '<div class="sig-tab-btn" data-tab="type" onclick="sigTab(\'type\')">⌨️ Digitar</div>' +
+      '<div class="sig-tab-btn" data-tab="upload" onclick="sigTab(\'upload\')">📤 Imagem</div></div>' +
+      '<div id="sig-panel-draw"><div class="sig-canvas-wrap"><canvas id="sig-c-draw" width="460" height="180"></canvas></div>' +
+      '<button class="btn btn-outline" style="margin-top:8px;padding:8px 16px" onclick="sigClear()">Limpar</button></div>' +
+      '<div id="sig-panel-type" style="display:none">' +
+      '<input id="sig-name-input" type="text" placeholder="Digite seu nome completo" oninput="sigTyped()" style="margin-bottom:8px"/>' +
+      '<div class="font-btns"><button class="font-btn active" data-f="Dancing Script" onclick="sigFont(this)">Cursiva 1</button><button class="font-btn" data-f="Great Vibes" onclick="sigFont(this)">Cursiva 2</button><button class="font-btn" data-f="Pacifico" onclick="sigFont(this)">Cursiva 3</button></div>' +
+      '<div class="sig-canvas-wrap"><canvas id="sig-c-type" width="460" height="100"></canvas></div></div>' +
+      '<div id="sig-panel-upload" style="display:none">' +
+      '<div style="border:2px dashed var(--border-strong);border-radius:10px;padding:24px;text-align:center;cursor:pointer" onclick="document.getElementById(\'sig-file\').click()">' +
+      '<div style="font-size:28px">📤</div><div style="font-size:13px;color:var(--text2)">Clique para enviar PNG/JPG</div>' +
+      '<input id="sig-file" type="file" accept="image/*" style="display:none" onchange="sigUploaded(this)"/></div>' +
+      '<div class="sig-canvas-wrap" style="margin-top:8px"><canvas id="sig-c-upload" width="460" height="100"></canvas></div></div></div>' +
+      '<button class="btn btn-primary" style="width:100%;margin-top:12px;padding:14px;font-size:15px" onclick="submitSignature()">✅ Confirmar assinatura</button>' +
+      '<button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="STATE.step=\'document\';render()">← Voltar ao documento</button>';
+
+    setTimeout(initDrawCanvas, 100);
+  }
+
+  var __sigFont = 'Dancing Script';
+  var __sigTab = 'draw';
+
+  function sigTab(tab) {
+    __sigTab = tab;
+    ['draw','type','upload'].forEach(function(t) {
+      var p = document.getElementById('sig-panel-' + t);
+      if (p) p.style.display = t === tab ? 'block' : 'none';
+    });
+    document.querySelectorAll('.sig-tab-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+  }
+
+  function initDrawCanvas() {
+    var c = document.getElementById('sig-c-draw');
+    if (!c) return;
+    var ctx = c.getContext('2d');
+    var drawing = false, lx, ly;
+    ctx.strokeStyle = '#1a1a2e';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    function pos(e) { var r = c.getBoundingClientRect(); var t = e.touches ? e.touches[0] : e; return { x: (t.clientX-r.left)*(c.width/r.width), y: (t.clientY-r.top)*(c.height/r.height) }; }
+    function s(e) { e.preventDefault(); drawing=true; var p=pos(e); lx=p.x; ly=p.y; }
+    function m(e) { if(!drawing)return; e.preventDefault(); var p=pos(e); ctx.beginPath(); ctx.moveTo(lx,ly); ctx.quadraticCurveTo(lx,ly,(lx+p.x)/2,(ly+p.y)/2); ctx.stroke(); lx=p.x; ly=p.y; }
+    function u() { drawing=false; }
+    c.addEventListener('mousedown',s); c.addEventListener('mousemove',m); c.addEventListener('mouseup',u); c.addEventListener('mouseleave',u);
+    c.addEventListener('touchstart',s); c.addEventListener('touchmove',m); c.addEventListener('touchend',u);
+  }
+
+  function sigClear() { var c=document.getElementById('sig-c-draw'); if(c) c.getContext('2d').clearRect(0,0,c.width,c.height); }
+  function sigFont(btn) { __sigFont=btn.dataset.f; document.querySelectorAll('.font-btn').forEach(function(b){b.classList.toggle('active',b===btn)}); sigTyped(); }
+  function sigTyped() {
+    var inp = document.getElementById('sig-name-input');
+    var c = document.getElementById('sig-c-type');
+    if (!inp || !c) return;
+    var ctx = c.getContext('2d');
+    ctx.clearRect(0,0,c.width,c.height);
+    if (!inp.value) return;
+    ctx.font = '42px "' + __sigFont + '",cursive';
+    ctx.fillStyle = '#1a1a2e';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(inp.value, c.width/2, c.height/2);
+  }
+
+  function sigUploaded(input) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var img = new Image();
+      img.onload = function() {
+        var c = document.getElementById('sig-c-upload');
+        var ctx = c.getContext('2d');
+        ctx.clearRect(0,0,c.width,c.height);
+        var s = Math.min(c.width/img.width, c.height/img.height)*0.9;
+        ctx.drawImage(img, (c.width-img.width*s)/2, (c.height-img.height*s)/2, img.width*s, img.height*s);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function submitSignature() {
+    var cid = __sigTab === 'draw' ? 'sig-c-draw' : __sigTab === 'type' ? 'sig-c-type' : 'sig-c-upload';
+    var c = document.getElementById(cid);
+    if (!c) return;
+
+    if (__sigTab === 'draw') {
+      var px = c.getContext('2d').getImageData(0,0,c.width,c.height).data;
+      var has = false;
+      for (var i=3;i<px.length;i+=4) { if(px[i]>0){has=true;break;} }
+      if (!has) { toast('Desenhe sua assinatura', 'error'); return; }
+    }
+    if (__sigTab === 'type' && !document.getElementById('sig-name-input').value.trim()) {
+      toast('Digite seu nome', 'error'); return;
+    }
+
+    var sigData = c.toDataURL('image/png');
+    var geo = STATE.geoData || {};
+
+    try {
+      var result = await api('POST', '/sign/' + TOKEN + '/sign', {
+        signatureData: sigData,
+        signatureMethod: __sigTab,
+        geoLat: geo.lat || null,
+        geoLon: geo.lon || null,
+        fieldValues: {},
+        fingerprint: STATE.fingerprint ? STATE.fingerprint.id : null,
+      });
+      STATE.step = 'done';
+      toast('Assinatura registrada com sucesso!');
+      render();
+    } catch(e) { toast(e.message, 'error'); }
+  }
+
+  // ─── REFUSE ───────────────────────────────────────
+  function showRefuseModal() {
+    var reason = prompt('Motivo da recusa (opcional):');
+    if (reason === null) return;
+    api('POST', '/sign/' + TOKEN + '/refuse', { reason: reason || '' })
+      .then(function() { STATE.step = 'refused'; toast('Documento recusado.'); render(); })
+      .catch(function(e) { toast(e.message, 'error'); });
+  }
+
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  // ─── INIT ─────────────────────────────────────────
+  loadDocument();
+</script>
+</body>
+</html>
