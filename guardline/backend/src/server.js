@@ -171,7 +171,7 @@ app.get('/api/status', async (req, res) => {
     backend: 'ok',
     database: 'unknown',
     dataApi: DATA_API_BASE ? 'configured' : 'not_configured',
-    anthropic: process.env.ANTHROPIC_API_KEY ? 'configured' : 'missing',
+    julio: (process.env.NVIDIA_API_KEY || process.env.ANTHROPIC_API_KEY) ? 'configured' : 'missing',
     slack: process.env.SLACK_BOT_TOKEN ? 'configured' : 'missing',
     gmail: process.env.GMAIL_CLIENT_ID ? 'configured' : 'missing',
     whatsapp: process.env.TWILIO_ACCOUNT_SID ? 'configured' : 'missing',
@@ -258,8 +258,14 @@ app.post('/api/upload/document', require('./middleware/auth').authMiddleware, do
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/deals', require('./routes/deals.routes'));
 app.use('/api/leads', require('./routes/leads.routes'));
+app.use('/api/contacts', require('./routes/contacts.routes'));
+app.use('/api/accounts', require('./routes/accounts.routes'));
+app.use('/api/meetings', require('./routes/meetings.routes'));
+app.use('/api/wf_executions', require('./routes/wf_executions.routes'));
+app.use('/api/reports', require('./routes/reports.routes'));
 app.use('/api/campaigns', require('./routes/campaigns.routes'));
 app.use('/api/fraud', require('./routes/fraud.routes'));
+app.use('/api/fraud_events', require('./routes/fraud.routes'));
 app.use('/api/automations', require('./routes/automation.routes'));
 app.use('/api/julio', require('./routes/julio.routes'));
 app.use('/api/metrics', require('./routes/metrics.routes'));

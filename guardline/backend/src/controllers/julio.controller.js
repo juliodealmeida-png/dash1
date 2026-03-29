@@ -2,10 +2,10 @@ const { ok, fail } = require('../utils/response');
 const julio = require('../services/julio.service');
 const { emitToUser } = require('../config/socket');
 
-function requireAnthropic(res) {
-  if (!process.env.ANTHROPIC_API_KEY) {
+function requireJulio(res) {
+  if (!julio.isConfigured()) {
     fail(res, 503, 'Julio AI não configurado', 'JULIO_NOT_CONFIGURED', {
-      hint: 'Defina ANTHROPIC_API_KEY no .env',
+      hint: 'Defina NVIDIA_API_KEY no .env',
     });
     return false;
   }
@@ -14,7 +14,7 @@ function requireAnthropic(res) {
 
 async function postBrief(req, res, next) {
   try {
-    if (!requireAnthropic(res)) return;
+    if (!requireJulio(res)) return;
     const brief = await julio.generateDailyBrief(req.user.id);
     const io = req.app.get('io');
     if (io) emitToUser(io, req.user.id, 'julio:brief:ready', brief);
@@ -41,7 +41,7 @@ async function getBriefLatest(req, res, next) {
 }
 
 async function chatStream(req, res, next) {
-  if (!requireAnthropic(res)) return;
+  if (!requireJulio(res)) return;
 
   const { message, conversationId } = req.body;
   if (!message || typeof message !== 'string') {
@@ -83,7 +83,7 @@ async function chatStream(req, res, next) {
 /** Chat sem stream (útil para clientes que não suportam SSE). */
 async function chatSync(req, res, next) {
   try {
-    if (!requireAnthropic(res)) return;
+    if (!requireJulio(res)) return;
     const { message, conversationId } = req.body;
     if (!message) return fail(res, 400, 'message é obrigatório', 'VALIDATION_ERROR');
     const out = await julio.chatWithJulio(req.user.id, conversationId || null, String(message).trim());
@@ -120,7 +120,7 @@ async function getConversation(req, res, next) {
 
 async function postLossAnalysis(req, res, next) {
   try {
-    if (!requireAnthropic(res)) return;
+    if (!requireJulio(res)) return;
     const data = await julio.analyzeLossPatterns(req.user.id);
     return ok(res, data);
   } catch (e) {
@@ -130,7 +130,7 @@ async function postLossAnalysis(req, res, next) {
 
 async function postInvestorUpdate(req, res, next) {
   try {
-    if (!requireAnthropic(res)) return;
+    if (!requireJulio(res)) return;
     const markdown = await julio.generateInvestorUpdate(req.user.id);
     return ok(res, { markdown });
   } catch (e) {

@@ -1,14 +1,109 @@
-const Anthropic = require('@anthropic-ai/sdk');
 const { prisma } = require('../config/database');
 
-function getAnthropic() {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-  return new Anthropic({ apiKey: key });
+const NVIDIA_API_BASE = 'https://integrate.api.nvidia.com/v1';
+
+function getNvidiaKey() {
+  return process.env.NVIDIA_API_KEY || process.env.ANTHROPIC_API_KEY || null;
 }
 
 function getModel() {
-  return process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+  return process.env.JULIO_MODEL || process.env.NVIDIA_MODEL || 'moonshotai/kimi-k2.5';
+}
+
+function isConfigured() {
+  return !!getNvidiaKey();
+}
+
+/**
+ * Call NVIDIA NIMs chat completions (non-streaming).
+ * @param {Array} messages - OpenAI-style [{role, content}]
+ * @param {number} maxTokens
+ * @returns {Promise<string>} assistant text
+ */
+async function nvidiaChat(messages, maxTokens = 600) {
+  const key = getNvidiaKey();
+  if (!key) throw new Error('NVIDIA_API_KEY não configurada');
+
+  const res = await fetch(`${NVIDIA_API_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: getModel(),
+      messages,
+      max_tokens: maxTokens,
+      stream: false,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`NVIDIA NIMs error ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  return (data.choices?.[0]?.message?.content) || '';
+}
+
+/**
+ * Stream NVIDIA NIMs chat completions via SSE.
+ * Calls onChunk(delta_text) for each token.
+ * @returns {Promise<string>} full text
+ */
+async function nvidiaChatStream(messages, maxTokens = 600, onChunk) {
+  const key = getNvidiaKey();
+  if (!key) throw new Error('NVIDIA_API_KEY não configurada');
+
+  const res = await fetch(`${NVIDIA_API_BASE}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: getModel(),
+      messages,
+      max_tokens: maxTokens,
+      stream: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`NVIDIA NIMs error ${res.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  let full = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const lines = buf.split('\n');
+    buf = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const raw = line.slice(6).trim();
+      if (raw === '[DONE]') break;
+      try {
+        const ev = JSON.parse(raw);
+        const chunk = ev.choices?.[0]?.delta?.content || '';
+        if (chunk) {
+          full += chunk;
+          if (onChunk) onChunk(chunk);
+        }
+      } catch {
+        // ignore parse errors on malformed lines
+      }
+    }
+  }
+
+  return full;
 }
 
 const JULIO_SYSTEM_PROMPT = `
@@ -142,15 +237,12 @@ FRAUDES (últimas 24h): ${fraud24h} eventos detectados
 }
 
 async function generateDailyBrief(userId) {
-  const client = getAnthropic();
-  if (!client) throw new Error('ANTHROPIC_API_KEY não configurada');
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const context = await buildPipelineContext(userId);
-  const response = await client.messages.create({
-    model: getModel(),
-    max_tokens: 1000,
-    system: JULIO_SYSTEM_PROMPT,
-    messages: [
+  const content = await nvidiaChat(
+    [
+      { role: 'system', content: JULIO_SYSTEM_PROMPT },
       {
         role: 'user',
         content: `${context}
@@ -177,10 +269,8 @@ Gere o Daily Revenue Brief de hoje. Formato OBRIGATÓRIO — retorne SOMENTE est
 Gere exatamente 5 items, ordenados por prioridade (1 = mais urgente).`,
       },
     ],
-  });
-
-  const block = response.content.find((b) => b.type === 'text');
-  const content = block && block.type === 'text' ? block.text : '';
+    1000
+  );
   const brief = extractJsonObject(content);
   if (!brief) throw new Error('Julio não retornou JSON válido');
 
@@ -239,24 +329,21 @@ async function persistConversation(userId, conversationId, messages) {
  * Chat síncrono (sem stream) — útil para testes ou clientes simples.
  */
 async function chatWithJulio(userId, conversationId, userMessage) {
-  const client = getAnthropic();
-  if (!client) throw new Error('ANTHROPIC_API_KEY não configurada');
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const context = await buildPipelineContext(userId);
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
+
+  const fullMessages = [
+    { role: 'system', content: `${JULIO_SYSTEM_PROMPT}\n\n${context}` },
+    ...messages,
+    { role: 'user', content: userMessage },
+  ];
+
+  const assistantMessage = await nvidiaChat(fullMessages, 600);
+
   messages.push({ role: 'user', content: userMessage });
-
-  const response = await client.messages.create({
-    model: getModel(),
-    max_tokens: 600,
-    system: `${JULIO_SYSTEM_PROMPT}\n\n${context}`,
-    messages,
-  });
-
-  const block = response.content.find((b) => b.type === 'text');
-  const assistantMessage = block && block.type === 'text' ? block.text : '';
-
   messages.push({ role: 'assistant', content: assistantMessage });
   const id = await persistConversation(userId, conversationId, messages);
 
@@ -268,26 +355,21 @@ async function chatWithJulio(userId, conversationId, userMessage) {
  * Retorna { fullText, conversationId }.
  */
 async function streamJulioChat(userId, conversationId, userMessage, onChunk) {
-  const client = getAnthropic();
-  if (!client) throw new Error('ANTHROPIC_API_KEY não configurada');
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const context = await buildPipelineContext(userId);
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
+
+  const fullMessages = [
+    { role: 'system', content: `${JULIO_SYSTEM_PROMPT}\n\n${context}` },
+    ...messages,
+    { role: 'user', content: userMessage },
+  ];
+
+  const fullText = await nvidiaChatStream(fullMessages, 600, onChunk);
+
   messages.push({ role: 'user', content: userMessage });
-
-  const stream = client.messages.stream({
-    model: getModel(),
-    max_tokens: 600,
-    system: `${JULIO_SYSTEM_PROMPT}\n\n${context}`,
-    messages,
-  });
-
-  stream.on('text', (delta) => {
-    if (onChunk && delta) onChunk(delta);
-  });
-
-  const fullText = await stream.finalText();
   messages.push({ role: 'assistant', content: fullText });
   const id = await persistConversation(userId, conversationId, messages);
 
@@ -295,8 +377,7 @@ async function streamJulioChat(userId, conversationId, userMessage, onChunk) {
 }
 
 async function analyzeLossPatterns(userId) {
-  const client = getAnthropic();
-  if (!client) throw new Error('ANTHROPIC_API_KEY não configurada');
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const losses = await prisma.deal.findMany({
     where: {
@@ -325,11 +406,9 @@ async function analyzeLossPatterns(userId) {
     };
   }
 
-  const response = await client.messages.create({
-    model: getModel(),
-    max_tokens: 500,
-    system: JULIO_SYSTEM_PROMPT,
-    messages: [
+  const text = await nvidiaChat(
+    [
+      { role: 'system', content: JULIO_SYSTEM_PROMPT },
       {
         role: 'user',
         content: `Analise estes ${losses.length} deals perdidos nos últimos 6 meses e identifique os 3 principais padrões:
@@ -352,25 +431,20 @@ Retorne SOMENTE JSON:
 }`,
       },
     ],
-  });
-
-  const block = response.content.find((b) => b.type === 'text');
-  const text = block && block.type === 'text' ? block.text : '';
+    500
+  );
   const parsed = extractJsonObject(text);
   if (!parsed) return { patterns: [], totalLost: 0, mainReason: null, raw: text };
   return parsed;
 }
 
 async function generateInvestorUpdate(userId) {
-  const client = getAnthropic();
-  if (!client) throw new Error('ANTHROPIC_API_KEY não configurada');
+  if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const context = await buildPipelineContext(userId);
-  const response = await client.messages.create({
-    model: getModel(),
-    max_tokens: 800,
-    system: JULIO_SYSTEM_PROMPT,
-    messages: [
+  return nvidiaChat(
+    [
+      { role: 'system', content: JULIO_SYSTEM_PROMPT },
       {
         role: 'user',
         content: `${context}
@@ -381,10 +455,8 @@ Inclua: MRR estimado, pipeline, principais wins, riscos e próximos 30 dias.
 Seja conciso e honesto. Máximo 400 palavras.`,
       },
     ],
-  });
-
-  const block = response.content.find((b) => b.type === 'text');
-  return block && block.type === 'text' ? block.text : '';
+    800
+  );
 }
 
 async function listConversations(userId, take = 30) {
@@ -411,7 +483,7 @@ async function getLatestBrief(userId) {
 
 module.exports = {
   JULIO_SYSTEM_PROMPT,
-  getAnthropic,
+  isConfigured,
   getModel,
   buildPipelineContext,
   generateDailyBrief,
