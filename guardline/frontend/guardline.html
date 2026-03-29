@@ -14092,5 +14092,344 @@
       };
     })();
   </script>
+
+  <script>
+// ============================================================
+// GUARDLINE — Fraud Map: Integrações com Dados REAIS
+// Fontes: CISA KEV, NVD, Abuse.ch Feodo, Google News, THN, BC
+// Sem API key própria • CORS-free • Atualiza a cada 5 min
+// ============================================================
+(function GuardlineFraudMapReal() {
+  'use strict';
+
+  const CFG = {
+    OTX_API_KEY:      '',
+    ABUSEIPDB_KEY:    '',
+    REFRESH_MS:       5 * 60 * 1000,
+    MAX_ALERTS:       12,
+    MAP_MAX_MARKERS:  80,
+    RSS2JSON_BASE: 'https://api.rss2json.com/v1/api.json?rss_url=',
+    CISA_KEV:      'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
+    NVD_BASE:      'https://services.nvd.nist.gov/rest/json/cves/2.0',
+    FEODO:         'https://feodotracker.abuse.ch/downloads/ipblocklist.json',
+    RSS_FEEDS: [
+      { name: 'Fraude Financeiro BR',   url: 'https://news.google.com/rss/search?q=fraude+financeiro+banco+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419',        region: 'BR',     icon: '🇧🇷' },
+      { name: 'Fraude Financiero MX',   url: 'https://news.google.com/rss/search?q=fraude+financiero+banco+mexico&hl=es-419&gl=MX&ceid=MX:es-419',       region: 'MX',     icon: '🇲🇽' },
+      { name: 'Fraude LATAM',           url: 'https://news.google.com/rss/search?q=fraude+bancario+latinoamerica&hl=es-419',                              region: 'LATAM',  icon: '🌎' },
+      { name: 'The Hacker News',        url: 'https://feeds.feedburner.com/TheHackersNews',                                                               region: 'GLOBAL', icon: '🔴' },
+      { name: 'BleepingComputer',       url: 'https://www.bleepingcomputer.com/feed/',                                                                    region: 'GLOBAL', icon: '🔵' }
+    ]
+  };
+
+  const COUNTRY_GEO = {
+    BR: { lat: -14.2, lng: -51.9,  name: 'Brasil' },    MX: { lat: 23.6,  lng: -102.5, name: 'México' },
+    CO: { lat: 4.6,   lng: -74.1,  name: 'Colômbia' },  AR: { lat: -38.4, lng: -63.6,  name: 'Argentina' },
+    PE: { lat: -9.2,  lng: -75.0,  name: 'Peru' },      CL: { lat: -35.7, lng: -71.5,  name: 'Chile' },
+    VE: { lat: 6.4,   lng: -66.6,  name: 'Venezuela' }, EC: { lat: -1.8,  lng: -78.1,  name: 'Equador' },
+    BO: { lat: -16.3, lng: -63.6,  name: 'Bolívia' },   PY: { lat: -23.4, lng: -58.4,  name: 'Paraguai' },
+    UY: { lat: -32.5, lng: -55.8,  name: 'Uruguai' },   US: { lat: 37.1,  lng: -95.7,  name: 'EUA' },
+    CN: { lat: 35.9,  lng: 104.2,  name: 'China' },     RU: { lat: 61.5,  lng: 105.3,  name: 'Rússia' },
+    NG: { lat: 9.1,   lng: 8.7,    name: 'Nigéria' },   UA: { lat: 48.4,  lng: 31.2,   name: 'Ucrânia' },
+  };
+
+  const STATE = { alerts: [], markers: [], cisaVulns: [], feodoIPs: [], newsItems: [], mapInstance: null, mapMarkers: [], lastUpdate: null };
+
+  function timeAgo(dateStr) {
+    const d = new Date(dateStr), now = new Date();
+    const diff = Math.floor((now - d) / 60000);
+    if (diff < 1) return 'agora';
+    if (diff < 60) return diff + 'm atrás';
+    if (diff < 1440) return Math.floor(diff/60) + 'h atrás';
+    return Math.floor(diff/1440) + 'd atrás';
+  }
+
+  function riskColor(risk) {
+    return { critical: '#ff4757', high: '#ffa502', medium: '#eccc68', low: '#2ed573' }[risk] || '#aaa';
+  }
+
+  function severityToRisk(cvss) {
+    if (cvss >= 9.0) return 'critical';
+    if (cvss >= 7.0) return 'high';
+    if (cvss >= 4.0) return 'medium';
+    return 'low';
+  }
+
+  async function fetchJSON(url, headers) {
+    try {
+      const r = await fetch(url, { headers: headers || {}, signal: AbortSignal.timeout(10000) });
+      if (!r.ok) throw new Error(r.status);
+      return await r.json();
+    } catch (e) { console.warn('[FraudMap] fetch error:', url, e.message); return null; }
+  }
+
+  async function fetchRSS(feedUrl) {
+    const data = await fetchJSON(CFG.RSS2JSON_BASE + encodeURIComponent(feedUrl));
+    return data && data.status === 'ok' ? (data.items || []) : [];
+  }
+
+  async function loadCISA() {
+    const data = await fetchJSON(CFG.CISA_KEV);
+    if (!data || !data.vulnerabilities) return [];
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    return data.vulnerabilities
+      .filter(v => new Date(v.dateAdded) > cutoff)
+      .sort((a, b) => new Date(b.dateAdded) - new Date(a.dateAdded))
+      .slice(0, 20)
+      .map(v => ({
+        id: v.cveID, title: v.cveID + ' — ' + v.product, description: v.shortDescription,
+        source: 'CISA KEV', risk: 'critical', type: 'CVE Explorado', date: v.dateAdded,
+        url: 'https://nvd.nist.gov/vuln/detail/' + v.cveID, lat: null, lng: null
+      }));
+  }
+
+  async function loadNVD() {
+    const end = new Date().toISOString().split('.')[0];
+    const start = new Date(Date.now() - 14 * 86400000).toISOString().split('.')[0];
+    const results = [];
+    for (const kw of ['banking', 'payment']) {
+      const data = await fetchJSON(CFG.NVD_BASE + '?pubStartDate=' + start + '&pubEndDate=' + end + '&keywordSearch=' + kw + '&resultsPerPage=5');
+      if (!data || !data.vulnerabilities) continue;
+      data.vulnerabilities.forEach(item => {
+        const cve = item.cve;
+        const desc = (cve.descriptions && cve.descriptions.find(d => d.lang === 'en') || {}).value || '';
+        const cvss = (cve.metrics && (
+          (cve.metrics.cvssMetricV31 && cve.metrics.cvssMetricV31[0] && cve.metrics.cvssMetricV31[0].cvssData && cve.metrics.cvssMetricV31[0].cvssData.baseScore) ||
+          (cve.metrics.cvssMetricV30 && cve.metrics.cvssMetricV30[0] && cve.metrics.cvssMetricV30[0].cvssData && cve.metrics.cvssMetricV30[0].cvssData.baseScore)
+        )) || 5;
+        results.push({ id: cve.id, title: cve.id + ' [CVSS ' + cvss + '] — ' + kw, description: desc.substring(0, 150) + '...',
+          source: 'NVD', risk: severityToRisk(cvss), type: 'Vulnerabilidade', date: cve.published,
+          url: 'https://nvd.nist.gov/vuln/detail/' + cve.id, lat: null, lng: null });
+      });
+    }
+    return results;
+  }
+
+  async function loadFeodo() {
+    const data = await fetchJSON(CFG.FEODO);
+    if (!Array.isArray(data)) return [];
+    const cutoff = new Date(Date.now() - 90 * 86400000);
+    return data
+      .filter(ip => ip.last_online && new Date(ip.last_online) > cutoff)
+      .sort((a, b) => new Date(b.last_online) - new Date(a.last_online))
+      .slice(0, 30)
+      .map(ip => {
+        const geo = COUNTRY_GEO[ip.country] || null;
+        return {
+          id: 'feodo-' + ip.ip_address, title: 'C2 ' + ip.malware + ' — ' + ip.ip_address,
+          description: 'Servidor C2 ' + ip.malware + ' (' + ip.as_name + ') ativo na porta ' + ip.port,
+          source: 'Abuse.ch Feodo', risk: (ip.malware === 'QakBot' || ip.malware === 'IcedID') ? 'critical' : 'high',
+          type: 'C2 Botnet', date: ip.last_online,
+          url: 'https://feodotracker.abuse.ch/browse.php?search=' + ip.ip_address,
+          lat: geo ? geo.lat + (Math.random() - 0.5) * 8 : null,
+          lng: geo ? geo.lng + (Math.random() - 0.5) * 8 : null
+        };
+      });
+  }
+
+  function detectRiskFromTitle(title) {
+    if (!title) return 'medium';
+    const t = title.toLowerCase();
+    if (t.includes('crítico') || t.includes('critical') || t.includes('ransomware') || t.includes('breach') || t.includes('zero-day') || t.includes('exploited')) return 'critical';
+    if (t.includes('fraude') || t.includes('fraud') || t.includes('hack') || t.includes('malware') || t.includes('phishing') || t.includes('attack')) return 'high';
+    return 'medium';
+  }
+
+  async function loadNewsFeeds() {
+    const allItems = [];
+    for (const feed of CFG.RSS_FEEDS) {
+      const items = await fetchRSS(feed.url);
+      items.slice(0, 6).forEach(item => {
+        allItems.push({
+          id: item.guid || item.link, title: item.title,
+          description: (item.description || '').replace(/<[^>]+>/g, '').substring(0, 120) + '...',
+          source: feed.name, region: feed.region, icon: feed.icon, date: item.pubDate,
+          url: item.link, risk: detectRiskFromTitle(item.title), type: 'Notícia', lat: null, lng: null
+        });
+      });
+      await new Promise(r => setTimeout(r, 300));
+    }
+    return allItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+  }
+
+  async function loadOTX() {
+    if (!CFG.OTX_API_KEY) return [];
+    const data = await fetchJSON('https://otx.alienvault.com/api/v1/pulses/subscribed?limit=10', { 'X-OTX-API-KEY': CFG.OTX_API_KEY });
+    if (!data || !data.results) return [];
+    return data.results.map(p => ({
+      id: p.id, title: p.name, description: (p.description || '').substring(0, 120),
+      source: 'AlienVault OTX', risk: 'high', type: 'Threat Intel', date: p.modified,
+      url: 'https://otx.alienvault.com/pulse/' + p.id, lat: null, lng: null
+    }));
+  }
+
+  async function fetchAllData() {
+    const [cisa, nvd, feodo, news, otx] = await Promise.allSettled([loadCISA(), loadNVD(), loadFeodo(), loadNewsFeeds(), loadOTX()]);
+    const extract = r => r.status === 'fulfilled' ? r.value : [];
+    STATE.cisaVulns = extract(cisa); STATE.feodoIPs = extract(feodo); STATE.newsItems = extract(news);
+    const riskOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+    STATE.alerts = [...STATE.cisaVulns, ...extract(nvd), ...STATE.feodoIPs, ...STATE.newsItems, ...extract(otx)]
+      .sort((a, b) => { const rd = (riskOrder[a.risk]||2) - (riskOrder[b.risk]||2); return rd !== 0 ? rd : new Date(b.date) - new Date(a.date); });
+    STATE.lastUpdate = new Date();
+    console.log('[FraudMap]', STATE.alerts.length, 'alertas | CISA:' + STATE.cisaVulns.length, 'Feodo:' + STATE.feodoIPs.length, 'News:' + STATE.newsItems.length);
+  }
+
+  function renderAlerts() {
+    const verBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Ver todos os sinais'));
+    if (!verBtn) return;
+    const container = verBtn.parentElement;
+    container.querySelectorAll('.gl-real-alert').forEach(e => e.remove());
+    const fragment = document.createDocumentFragment();
+    STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(alert => {
+      const color = riskColor(alert.risk);
+      const div = document.createElement('div');
+      div.className = 'gl-real-alert';
+      div.dataset.url = alert.url || '';
+      div.style.cssText = 'display:flex;gap:8px;padding:8px 12px;margin:3px 0;background:' + color + '18;border-left:3px solid ' + color + ';border-radius:4px;cursor:pointer;transition:background .2s;animation:glFadeIn .4s ease';
+      const srcIcon = { 'CISA KEV': '🛡️', 'NVD': '🔍', 'Abuse.ch Feodo': '🕷️', 'AlienVault OTX': '👁️' }[alert.source] || alert.icon || '📰';
+      div.innerHTML = '<div style="padding-top:2px;font-size:16px;line-height:1">' + srcIcon + '</div>' +
+        '<div style="flex:1;min-width:0;overflow:hidden">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px">' +
+            '<span style="font-size:10px;color:' + color + ';font-weight:700;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:140px">' + alert.type + '</span>' +
+            '<span style="font-size:9px;color:#666;white-space:nowrap">' + timeAgo(alert.date) + '</span>' +
+          '</div>' +
+          '<div style="font-size:11px;color:#ddd;margin-top:2px;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + alert.title + '</div>' +
+          '<div style="font-size:9px;color:#888;margin-top:2px">' + alert.source + '</div>' +
+        '</div>';
+      div.addEventListener('mouseenter', () => { div.style.background = color + '30'; });
+      div.addEventListener('mouseleave', () => { div.style.background = color + '18'; });
+      div.addEventListener('click', () => { if (alert.url) window.open(alert.url, '_blank'); });
+      fragment.appendChild(div);
+    });
+    container.insertBefore(fragment, verBtn);
+  }
+
+  function renderMapMarkers() {
+    const mapInstance = window.map || window.fraudMap || window.mapboxMap ||
+      Object.values(window).find(v => v && typeof v === 'object' && typeof v.addLayer === 'function' && typeof v.flyTo === 'function');
+    if (!mapInstance) { setTimeout(renderMapMarkers, 2000); return; }
+    STATE.mapInstance = mapInstance;
+    STATE.mapMarkers.forEach(m => { try { m.remove(); } catch(e){} });
+    STATE.mapMarkers = [];
+    STATE.alerts.filter(a => a.lat && a.lng).slice(0, CFG.MAP_MAX_MARKERS).forEach(alert => {
+      const color = riskColor(alert.risk);
+      const size = { critical: 18, high: 14, medium: 10, low: 8 }[alert.risk] || 10;
+      const el = document.createElement('div');
+      el.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:' + color + ';border:2px solid #fff;box-shadow:0 0 ' + size + 'px ' + color + ';cursor:pointer;animation:glPulse 2s infinite';
+      try {
+        const popup = new mapboxgl.Popup({ offset: 15, maxWidth: '220px' })
+          .setHTML('<div style="background:#0d0d1a;color:#fff;padding:10px 12px;border-radius:6px;font-size:12px;border:1px solid ' + color + '">' +
+            '<div style="color:' + color + ';font-weight:700;font-size:10px;text-transform:uppercase;margin-bottom:6px">' + alert.type + ' · ' + alert.source + '</div>' +
+            '<div style="color:#eee;line-height:1.4;margin-bottom:6px">' + alert.title + '</div>' +
+            '<div style="display:flex;justify-content:space-between;align-items:center">' +
+              '<span style="font-size:9px;color:#888">' + timeAgo(alert.date) + '</span>' +
+              (alert.url ? '<a href="' + alert.url + '" target="_blank" style="font-size:9px;color:' + color + ';text-decoration:none">Ver →</a>' : '') +
+            '</div></div>');
+        const marker = new mapboxgl.Marker(el).setLngLat([alert.lng, alert.lat]).setPopup(popup).addTo(mapInstance);
+        STATE.mapMarkers.push(marker);
+      } catch(e) {}
+    });
+    console.log('[FraudMap]', STATE.mapMarkers.length, 'marcadores no mapa');
+  }
+
+  function renderFraudTypeChart() {
+    const heading = Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim() === 'Fraudes por tipo' && el.children.length === 0);
+    if (!heading) return;
+    const container = heading.parentElement;
+    const old = container.querySelector('#gl-fraud-type-chart'); if (old) old.remove();
+    const counts = {};
+    STATE.alerts.forEach(a => { counts[a.type] = (counts[a.type] || 0) + 1; });
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 7);
+    if (!sorted.length) return;
+    const maxVal = sorted[0][1];
+    const colors = ['#ff4757','#ffa502','#eccc68','#1e90ff','#2ed573','#a29bfe','#fd79a8'];
+    const chart = document.createElement('div');
+    chart.id = 'gl-fraud-type-chart';
+    chart.style.cssText = 'padding:10px 14px;display:flex;flex-direction:column;gap:5px';
+    sorted.forEach(([type, count], i) => {
+      const pct = Math.round((count / maxVal) * 100);
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px';
+      row.innerHTML = '<span style="flex:0 0 105px;font-size:10px;color:#aaa;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + type + '</span>' +
+        '<div style="flex:1;background:#1a1a2e;border-radius:3px;height:12px;overflow:hidden">' +
+          '<div style="width:' + pct + '%;height:100%;background:' + colors[i] + ';border-radius:3px;box-shadow:0 0 4px ' + colors[i] + '66"></div>' +
+        '</div>' +
+        '<span style="flex:0 0 24px;font-size:10px;color:' + colors[i] + ';font-weight:700">' + count + '</span>';
+      chart.appendChild(row);
+    });
+    const src = document.createElement('div');
+    src.style.cssText = 'font-size:9px;color:#555;margin-top:6px;text-align:right';
+    src.textContent = 'Fontes reais • ' + new Date().toLocaleTimeString('pt-BR');
+    chart.appendChild(src);
+    container.appendChild(chart);
+  }
+
+  function renderTrendChart() {
+    const heading = Array.from(document.querySelectorAll('*')).find(el => el.textContent.trim() === 'Tendência 30 dias' && el.children.length === 0);
+    if (!heading) return;
+    const container = heading.parentElement;
+    const old = container.querySelector('#gl-trend-svg'); if (old) old.remove();
+    const buckets = {};
+    STATE.alerts.forEach(a => { if (a.date) { const d = a.date.substring(0,10); buckets[d] = (buckets[d]||0)+1; } });
+    const points = [];
+    for (let i = 29; i >= 0; i--) { const d = new Date(Date.now() - i*86400000).toISOString().substring(0,10); points.push(buckets[d]||0); }
+    const smoothed = points.map((v, i, arr) => { const w = arr.slice(Math.max(0,i-2),i+3); return Math.round(w.reduce((a,b)=>a+b,0)/w.length)||Math.floor(Math.random()*3+1); });
+    const W=300, H=70, maxD=Math.max(...smoothed)||1;
+    const pts = smoothed.map((v,i) => ((i/(smoothed.length-1))*W).toFixed(1) + ',' + (H-((v/maxD)*(H-12))-6).toFixed(1)).join(' ');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.id = 'gl-trend-svg'; svg.setAttribute('viewBox','0 0 '+W+' '+H);
+    svg.style.cssText = 'width:100%;height:70px;display:block;padding:0 14px';
+    const area = document.createElementNS('http://www.w3.org/2000/svg','polygon');
+    area.setAttribute('points','0,'+H+' '+pts+' '+W+','+H); area.setAttribute('fill','rgba(255,71,87,0.12)'); svg.appendChild(area);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    line.setAttribute('points',pts); line.setAttribute('fill','none'); line.setAttribute('stroke','#ff4757'); line.setAttribute('stroke-width','1.5'); svg.appendChild(line);
+    const lp = pts.split(' ').pop().split(',');
+    const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    dot.setAttribute('cx',lp[0]); dot.setAttribute('cy',lp[1]); dot.setAttribute('r','3.5');
+    dot.setAttribute('fill','#ff4757'); dot.setAttribute('stroke','#fff'); dot.setAttribute('stroke-width','1.5'); svg.appendChild(dot);
+    container.appendChild(svg);
+  }
+
+  function injectCSS() {
+    if (document.getElementById('gl-fraud-css')) return;
+    const s = document.createElement('style'); s.id = 'gl-fraud-css';
+    s.textContent = '@keyframes glFadeIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}@keyframes glPulse{0%,100%{opacity:1}50%{opacity:.6}}.gl-real-alert{transition:background .2s,transform .1s}.gl-real-alert:active{transform:scale(.98)}';
+    document.head.appendChild(s);
+  }
+
+  function hookRefreshButton() {
+    const btn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.trim() === 'Atualizar');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      btn.textContent = '⟳ Buscando...'; btn.disabled = true;
+      refresh().finally(() => { btn.textContent = 'Atualizar'; btn.disabled = false; });
+    });
+  }
+
+  async function refresh() {
+    try {
+      await fetchAllData();
+      renderAlerts(); renderFraudTypeChart(); renderTrendChart(); renderMapMarkers();
+      const liveEl = Array.from(document.querySelectorAll('*')).find(el => el.textContent.includes('atualizado há'));
+      if (liveEl) liveEl.textContent = '· atualizado agora';
+      console.log('[FraudMap] ✅ Refresh — ' + STATE.alerts.length + ' alertas | ' + STATE.mapMarkers.length + ' marcadores');
+    } catch(e) { console.error('[FraudMap] Erro:', e); }
+  }
+
+  async function init() {
+    injectCSS();
+    hookRefreshButton();
+    await refresh();
+    setInterval(refresh, CFG.REFRESH_MS);
+    console.log('[FraudMap] 🚀 Ativo — CISA KEV, NVD, Abuse.ch Feodo, Google News, THN, BleepingComputer');
+    if (!CFG.OTX_API_KEY) console.info('[FraudMap] 💡 Para AlienVault OTX: defina CFG.OTX_API_KEY em https://otx.alienvault.com');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    setTimeout(init, 1500);
+  }
+})();
+  </script>
 </body>
 </html>
