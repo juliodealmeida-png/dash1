@@ -14273,11 +14273,47 @@
     console.log('[FraudMap]', STATE.alerts.length, 'alertas | CISA:' + STATE.cisaVulns.length, 'Feodo:' + STATE.feodoIPs.length, 'News:' + STATE.newsItems.length);
   }
 
+  function updateFraudKPIs() {
+    var evEl = document.getElementById('fraud-kpi-events');
+    var cEl  = document.getElementById('fraud-kpi-countries');
+    var vEl  = document.getElementById('fraud-kpi-value');
+    var lEl  = document.getElementById('fraud-kpi-leads');
+    var countries = new Set(STATE.feodoIPs.map(function(i){ return i.country; }).filter(Boolean)).size;
+    if (evEl) { evEl.textContent = STATE.alerts.length; evEl.style.color = '#ff4757'; }
+    if (cEl)  { cEl.textContent  = countries || '—'; }
+    if (vEl)  { vEl.textContent  = STATE.cisaVulns.length + ' CVEs'; vEl.style.color = '#ffa502'; }
+    if (lEl)  { lEl.textContent  = STATE.feodoIPs.length + ' C2s'; lEl.style.color = '#ff4757'; }
+    var liveEl2 = document.getElementById('fraud-live-label');
+    if (liveEl2) liveEl2.textContent = 'Dados reais · CISA + Feodo + News';
+  }
+
   function renderAlerts() {
+    var feedList = document.getElementById('fraud-feed-list');
+    if (feedList) {
+      feedList.querySelectorAll('.gl-real-alert').forEach(function(e){ e.remove(); });
+      STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(function(alert) {
+        var color = riskColor(alert.risk);
+        var srcIcon = { 'CISA KEV': '🛡️', 'NVD': '🔍', 'Abuse.ch Feodo': '🕷️', 'AlienVault OTX': '👁️' }[alert.source] || alert.icon || '📰';
+        var div = document.createElement('div');
+        div.className = 'gl-real-alert feed-item feed-' + (alert.risk === 'critical' ? 'red' : alert.risk === 'high' ? 'orange' : 'amber');
+        div.style.cssText = 'display:flex;gap:8px;padding:8px 10px;margin:2px 0;background:' + color + '15;border-left:3px solid ' + color + ';border-radius:4px;cursor:pointer;animation:glFadeIn .4s ease';
+        div.innerHTML = '<div style="font-size:14px;line-height:1.8">' + srcIcon + '</div>' +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="display:flex;justify-content:space-between">' +
+              '<span style="font-size:10px;color:' + color + ';font-weight:700;text-transform:uppercase">' + alert.type + '</span>' +
+              '<span style="font-size:9px;color:#666">' + timeAgo(alert.date) + '</span>' +
+            '</div>' +
+            '<div style="font-size:11px;color:#ddd;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">' + alert.title + '</div>' +
+            '<div style="font-size:9px;color:#888;margin-top:1px">' + alert.source + '</div>' +
+          '</div>';
+        div.addEventListener('click', function(){ if (alert.url) window.open(alert.url, '_blank'); });
+        feedList.insertBefore(div, feedList.firstChild);
+      });
+    }
     const verBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('Ver todos os sinais'));
     if (!verBtn) return;
     const container = verBtn.parentElement;
-    container.querySelectorAll('.gl-real-alert').forEach(e => e.remove());
+    container.querySelectorAll('.gl-real-alert-side').forEach(e => e.remove());
     const fragment = document.createDocumentFragment();
     STATE.alerts.slice(0, CFG.MAX_ALERTS).forEach(alert => {
       const color = riskColor(alert.risk);
@@ -14298,6 +14334,7 @@
       div.addEventListener('mouseenter', () => { div.style.background = color + '30'; });
       div.addEventListener('mouseleave', () => { div.style.background = color + '18'; });
       div.addEventListener('click', () => { if (alert.url) window.open(alert.url, '_blank'); });
+      div.className = 'gl-real-alert gl-real-alert-side';
       fragment.appendChild(div);
     });
     container.insertBefore(fragment, verBtn);
@@ -14408,7 +14445,7 @@
   async function refresh() {
     try {
       await fetchAllData();
-      renderAlerts(); renderFraudTypeChart(); renderTrendChart(); renderMapMarkers();
+      renderAlerts(); updateFraudKPIs(); renderFraudTypeChart(); renderTrendChart(); renderMapMarkers();
       const liveEl = Array.from(document.querySelectorAll('*')).find(el => el.textContent.includes('atualizado há'));
       if (liveEl) liveEl.textContent = '· atualizado agora';
       console.log('[FraudMap] ✅ Refresh — ' + STATE.alerts.length + ' alertas | ' + STATE.mapMarkers.length + ' marcadores');
