@@ -6,6 +6,7 @@ const automation = require('../controllers/automation.controller');
 
 router.use(authMiddleware, apiLimiter);
 
+router.get('/', automation.listRecipes);
 router.get('/recipes', automation.listRecipes);
 router.get('/logs', automation.listLogs);
 

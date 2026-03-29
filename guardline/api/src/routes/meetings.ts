@@ -7,7 +7,7 @@ export function meetingsRoutes(_env: unknown, supabase: SupabaseClient) {
   r.get('/', async (req, res) => {
     const owner = typeof req.query.owner === 'string' ? req.query.owner : undefined;
     const limit = Math.min(Number(req.query.limit ?? 100) || 100, 500);
-    let q = supabase.from('meetings').select('*').order('meeting_datetime', { ascending: false }).limit(limit);
+    let q = supabase.from('meetings').select('*').order('scheduled_at', { ascending: false }).limit(limit);
     if (owner) q = q.eq('hubspot_owner_id', owner);
     const { data, error } = await q;
     if (error) {

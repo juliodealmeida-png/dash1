@@ -42,4 +42,23 @@ router.post(
 router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me);
 
+router.post(
+  '/forgot-password',
+  authLimiter,
+  [body('email').isEmail().withMessage('E-mail inválido')],
+  validateRequest,
+  authController.forgotPassword
+);
+
+router.post(
+  '/reset-password',
+  authLimiter,
+  [
+    body('token').notEmpty().withMessage('Token obrigatório'),
+    body('password').isLength({ min: 8 }).withMessage('Senha mínimo 8 caracteres'),
+  ],
+  validateRequest,
+  authController.resetPassword
+);
+
 module.exports = router;

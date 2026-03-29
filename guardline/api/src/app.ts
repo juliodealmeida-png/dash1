@@ -27,7 +27,10 @@ export function createApp() {
   const env = loadEnv();
   const supabase = getSupabaseAdmin(env);
 
-  const origins = (env.CORS_ORIGINS ?? 'http://localhost:4000,http://localhost:3000,http://localhost:3001')
+  const origins = (
+    env.CORS_ORIGINS ??
+    'http://localhost:3001,http://localhost:3002,http://localhost:4000,http://localhost:3000,http://localhost:5173,http://127.0.0.1:3001,http://127.0.0.1:4000'
+  )
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);

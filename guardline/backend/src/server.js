@@ -18,9 +18,23 @@ function isHopByHopHeader(name) {
   return ['connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length'].includes(String(name || '').toLowerCase());
 }
 
+// Headers stripped from the request sent to the upstream
+function isRequestHopByHop(name) {
+  const n = String(name || '').toLowerCase();
+  // Strip accept-encoding so upstream returns uncompressed body
+  return isHopByHopHeader(n) || n === 'accept-encoding';
+}
+
+// Headers stripped from the upstream response before forwarding to client
+function isResponseHopByHop(name) {
+  const n = String(name || '').toLowerCase();
+  // Strip content-encoding so client doesn't expect gzip when body is already decoded
+  return isHopByHopHeader(n) || n === 'content-encoding';
+}
+
 function copyResponseHeaders(upstream, res) {
   upstream.headers.forEach((value, key) => {
-    if (!isHopByHopHeader(key)) {
+    if (!isResponseHopByHop(key)) {
       res.setHeader(key, value);
     }
   });
@@ -44,18 +58,19 @@ async function proxyToDataApi(req, res, upstreamPath) {
   const target = new URL(upstreamPath, DATA_API_BASE + '/');
   const headers = {};
   Object.entries(req.headers || {}).forEach(([key, value]) => {
-    if (!isHopByHopHeader(key) && value != null) {
+    if (!isRequestHopByHop(key) && value != null) {
       headers[key] = value;
     }
   });
 
   try {
-    const upstream = await fetch(target, {
-      method: req.method,
-      headers,
-      body: getProxyBody(req, headers),
-      duplex: ['GET', 'HEAD'].includes(req.method) ? undefined : 'half',
-    });
+    const fetchOpts = { method: req.method, headers };
+    if (!['GET', 'HEAD'].includes(req.method)) {
+      fetchOpts.body = getProxyBody(req, headers);
+      fetchOpts.duplex = 'half';
+    }
+
+    const upstream = await fetch(target, fetchOpts);
 
     res.status(upstream.status);
     copyResponseHeaders(upstream, res);
@@ -65,11 +80,7 @@ async function proxyToDataApi(req, res, upstreamPath) {
       return;
     }
 
-    if (upstream.body) {
-      upstream.body.pipe(res);
-      return;
-    }
-
+    // Always buffer — avoids ReadableStream/gzip piping issues across Node.js versions
     const text = await upstream.text();
     res.send(text);
   } catch (error) {
@@ -155,10 +166,58 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-app.use(['/api/ai', '/api/fraud-map', '/api/events', '/api/realtime'], (req, res) => {
+app.get('/api/status', async (req, res) => {
+  const checks = {
+    backend: 'ok',
+    database: 'unknown',
+    dataApi: DATA_API_BASE ? 'configured' : 'not_configured',
+    anthropic: process.env.ANTHROPIC_API_KEY ? 'configured' : 'missing',
+    slack: process.env.SLACK_BOT_TOKEN ? 'configured' : 'missing',
+    gmail: process.env.GMAIL_CLIENT_ID ? 'configured' : 'missing',
+    whatsapp: process.env.TWILIO_ACCOUNT_SID ? 'configured' : 'missing',
+    n8n: process.env.N8N_API_KEY ? 'configured' : 'missing',
+  };
+  try {
+    const { prisma } = require('./config/database');
+    await prisma.$queryRaw`SELECT 1`;
+    checks.database = 'ok';
+  } catch (e) {
+    checks.database = 'error: ' + e.message;
+  }
+  if (DATA_API_BASE) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 2000);
+      const r = await fetch(DATA_API_BASE + '/health', { signal: ctrl.signal });
+      clearTimeout(t);
+      checks.dataApi = r.ok ? 'ok' : 'error_' + r.status;
+    } catch (_) {
+      checks.dataApi = 'unreachable';
+    }
+  }
+  const allOk = Object.values(checks).every((v) => v === 'ok' || v === 'configured');
+  res.status(allOk ? 200 : 207).json({ ok: allOk, checks, ts: new Date().toISOString() });
+});
+
+app.use(['/api/ai', '/api/fraud-map', '/api/events', '/api/realtime', '/api/hubspot-sync', '/api/analytics'], (req, res) => {
   const upstreamPath = req.originalUrl.replace(/^\/api/, '/api');
   proxyToDataApi(req, res, upstreamPath);
 });
+
+// Unify deals + leads on Supabase: proxy all reads AND writes to Data API.
+// Write methods (POST/PATCH/PUT/DELETE) require a valid JWT before forwarding.
+if (DATA_API_BASE) {
+  const { authMiddleware } = require('./middleware/auth');
+  const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+
+  app.use(['/api/deals', '/api/leads'], (req, res, next) => {
+    if (WRITE_METHODS.has(req.method)) {
+      authMiddleware(req, res, () => proxyToDataApi(req, res, req.originalUrl));
+    } else {
+      proxyToDataApi(req, res, req.originalUrl);
+    }
+  });
+}
 
 app.get('/health/data', (req, res) => {
   proxyToDataApi(req, res, '/health');
@@ -177,24 +236,23 @@ app.use('/uploads', express.static(uploadsDir));
 
 // File upload endpoint for documents
 const multer = require('multer');
-const docStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const dir = path.join(uploadsDir, 'documents');
-    require('fs').mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: function (req, file, cb) {
-    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-    cb(null, Date.now() + '_' + safeName);
-  }
+const crypto = require('crypto');
+const fs = require('fs');
+const docUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => { cb(null, file.mimetype === 'application/pdf'); },
 });
-const docUpload = multer({ storage: docStorage, limits: { fileSize: 25 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-  cb(null, file.mimetype === 'application/pdf');
-}});
 app.post('/api/upload/document', require('./middleware/auth').authMiddleware, docUpload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, error: 'Nenhum PDF enviado' });
-  const fileUrl = '/uploads/documents/' + req.file.filename;
-  res.json({ success: true, data: { fileUrl, filename: req.file.originalname, size: req.file.size } });
+  const fileHash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+  const safeName = req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const filename = Date.now() + '_' + safeName;
+  const dir = path.join(uploadsDir, 'documents');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, filename), req.file.buffer);
+  const fileUrl = '/uploads/documents/' + filename;
+  res.json({ success: true, data: { fileUrl, filename: req.file.originalname, size: req.file.size, fileHash } });
 });
 
 app.use('/api/auth', require('./routes/auth.routes'));

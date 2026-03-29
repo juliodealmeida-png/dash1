@@ -94,7 +94,10 @@ async function create(req, res) {
 
     if (!name || !fileUrl) return fail(res, 400, 'name e fileUrl são obrigatórios');
 
-    const fileHash = sha256(fileUrl + Date.now());
+    // Use real SHA-256 from upload endpoint if provided; fall back to pseudo-hash
+    const fileHash = req.body.fileHash && /^[0-9a-f]{64}$/i.test(req.body.fileHash)
+      ? req.body.fileHash
+      : sha256(fileUrl + Date.now());
 
     const doc = await prisma.document.create({
       data: {

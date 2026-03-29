@@ -19,6 +19,27 @@ export function signalsRoutes(_env: unknown, supabase: SupabaseClient) {
     res.json({ signals: data ?? [] });
   });
 
+  r.post('/', async (req, res) => {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const row: Record<string, unknown> = {
+      type: body.type ?? 'info',
+      severity: body.severity ?? 'info',
+      title: String(body.title ?? ''),
+      description: body.description ?? body.message ?? '',
+      company_name: body.companyName ?? body.company_name ?? null,
+      is_read: false,
+      is_ignored: false,
+      created_at: new Date().toISOString(),
+    };
+    if (body.dealId ?? body.deal_id) row.deal_id = body.dealId ?? body.deal_id;
+    const { data, error } = await supabase.from('signals').insert(row).select().single();
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
+    res.status(201).json(data);
+  });
+
   r.patch('/:id', async (req, res) => {
     const patch = req.body as Record<string, unknown>;
     const allowed: Record<string, unknown> = {};

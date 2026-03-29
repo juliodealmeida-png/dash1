@@ -138,6 +138,7 @@ async function renderDocumentsScreen() {
         signerActions +
         hashInfo +
         '<div style="display:flex;gap:8px;flex-wrap:wrap">' + actions +
+        ' <button type="button" class="act-btn" style="color:var(--accent-purple-light);border-color:rgba(124,58,237,.4)" onclick="docAskJulio(\'' + d.id + '\',\'' + escapeHtml(d.name).replace(/'/g,"\\'") + '\',\'' + d.status + '\')">🤖 Perguntar ao Júlio</button>' +
         ' <button type="button" class="act-btn" style="color:var(--accent-red)" onclick="docDelete(\'' + d.id + '\')">Excluir</button></div>' +
         '</div>';
     }).join('');
@@ -328,6 +329,21 @@ async function docCancel(docId) {
     showToast('info', 'Documento', 'Cancelado');
     renderDocumentsScreen();
   } catch(e) { showToast('error', 'Cancelar', e.message); }
+}
+
+function docAskJulio(docId, docName, docStatus) {
+  var statusLabels = {
+    draft: 'Rascunho', sent: 'Enviado', in_progress: 'Em andamento',
+    completed: 'Concluído', expired: 'Expirado', cancelled: 'Cancelado', refused: 'Recusado',
+  };
+  var statusPt = statusLabels[docStatus] || docStatus;
+  var prompt = 'Tenho um documento chamado "' + docName + '" com status "' + statusPt + '". ' +
+    'Pode me ajudar a entender o status, sugerir próximos passos ou resumir o conteúdo?';
+  if (typeof julioFloatOpen === 'function') {
+    julioFloatOpen(prompt);
+  } else if (typeof navigateTo === 'function') {
+    navigateTo('julio');
+  }
 }
 
 async function docDelete(docId) {

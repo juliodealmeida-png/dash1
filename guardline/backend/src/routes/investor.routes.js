@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param, query } = require('express-validator');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
+const { requireRole } = require('../middleware/requireRole');
 const { apiLimiter } = require('../middleware/rateLimiter');
 const { validateRequest } = require('../middleware/validateRequest');
 const investor = require('../controllers/investor.controller');
@@ -15,7 +16,7 @@ const stages = [
   'closed',
 ];
 
-router.use(authMiddleware, apiLimiter);
+router.use(authMiddleware, apiLimiter, requireRole('founder', 'admin'));
 
 router.get('/deals/kanban', investor.kanban);
 

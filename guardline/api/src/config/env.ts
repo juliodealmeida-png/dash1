@@ -26,7 +26,15 @@ const schema = z
     SUPABASE_REALTIME_TABLES: z
       .string()
       .default('leads,deals,wf_executions,signals,meetings,campaign_analytics,seller_profiles'),
-    /** Groq (Llama) — proxy em POST /api/ai/chat */
+    /** NVIDIA NIMs — Kimi K2.5 (padrão) */
+    NVIDIA_API_KEY: z.string().optional(),
+    NVIDIA_API_URL: z.string().url().optional(),
+    AI_MODEL: z.string().optional(),
+    AI_MAX_TOKENS: z.coerce.number().optional(),
+    AI_TEMPERATURE: z.coerce.number().optional(),
+    AI_THINKING: z.enum(['true', 'false', '1', '0']).optional(),
+    /** Groq — fallback quando AI_PROVIDER=groq */
+    AI_PROVIDER: z.enum(['nvidia', 'groq']).optional(),
     GROQ_API_KEY: z.string().optional(),
     GROQ_MODEL: z.string().optional(),
     /** Jobs em background (threat intel + geocode) */

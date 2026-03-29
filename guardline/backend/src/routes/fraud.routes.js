@@ -9,6 +9,7 @@ const fraud = require('../controllers/fraud.controller');
 router.use(authMiddleware, apiLimiter);
 
 router.get('/stats', fraud.stats);
+router.get('/events', fraud.list);
 
 router.get(
   '/',

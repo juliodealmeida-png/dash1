@@ -13,6 +13,8 @@ router.get('/', integrations.list);
 router.get('/gmail/auth', integrations.gmailAuth);
 router.post('/gmail/sync', integrations.syncGmail);
 router.post('/slack/test', integrations.testSlack);
+router.post('/hubspot/connect', integrations.connectHubspot);
+router.post('/hubspot/sync', integrations.syncHubspot);
 router.delete('/:type', integrations.disconnect);
 
 module.exports = router;

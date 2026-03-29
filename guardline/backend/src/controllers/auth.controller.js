@@ -1,9 +1,24 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { prisma } = require('../config/database');
 const { signAccessToken, signRefreshToken, verifyRefreshJwt } = require('../utils/tokens');
 const { ok, fail } = require('../utils/response');
 
 const SALT_ROUNDS = 12;
+
+// In-memory store for password reset tokens { token -> { userId, email, expiresAt } }
+const resetTokenStore = new Map();
+
+function generateResetToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function pruneExpiredResetTokens() {
+  const now = Date.now();
+  for (const [token, data] of resetTokenStore.entries()) {
+    if (data.expiresAt < now) resetTokenStore.delete(token);
+  }
+}
 
 function refreshExpiresAt() {
   const raw = String(process.env.REFRESH_TOKEN_EXPIRES_IN || '30d');
@@ -107,6 +122,72 @@ async function refresh(req, res, next) {
   }
 }
 
+async function forgotPassword(req, res, next) {
+  try {
+    pruneExpiredResetTokens();
+    const { email } = req.body;
+    if (!email) return fail(res, 400, 'E-mail obrigatório', 'VALIDATION_ERROR');
+
+    const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
+    // Always return ok to avoid user enumeration
+    if (!user) return ok(res, { message: 'Se o e-mail existir, um link de redefinição foi enviado.' });
+
+    const token = generateResetToken();
+    resetTokenStore.set(token, { userId: user.id, email: user.email, expiresAt: Date.now() + 3600000 });
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    const resetUrl = `${process.env.FRONTEND_URL?.split(',')[0] || 'http://localhost:3001'}/reset-password?token=${token}`;
+
+    if (isDev) {
+      return ok(res, { message: 'Link de redefinição gerado.', devResetUrl: resetUrl, devToken: token });
+    }
+
+    // Send email via nodemailer/resend if configured
+    try {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+      });
+      await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: user.email,
+        subject: 'Guardline — Redefinição de Senha',
+        html: `<p>Olá ${user.name},</p><p>Clique no link abaixo para redefinir sua senha (válido por 1 hora):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+      });
+    } catch (_emailErr) {
+      console.error('[auth] forgotPassword email error:', _emailErr.message);
+    }
+
+    return ok(res, { message: 'Se o e-mail existir, um link de redefinição foi enviado.' });
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    pruneExpiredResetTokens();
+    const { token, password } = req.body;
+    if (!token || !password) return fail(res, 400, 'token e password são obrigatórios', 'VALIDATION_ERROR');
+    if (password.length < 8) return fail(res, 400, 'Senha mínimo 8 caracteres', 'VALIDATION_ERROR');
+
+    const data = resetTokenStore.get(token);
+    if (!data || data.expiresAt < Date.now()) {
+      return fail(res, 401, 'Token inválido ou expirado', 'TOKEN_INVALID');
+    }
+
+    const hash = await bcrypt.hash(password, SALT_ROUNDS);
+    await prisma.user.update({ where: { id: data.userId }, data: { password: hash } });
+    await prisma.refreshToken.deleteMany({ where: { userId: data.userId } });
+    resetTokenStore.delete(token);
+
+    return ok(res, { message: 'Senha redefinida com sucesso. Faça login novamente.' });
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function logout(req, res, next) {
   try {
     const { refreshToken } = req.body;
@@ -123,4 +204,4 @@ async function me(req, res) {
   return ok(res, { user: req.user });
 }
 
-module.exports = { register, login, refresh, logout, me };
+module.exports = { register, login, refresh, logout, me, forgotPassword, resetPassword };

@@ -8,6 +8,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Pacifico&family=Satisfy&family=Great+Vibes&family=Yellowtail&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+  <script>
+    /* ── Guardline local dev config ── */
+    window.GUARDLINE_API_BASE        = 'http://localhost:3001/api';
+    window.GUARDLINE_DATA_API_BASE   = 'http://localhost:3002';
+    window.GUARDLINE_MAPBOX_TOKEN    = window.__ENV_MAPBOX_TOKEN__ || '';
+    window.GUARDLINE_N8N_WEBHOOK_BASE = 'https://guardline.app.n8n.cloud/webhook';
+  </script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -2750,6 +2757,107 @@
       color: var(--text-secondary);
       cursor: pointer;
     }
+
+    /* ── Julio AI Floating Chat ─────────────────────────────── */
+    #julio-fab {
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      border: none; cursor: pointer; display: flex; align-items: center;
+      justify-content: center; box-shadow: 0 4px 20px rgba(124,58,237,.5);
+      transition: transform .2s, box-shadow .2s; color: #fff; font-size: 22px;
+    }
+    #julio-fab:hover { transform: scale(1.08); box-shadow: 0 6px 28px rgba(124,58,237,.7); }
+    #julio-fab .fab-badge {
+      position: absolute; top: -4px; right: -4px; width: 18px; height: 18px;
+      background: #ef4444; border-radius: 50%; font-size: 10px; font-weight: 700;
+      color: #fff; display: flex; align-items: center; justify-content: center;
+    }
+    #julio-float-panel {
+      position: fixed; bottom: 84px; right: 24px; z-index: 9998;
+      width: 380px; max-height: 580px; background: var(--bg-card, #131728);
+      border: 1px solid var(--border-default, #1e2540); border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5); display: flex; flex-direction: column;
+      overflow: hidden; transform: scale(.92) translateY(12px); opacity: 0;
+      pointer-events: none; transition: transform .2s ease, opacity .2s ease;
+    }
+    #julio-float-panel.open {
+      transform: scale(1) translateY(0); opacity: 1; pointer-events: all;
+    }
+    .jfp-header {
+      display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+      border-bottom: 1px solid var(--border-default, #1e2540);
+      background: var(--bg-surface, #0f1220);
+    }
+    .jfp-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: linear-gradient(135deg,#7c3aed,#4f46e5);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: #fff; flex-shrink: 0;
+    }
+    .jfp-title { font-size: 14px; font-weight: 700; color: var(--text-primary,#e2e8f0); }
+    .jfp-sub { font-size: 11px; color: var(--accent-green,#10b981); }
+    .jfp-close {
+      margin-left: auto; background: none; border: none; color: var(--text-muted,#475569);
+      cursor: pointer; font-size: 18px; line-height: 1; padding: 4px;
+    }
+    .jfp-history {
+      flex: 1; overflow-y: auto; padding: 14px 14px 8px;
+      display: flex; flex-direction: column; gap: 10px; min-height: 0;
+    }
+    .jfp-msg { max-width: 88%; font-size: 13px; line-height: 1.55; word-break: break-word; }
+    .jfp-msg.user {
+      align-self: flex-end; background: #4f46e5;
+      color: #fff; padding: 8px 12px; border-radius: 12px 12px 2px 12px;
+    }
+    .jfp-msg.julio {
+      align-self: flex-start; background: var(--bg-surface,#0f1220);
+      color: var(--text-primary,#e2e8f0); padding: 8px 12px;
+      border-radius: 2px 12px 12px 12px; border: 1px solid var(--border-default,#1e2540);
+    }
+    .jfp-msg.julio strong { color: #a78bfa; }
+    .jfp-typing-wrap { display: flex; gap: 4px; padding: 8px 12px;
+      background: var(--bg-surface,#0f1220); border-radius: 2px 12px 12px 12px;
+      border: 1px solid var(--border-default,#1e2540); align-self: flex-start; }
+    .jfp-typing-wrap span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #7c3aed; animation: jfp-dot 1.2s infinite;
+    }
+    .jfp-typing-wrap span:nth-child(2) { animation-delay: .2s; }
+    .jfp-typing-wrap span:nth-child(3) { animation-delay: .4s; }
+    @keyframes jfp-dot { 0%,80%,100%{opacity:.25;transform:scale(.9)} 40%{opacity:1;transform:scale(1)} }
+    .jfp-chips {
+      display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px;
+    }
+    .jfp-chip {
+      font-size: 11px; padding: 5px 10px; border-radius: 20px; cursor: pointer;
+      background: #1e2540; border: 1px solid #2d3561; color: #94a3b8;
+      transition: background .15s, color .15s;
+    }
+    .jfp-chip:hover { background: #4f46e520; color: #a78bfa; border-color: #7c3aed44; }
+    .jfp-input-row {
+      display: flex; gap: 8px; padding: 10px 14px 14px;
+      border-top: 1px solid var(--border-default,#1e2540);
+    }
+    .jfp-input {
+      flex: 1; background: var(--bg-surface,#0f1220); border: 1px solid var(--border-default,#1e2540);
+      border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text-primary,#e2e8f0);
+      outline: none; resize: none;
+    }
+    .jfp-input:focus { border-color: #7c3aed44; }
+    .jfp-send {
+      background: linear-gradient(135deg,#7c3aed,#4f46e5); border: none;
+      border-radius: 8px; padding: 8px 14px; color: #fff; font-size: 13px;
+      font-weight: 600; cursor: pointer; transition: opacity .15s; flex-shrink: 0;
+    }
+    .jfp-send:disabled { opacity: .4; cursor: not-allowed; }
+    .jfp-cursor { display: inline-block; width: 2px; height: 1em;
+      background: #a78bfa; animation: blink .7s step-end infinite; vertical-align: text-bottom; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+    @media (max-width: 480px) {
+      #julio-float-panel { width: calc(100vw - 24px); right: 12px; bottom: 76px; }
+      #julio-fab { right: 12px; bottom: 16px; }
+    }
   </style>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
@@ -2775,6 +2883,9 @@
           </div>
           <button type="submit" id="login-btn">Entrar no Guardline</button>
         </form>
+        <p style="margin-top:10px;text-align:right">
+          <button type="button" id="forgot-password-btn" style="background:none;border:none;cursor:pointer;color:var(--accent-purple-light);font-size:12px;text-decoration:underline;padding:0">Esqueci minha senha</button>
+        </p>
         <p style="margin-top:14px;font-size:13px;color:var(--text-muted);text-align:center">
           <button type="button" id="login-demo-btn" class="btn-link" style="background:none;border:none;cursor:pointer;color:var(--accent-purple-light);text-decoration:underline;padding:0;font:inherit">
             Ver em modo demo (sem API de login)
@@ -2876,7 +2987,7 @@
           </div>
         </div>
         <div class="julio-last-insight" onclick="navigateTo('julio')">"3 deals em risco de perda esta semana — click para ver"</div>
-        <button type="button" class="julio-ask-btn" onclick="navigateTo('julio')">
+        <button type="button" class="julio-ask-btn" onclick="typeof julioFloatOpen==='function'?julioFloatOpen():navigateTo('julio')">
           <span class="julio-ask-ico"><i data-lucide="message-circle" style="width:16px;height:16px"></i></span>
           <span>Perguntar ao Julio</span>
         </button>
@@ -3854,7 +3965,7 @@
     function mapSupabaseDealToUiDeal(row) {
       var amt = Number(row.deal_amount || 0);
       var prob = Number(row.deal_probability || 0);
-      var risk = prob <= 50 && prob >= 25 ? 62 : prob > 0 && prob < 25 ? 78 : Math.max(0, Math.min(100, 100 - prob));
+      var risk = !prob ? 50 : prob >= 25 && prob <= 50 ? 62 : prob > 0 && prob < 25 ? 78 : Math.max(0, Math.min(100, 100 - prob));
       return {
         id: 'deal:' + row.id,
         company: row.deal_name || 'Deal',
@@ -4882,7 +4993,7 @@
 
     async function askJulioComplete(userMessage, maxTok) {
       if (!guardlineAnthropicReady()) {
-        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3001/api) e GROQ_API_KEY no servidor guardline/api.';
+        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3001/api) e NVIDIA_API_KEY no servidor guardline/api.';
       }
       var ctx = await buildJulioPipelineContext();
       var sys =
@@ -5451,7 +5562,18 @@
         localStorage.setItem('guardline_user', JSON.stringify(user));
       },
       isLoggedIn: function () {
-        return !!Auth.getToken();
+        var token = Auth.getToken();
+        if (!token) return false;
+        if (token === 'guardline-demo-session') return true;
+        try {
+          var parts = token.split('.');
+          if (parts.length !== 3) return !!token;
+          var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (!payload.exp) return true;
+          return (payload.exp * 1000) > Date.now();
+        } catch (e) {
+          return !!token;
+        }
       },
     };
 
@@ -5482,24 +5604,40 @@
             }
             Auth.removeToken();
             if (typeof showLoginScreen === 'function') showLoginScreen();
-            throw new Error('Sessão expirada');
+            throw new Error('Sessão expirada — faça login novamente');
+          }
+          if (res.status === 403) {
+            var d403 = await res.json().catch(function() { return {}; });
+            throw new Error('Acesso negado: ' + (d403.error || 'Permissão insuficiente para esta operação'));
+          }
+          if (res.status === 404) {
+            throw new Error('Recurso não encontrado: ' + method + ' ' + path + ' (HTTP 404)');
+          }
+          if (res.status === 429) {
+            throw new Error('Muitas requisições — aguarde alguns segundos e tente novamente (HTTP 429)');
+          }
+          if (res.status >= 500) {
+            var errText = '';
+            try { var e5 = await res.json(); errText = e5.error || e5.message || ''; } catch (_) {}
+            throw new Error('Erro interno no servidor (HTTP ' + res.status + '): ' + (errText || path));
           }
           var ct = (res.headers.get('content-type') || '').toLowerCase();
           if (ct.indexOf('application/json') === -1) {
             var raw = await res.text();
             throw new Error(
-              res.status +
-                ': a API não devolveu JSON. Backend em ' +
-                API_BASE +
-                ' a correr? ' +
-                (raw.indexOf('<!DOCTYPE') !== -1 || raw.indexOf('<html') !== -1 ? '(recebeu HTML)' : raw.slice(0, 100))
+              'HTTP ' + res.status + ' — a API retornou ' +
+                (raw.indexOf('<!DOCTYPE') !== -1 || raw.indexOf('<html') !== -1 ? 'HTML em vez de JSON. Backend em ' + API_BASE + ' está rodando?' : 'formato inesperado: ' + raw.slice(0, 80))
             );
           }
           var data = await res.json();
-          if (!data.success) throw new Error(data.error || 'Erro desconhecido');
+          if (!data.success) throw new Error(data.error || 'Operação falhou (sem detalhe da API)');
           return data;
         } catch (err) {
-          if (showErrToast) API._toast('error', 'Erro de conexão', err.message || String(err));
+          var errMsg = err.message || String(err);
+          if (err.name === 'TypeError' && errMsg.includes('fetch')) {
+            errMsg = 'Sem conexão com o backend em ' + API_BASE + ' — verifique se o servidor está rodando';
+          }
+          if (showErrToast) API._toast('error', method + ' ' + path.split('?')[0], errMsg);
           throw err;
         }
       },
@@ -5564,23 +5702,35 @@
     }
 
     async function streamJulioChat(message, conversationId, onChunk, onDone, onError) {
-      var token = Auth.getToken();
-      var res = await fetch(API_BASE + '/julio/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token,
-        },
-        body: JSON.stringify({ message: message, conversationId: conversationId || null }),
-      });
+      var julioUrl = guardlineAiApiUrl('/julio');
+      if (!julioUrl) {
+        if (onError) onError('API de IA n\u00e3o configurada (defina NVIDIA_API_KEY no servidor)');
+        return;
+      }
+      var history = window.julioAnthropicHistory || [];
+      var messages = history.concat([{ role: 'user', content: message }]);
+      var ctx = '';
+      try { ctx = await buildJulioPipelineContext(); } catch(e) {}
+      var res;
+      try {
+        res = await fetch(julioUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: messages, context: ctx }),
+        });
+      } catch (fetchErr) {
+        if (onError) onError(fetchErr.message);
+        return;
+      }
       if (!res.ok) {
         var errText = await res.text();
-        if (onError) onError(errText);
+        if (onError) onError(errText.slice(0, 300));
         return;
       }
       var reader = res.body.getReader();
       var decoder = new TextDecoder();
       var buf = '';
+      var full = '';
       try {
         while (true) {
           var step = await reader.read();
@@ -5592,14 +5742,20 @@
           for (li = 0; li < lines.length; li++) {
             var line = lines[li];
             if (line.indexOf('data: ') !== 0) continue;
+            var raw = line.slice(6).trim();
+            if (raw === '[DONE]') {
+              if (!window.julioAnthropicHistory) window.julioAnthropicHistory = [];
+              window.julioAnthropicHistory.push({ role: 'user', content: message });
+              window.julioAnthropicHistory.push({ role: 'assistant', content: full });
+              if (window.julioAnthropicHistory.length > 20) window.julioAnthropicHistory = window.julioAnthropicHistory.slice(-20);
+              if (onDone) onDone();
+              continue;
+            }
             try {
-              var json = JSON.parse(line.slice(6));
-              if (json.done) {
-                if (json.conversationId) window.currentJulioConversationId = json.conversationId;
-                if (onDone) onDone();
-              } else if (json.text) {
-                if (onChunk) onChunk(json.text);
-              } else if (json.error && onError) onError(json.error);
+              var ev = JSON.parse(raw);
+              var chunk = (ev.choices && ev.choices[0] && ev.choices[0].delta && ev.choices[0].delta.content) || '';
+              if (chunk) { full += chunk; if (onChunk) onChunk(chunk); }
+              if (ev.error && onError) onError(ev.error);
             } catch (parseErr) {}
           }
         }
@@ -9176,24 +9332,28 @@
           var res = await API.get('/integrations');
           var apiData = res.data || [];
           if (apiData.length) {
-            var iconMap = { gmail: '📧', slack: '💬', n8n: '⚡', whatsapp: '💚' };
-            var nameMap = { gmail: 'Gmail', slack: 'Slack', n8n: 'n8n', whatsapp: 'WhatsApp Business' };
+            var iconMap = { gmail: '📧', slack: '💬', n8n: '⚡', whatsapp: '💚', hubspot: '🔶' };
+            var nameMap = { gmail: 'Gmail', slack: 'Slack', n8n: 'n8n', whatsapp: 'WhatsApp Business', hubspot: 'HubSpot' };
             integrations = apiData.map(function(item) {
               var active = item.status === 'connected';
               var offline = item.status === 'error';
               var tid = item.type === 'whatsapp' ? 'wa' : item.type;
+              var line1 = (item.config && item.config.email) || '';
+              if (item.type === 'hubspot' && active) line1 = 'CRM sincronizado via WF08';
+              if (item.type === 'n8n' && active) line1 = 'Instance: guardline.app.n8n.cloud';
+              var actList;
+              if (item.type === 'slack') actList = active ? ['Desconectar', 'Testar Slack'] : ['Conectar'];
+              else if (item.type === 'n8n') actList = active ? ['Abrir n8n', 'Sincronizar HubSpot'] : ['Conectar'];
+              else if (item.type === 'hubspot') actList = active ? ['Sincronizar', 'Desconectar'] : ['Conectar'];
+              else actList = active ? ['Desconectar'] : ['Conectar'];
               return {
                 id: tid, name: nameMap[item.type] || item.type, icon: iconMap[item.type] || '🔌',
                 active: active, offline: offline, dim: item.status === 'disconnected',
-                line1: (item.config && item.config.email) || '',
+                line1: line1,
                 line2: item.lastSyncAt ? 'Última sync: ' + new Date(item.lastSyncAt).toLocaleString('pt-BR') : 'Sem sync',
                 line3: item.errorMessage || (active ? 'Taxa de sucesso: operacional' : ''),
                 line4: '',
-                actions: active
-                  ? item.type === 'slack'
-                    ? ['Desconectar', 'Testar Slack']
-                    : ['Desconectar']
-                  : ['Conectar'],
+                actions: actList,
                 _type: item.type,
               };
             });
@@ -9246,7 +9406,10 @@
               var onclick = '';
               if (a === 'Desconectar') onclick = ' onclick="intDisconnect(\'' + (x._type || x.id) + '\')"';
               else if (a === 'Conectar' && (x._type || x.id) === 'gmail') onclick = ' onclick="intConnectGmail()"';
+              else if (a === 'Conectar' && (x._type || x.id) === 'hubspot') onclick = ' onclick="intConnectHubspot()"';
               else if (a === 'Testar' || a === 'Testar Slack') onclick = ' onclick="intTestSlack()"';
+              else if (a === 'Sincronizar' || a === 'Sincronizar HubSpot') onclick = ' onclick="intSyncHubspot()"';
+              else if (a === 'Abrir n8n') onclick = ' onclick="intOpenN8n()"';
               return '<button type="button" class="act-btn" style="margin-top:8px;margin-right:6px"' + onclick + '>' + escapeHtml(a) + '</button>';
             })
             .join('');
@@ -9300,6 +9463,26 @@
       API.post('/integrations/slack/test').then(function() {
         showToast('success', 'Slack', 'Mensagem de teste enviada!');
       }).catch(function(e) { showToast('error', 'Slack', e.message || 'Erro'); });
+    }
+    function intConnectHubspot() {
+      showToast('info', 'HubSpot', 'Conectando e sincronizando via WF08…');
+      API.post('/integrations/hubspot/connect', {}).then(function(res) {
+        showToast('success', 'HubSpot', 'Conectado! Sync WF08 disparado (deals, contacts, pipelines).');
+        renderIntegrations();
+      }).catch(function(e) { showToast('error', 'HubSpot', e.message || 'Erro ao conectar'); });
+    }
+    function intSyncHubspot() {
+      showToast('info', 'HubSpot', 'Disparando sync via n8n WF08…');
+      API.post('/integrations/hubspot/sync', {}).then(function(res) {
+        var r = res.data || {};
+        var ok = r.results && Object.values(r.results).filter(function(x){ return x.ok; }).length;
+        showToast('success', 'HubSpot', 'Sync WF08 concluído: ' + (ok || 0) + '/5 webhooks OK. Dados atualizados no Supabase.');
+        renderIntegrations();
+      }).catch(function(e) { showToast('error', 'HubSpot Sync', e.message || 'Falha no sync'); });
+    }
+    function intOpenN8n() {
+      var base = (window.GUARDLINE_N8N_URL || 'https://guardline.app.n8n.cloud');
+      window.open(base, '_blank');
     }
 
     var INV_STAGES = ['Cold Outreach', 'First Meeting', 'Interest Confirmed', 'Term Sheet', 'Due Diligence', 'Closed'];
@@ -13619,7 +13802,295 @@
         });
       }
     })();
+
+    (function () {
+      var btn = document.getElementById('forgot-password-btn');
+      if (!btn) return;
+      btn.addEventListener('click', function () {
+        var email = (document.getElementById('login-email') || {}).value || '';
+        var input = window.prompt('Digite seu e-mail para receber o link de redefinição de senha:', email);
+        if (!input || !input.trim()) return;
+        fetch(API_BASE + '/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: input.trim() }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var msg = (data && data.data && data.data.message) || 'Verifique seu e-mail.';
+            var devUrl = data && data.data && data.data.devResetUrl;
+            if (devUrl) {
+              if (window.confirm('[DEV] ' + msg + '\n\nAbrir link de redefinição agora?\n' + devUrl)) {
+                var token = new URL(devUrl).searchParams.get('token');
+                var newPass = window.prompt('Nova senha (mín. 8 caracteres):');
+                if (!newPass || newPass.length < 8) { alert('Senha muito curta.'); return; }
+                fetch(API_BASE + '/auth/reset-password', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: token, password: newPass }),
+                })
+                  .then(function (r2) { return r2.json(); })
+                  .then(function (d2) {
+                    var m2 = (d2 && d2.data && d2.data.message) || (d2 && d2.error) || 'Concluído.';
+                    alert(m2);
+                  })
+                  .catch(function () { alert('Erro ao redefinir senha.'); });
+              }
+            } else {
+              if (typeof showToast === 'function') showToast('success', 'Redefinição', msg);
+              else alert(msg);
+            }
+          })
+          .catch(function () {
+            if (typeof showToast === 'function') showToast('error', 'Erro', 'Falha ao solicitar redefinição.');
+            else alert('Erro ao solicitar redefinição de senha.');
+          });
+      });
+    })();
   </script>
   <script src="documents-module.js"></script>
+
+  <!-- ── Julio AI Floating Chat Widget ─────────────────────── -->
+  <button id="julio-fab" title="Perguntar ao Júlio" aria-label="Abrir chat Júlio AI">
+    🤖
+    <span class="fab-badge" id="julio-fab-badge" style="display:none">1</span>
+  </button>
+
+  <div id="julio-float-panel" role="dialog" aria-label="Chat Júlio AI">
+    <div class="jfp-header">
+      <div class="jfp-avatar">JA</div>
+      <div>
+        <div class="jfp-title">Júlio AI <span style="font-size:10px;color:#7c3aed;font-weight:600;margin-left:4px">Kimi K2.5</span></div>
+        <div class="jfp-sub" id="jfp-status">● Pronto para ajudar</div>
+      </div>
+      <button class="jfp-close" id="julio-panel-close" title="Fechar">✕</button>
+    </div>
+
+    <div class="jfp-history" id="jfp-history">
+      <div class="jfp-msg julio">
+        Olá! Sou o <strong>Júlio</strong>, seu assistente de revenue intelligence.<br>
+        Posso analisar pipeline, criar documentos, resumir contratos e muito mais.
+      </div>
+    </div>
+
+    <div class="jfp-chips" id="jfp-chips">
+      <button class="jfp-chip" data-ask="Quais deals fechar essa semana?">Deals urgentes</button>
+      <button class="jfp-chip" data-ask="Criar contrato de prestação de serviços">Criar contrato</button>
+      <button class="jfp-chip" data-ask="Analisar meu pipeline atual">Analisar pipeline</button>
+      <button class="jfp-chip" data-ask="Criar modelo de NDA">Modelo NDA</button>
+    </div>
+
+    <div class="jfp-input-row">
+      <input class="jfp-input" id="jfp-input" type="text"
+        placeholder="Digite sua pergunta…" autocomplete="off" maxlength="2000" />
+      <button class="jfp-send" id="jfp-send">Enviar</button>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var fab = document.getElementById('julio-fab');
+      var panel = document.getElementById('julio-float-panel');
+      var closeBtn = document.getElementById('julio-panel-close');
+      var history = document.getElementById('jfp-history');
+      var input = document.getElementById('jfp-input');
+      var sendBtn = document.getElementById('jfp-send');
+      var statusEl = document.getElementById('jfp-status');
+      var chipsEl = document.getElementById('jfp-chips');
+      var isStreaming = false;
+      var sessionHistory = [];   // { role, content }[]
+
+      function togglePanel() {
+        panel.classList.toggle('open');
+        if (panel.classList.contains('open')) {
+          input.focus();
+          document.getElementById('julio-fab-badge').style.display = 'none';
+        }
+      }
+
+      fab.addEventListener('click', togglePanel);
+      closeBtn.addEventListener('click', function () { panel.classList.remove('open'); });
+
+      // Quick chips
+      chipsEl.addEventListener('click', function (e) {
+        var chip = e.target.closest('.jfp-chip');
+        if (chip) sendMessage(chip.dataset.ask || chip.textContent);
+      });
+
+      // Send on Enter
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey && !isStreaming) {
+          e.preventDefault();
+          sendBtn.click();
+        }
+      });
+      sendBtn.addEventListener('click', function () {
+        var text = input.value.trim();
+        if (!text || isStreaming) return;
+        input.value = '';
+        sendMessage(text);
+      });
+
+      function appendMsg(role, content) {
+        var d = document.createElement('div');
+        d.className = 'jfp-msg ' + role;
+        if (role === 'julio') {
+          d.innerHTML = '';
+        } else {
+          d.textContent = content;
+        }
+        history.appendChild(d);
+        history.scrollTop = history.scrollHeight;
+        return d;
+      }
+
+      function appendTyping() {
+        var d = document.createElement('div');
+        d.className = 'jfp-typing-wrap';
+        d.id = 'jfp-typing';
+        d.innerHTML = '<span></span><span></span><span></span>';
+        history.appendChild(d);
+        history.scrollTop = history.scrollHeight;
+        return d;
+      }
+      function removeTyping() {
+        var t = document.getElementById('jfp-typing');
+        if (t) t.remove();
+      }
+
+      /** Render simple markdown: **bold**, \n newlines */
+      function renderMd(text) {
+        var escaped = text
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        return escaped
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n/g, '<br>');
+      }
+
+      function setStreaming(v) {
+        isStreaming = v;
+        sendBtn.disabled = v;
+        input.disabled = v;
+        statusEl.textContent = v ? '● Júlio está pensando…' : '● Pronto para ajudar';
+        statusEl.style.color = v ? '#f59e0b' : 'var(--accent-green,#10b981)';
+      }
+
+      async function sendMessage(text) {
+        if (!text || isStreaming) return;
+        appendMsg('user', text);
+        chipsEl.style.display = 'none';
+        setStreaming(true);
+
+        // Build context from pipeline if available
+        var ctx = '';
+        try {
+          if (typeof buildJulioPipelineContext === 'function') {
+            ctx = await buildJulioPipelineContext();
+          }
+        } catch (e) {}
+
+        var messages = sessionHistory.concat([{ role: 'user', content: text }]);
+
+        // Determine URL
+        var julioUrl = (typeof guardlineAiApiUrl === 'function')
+          ? guardlineAiApiUrl('/julio')
+          : (window.GUARDLINE_DATA_API_BASE || window.location.origin + '/api') + '/ai/julio';
+
+        if (!julioUrl) {
+          removeTyping();
+          var errBubble = appendMsg('julio', '');
+          errBubble.textContent = '⚠ API não configurada. Defina NVIDIA_API_KEY no servidor.';
+          setStreaming(false);
+          return;
+        }
+
+        var typing = appendTyping();
+        var bubble = null;
+        var full = '';
+        var cursor = null;
+
+        try {
+          var res = await fetch(julioUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: messages, context: ctx }),
+          });
+
+          if (!res.ok) {
+            var errText = await res.text();
+            throw new Error(errText.slice(0, 200));
+          }
+
+          removeTyping();
+          bubble = appendMsg('julio', '');
+          cursor = document.createElement('span');
+          cursor.className = 'jfp-cursor';
+          bubble.appendChild(cursor);
+
+          var reader = res.body.getReader();
+          var decoder = new TextDecoder();
+          var buf = '';
+
+          while (true) {
+            var step = await reader.read();
+            if (step.done) break;
+            buf += decoder.decode(step.value, { stream: true });
+            var lines = buf.split('\n');
+            buf = lines.pop() || '';
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (line.indexOf('data: ') !== 0) continue;
+              var raw = line.slice(6).trim();
+              if (raw === '[DONE]') continue;
+              try {
+                var ev = JSON.parse(raw);
+                var chunk = (ev.choices && ev.choices[0] && ev.choices[0].delta && ev.choices[0].delta.content) || '';
+                if (chunk) {
+                  full += chunk;
+                  bubble.innerHTML = renderMd(full);
+                  cursor = document.createElement('span');
+                  cursor.className = 'jfp-cursor';
+                  bubble.appendChild(cursor);
+                  history.scrollTop = history.scrollHeight;
+                }
+              } catch (pe) {}
+            }
+          }
+
+          // Remove cursor, finalise
+          if (bubble) bubble.innerHTML = renderMd(full);
+          sessionHistory.push({ role: 'user', content: text });
+          sessionHistory.push({ role: 'assistant', content: full });
+          if (sessionHistory.length > 40) sessionHistory = sessionHistory.slice(-40);
+
+        } catch (e) {
+          removeTyping();
+          if (bubble) {
+            bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+          } else {
+            var eb = appendMsg('julio', '');
+            eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+          }
+        } finally {
+          setStreaming(false);
+          history.scrollTop = history.scrollHeight;
+        }
+      }
+
+      // Expose to allow sidebar "Perguntar ao Júlio" button to open + pre-fill
+      window.julioFloatOpen = function (msg) {
+        panel.classList.add('open');
+        document.getElementById('julio-fab-badge').style.display = 'none';
+        if (msg) sendMessage(msg);
+      };
+
+      // Clear on nav change so history stays fresh per session
+      window.julioFloatClear = function () {
+        sessionHistory = [];
+        history.innerHTML = '<div class="jfp-msg julio">Olá! Em que posso ajudar?</div>';
+        chipsEl.style.display = 'flex';
+      };
+    })();
+  </script>
 </body>
 </html>

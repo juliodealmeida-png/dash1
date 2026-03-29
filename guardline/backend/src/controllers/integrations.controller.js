@@ -8,7 +8,7 @@ const {
 } = require('../services/gmail.service');
 const { sendSlackMessage } = require('../services/slack.service');
 
-const INTEGRATION_TYPES = ['gmail', 'slack', 'n8n', 'whatsapp'];
+const INTEGRATION_TYPES = ['gmail', 'slack', 'n8n', 'whatsapp', 'hubspot'];
 
 function frontendOrigin() {
   const raw = process.env.FRONTEND_URL || 'http://localhost:4000';
@@ -47,6 +47,23 @@ function maskIntegrationRow(row) {
   };
 }
 
+function dataApiBase() {
+  return process.env.DATA_API_BASE_URL || process.env.GUARDLINE_DATA_API_BASE || process.env.DATA_API_BASE || 'http://localhost:3002';
+}
+
+async function callDataApi(path, method = 'GET', token) {
+  const url = dataApiBase().replace(/\/$/, '') + path;
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  try {
+    const r = await fetch(url, { method, headers, signal: AbortSignal.timeout(30000) });
+    const body = await r.json().catch(() => ({}));
+    return { ok: r.ok, status: r.status, data: body };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
 async function integrationForUser(type, userId) {
   let row = await prisma.integration.findFirst({
     where: { type, userId },
@@ -73,6 +90,7 @@ async function list(req, res, next) {
       let status = 'disconnected';
       if (type === 'slack' && process.env.SLACK_BOT_TOKEN) status = 'connected';
       if (type === 'n8n' && process.env.N8N_BASE_URL) status = 'connected';
+      if (type === 'hubspot' && process.env.HUBSPOT_PAT) status = 'connected';
       items.push({
         type,
         status,
@@ -166,6 +184,56 @@ async function gmailCallback(req, res, next) {
   }
 }
 
+async function connectHubspot(req, res, next) {
+  try {
+    const pat = (req.body && req.body.pat) || process.env.HUBSPOT_PAT;
+    if (!pat) {
+      return fail(res, 400, 'Forneça o HubSpot PAT no body {pat:"..."}  ou defina HUBSPOT_PAT no .env', 'HUBSPOT_PAT_MISSING');
+    }
+    const existing = await prisma.integration.findFirst({ where: { type: 'hubspot', userId: req.user.id } });
+    const config = JSON.stringify({ pat });
+    if (existing) {
+      await prisma.integration.update({ where: { id: existing.id }, data: { status: 'connected', config, errorMessage: null } });
+    } else {
+      await prisma.integration.create({ data: { type: 'hubspot', status: 'connected', config, userId: req.user.id, metadata: '{}' } });
+    }
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const syncResult = await triggerHubspotSyncAll(token);
+    return ok(res, { connected: true, sync: syncResult });
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function triggerHubspotSyncAll(token) {
+  const paths = ['/api/hubspot-sync/deals', '/api/hubspot-sync/companies', '/api/hubspot-sync/contacts', '/api/hubspot-sync/pipelines', '/api/hubspot-sync/owners'];
+  const results = {};
+  for (const p of paths) {
+    const key = p.split('/').pop();
+    results[key] = await callDataApi(p, 'GET', token);
+  }
+  return results;
+}
+
+async function syncHubspot(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+    const syncResult = await triggerHubspotSyncAll(token);
+    const anyOk = Object.values(syncResult).some(r => r.ok);
+    if (anyOk) {
+      await prisma.integration.updateMany({
+        where: { type: 'hubspot', userId: req.user.id },
+        data: { lastSyncAt: new Date(), status: 'connected', errorMessage: null },
+      });
+    }
+    return ok(res, { synced: true, results: syncResult, ts: new Date().toISOString() });
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function syncGmail(req, res, next) {
   try {
     const result = await syncEmailsToDeals(req.user.id);
@@ -212,6 +280,10 @@ async function disconnect(req, res, next) {
       );
     }
 
+    if (type === 'hubspot' && !await prisma.integration.findFirst({ where: { type: 'hubspot', userId: req.user.id } })) {
+      return ok(res, { disconnected: true, type, note: 'Nenhum registro encontrado; remova HUBSPOT_PAT do .env para desligar completamente.' });
+    }
+
     await prisma.integration.deleteMany({
       where: { type, userId: req.user.id },
     });
@@ -228,5 +300,7 @@ module.exports = {
   gmailCallback,
   syncGmail,
   testSlack,
+  connectHubspot,
+  syncHubspot,
   disconnect,
 };

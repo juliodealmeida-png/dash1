@@ -2,6 +2,7 @@ const express = require('express');
 const { body, param } = require('express-validator');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
+const { requireRole } = require('../middleware/requireRole');
 const { julioLimiter } = require('../middleware/rateLimiter');
 const { validateRequest } = require('../middleware/validateRequest');
 const julio = require('../controllers/julio.controller');
@@ -30,8 +31,8 @@ router.post(
   julio.chatSync
 );
 
-router.post('/loss-analysis', julio.postLossAnalysis);
+router.post('/loss-analysis', requireRole('founder', 'admin'), julio.postLossAnalysis);
 
-router.post('/investor-update', julio.postInvestorUpdate);
+router.post('/investor-update', requireRole('founder', 'admin'), julio.postInvestorUpdate);
 
 module.exports = router;

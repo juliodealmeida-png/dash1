@@ -34,7 +34,7 @@ server.listen(env.PORT, () => {
   console.log(`              POST /api/webhooks/n8n/wf06 | wf07 | wf08 | execution-log`);
   console.log(`   Sync out   POST /api/sync/n8n/wf06 | wf07 | wf08`);
   console.log(`   HubSpot    GET  /api/hubspot-sync/deals | companies | contacts | pipelines | owners`);
-  console.log(`   AI proxy   POST /api/ai/chat | /api/ai/brief (GROQ_API_KEY)`);
+  console.log(`   AI proxy   POST /api/ai/chat | /api/ai/brief | /api/ai/julio (Kimi K2.5 / NVIDIA_API_KEY)`);
   console.log(`   Fraud map  GET  /api/fraud-map/layers | POST /geocode-leads | POST /ingest-threat-intel`);
   console.log('');
 });

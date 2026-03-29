@@ -2,9 +2,7 @@ import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Env } from '../config/env.js';
 import { jitter, resolveCoords } from '../data/geocoords.js';
-
-const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const THREAT_MODEL = 'llama-3.1-8b-instant';
+import { askKimiSimple } from '../lib/ai/kimi.js';
 
 const FRAUD_TYPE_KEYWORDS = [
   'money laundering',
@@ -44,7 +42,7 @@ interface ParsedThreat {
   severity?: 'low' | 'medium' | 'high' | 'critical';
 }
 
-const GROQ_CACHE = new Map<string, ParsedThreat>();
+const LLM_CACHE = new Map<string, ParsedThreat>();
 
 function dedupeKey(title: string, source: string) {
   return createHash('sha256')
@@ -52,38 +50,27 @@ function dedupeKey(title: string, source: string) {
     .digest('hex');
 }
 
-async function parseWithGroq(env: Env, text: string): Promise<ParsedThreat> {
-  const key = env.GROQ_API_KEY;
-  if (!key) return {};
+async function parseWithLLM(env: Env, text: string): Promise<ParsedThreat> {
+  const apiKey = env.NVIDIA_API_KEY || env.GROQ_API_KEY;
+  if (!apiKey) return {};
   const cacheKey = text.slice(0, 120);
-  if (GROQ_CACHE.has(cacheKey)) return GROQ_CACHE.get(cacheKey)!;
+  if (LLM_CACHE.has(cacheKey)) return LLM_CACHE.get(cacheKey)!;
 
   try {
-    const res = await fetch(GROQ_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: env.GROQ_MODEL || THREAT_MODEL,
+    const result = await askKimiSimple(
+      apiKey,
+      {
+        system: `Extract from financial fraud/AML text. Return ONLY valid JSON with keys: country, city, fraud_type, amount (number or null), severity (low|medium|high|critical). No markdown.`,
+        user: text.slice(0, 500),
+        maxTokens: 180,
         temperature: 0,
-        max_tokens: 180,
-        messages: [
-          {
-            role: 'system',
-            content: `Extract from financial fraud/AML text. Return ONLY valid JSON with keys: country, city, fraud_type, amount (number or null), severity (low|medium|high|critical). No markdown.`,
-          },
-          { role: 'user', content: text.slice(0, 500) },
-        ],
-      }),
-      signal: AbortSignal.timeout(12000),
-    });
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const raw = json.choices?.[0]?.message?.content || '{}';
-    const m = raw.match(/\{[\s\S]*\}/);
+      },
+      env.NVIDIA_API_KEY ? env.NVIDIA_API_URL : 'https://api.groq.com/openai/v1/chat/completions'
+    );
+    if (!result.ok) return {};
+    const m = result.text.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(m?.[0] || '{}') as ParsedThreat;
-    GROQ_CACHE.set(cacheKey, parsed);
+    LLM_CACHE.set(cacheKey, parsed);
     return parsed;
   } catch {
     return {};
@@ -111,7 +98,7 @@ async function fetchFATF(env: Env): Promise<ThreatIntelItem[]> {
         item.match(/<description>(.*?)<\/description>/)?.[1] ||
         '';
       const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1];
-      const structured = await parseWithGroq(env, `${title} ${desc}`);
+      const structured = await parseWithLLM(env, `${title} ${desc}`);
       parsed.push({
         title: title.slice(0, 200),
         description: desc.slice(0, 500),
@@ -148,7 +135,7 @@ async function fetchBacen(env: Env): Promise<ThreatIntelItem[]> {
       const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1];
       const lowerTitle = title.toLowerCase();
       if (!FRAUD_TYPE_KEYWORDS.some((k) => lowerTitle.includes(k))) continue;
-      const structured = await parseWithGroq(env, title);
+      const structured = await parseWithLLM(env, title);
       parsed.push({
         title: title.slice(0, 200),
         description: `Fonte: Banco Central do Brasil. ${link}`,
@@ -185,7 +172,7 @@ async function fetchCryptoFraud(env: Env): Promise<ThreatIntelItem[]> {
       if (!['fraud', 'scam', 'hack', 'exploit', 'theft', 'laundering', 'sanctioned'].some((k) => lowerTitle.includes(k)))
         continue;
       const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1];
-      const structured = await parseWithGroq(env, title);
+      const structured = await parseWithLLM(env, title);
       parsed.push({
         title: title.slice(0, 200),
         description: 'Crypto/Fintech fraud alert via CoinDesk',
@@ -206,8 +193,8 @@ async function fetchCryptoFraud(env: Env): Promise<ThreatIntelItem[]> {
 }
 
 export async function ingestThreatIntel(env: Env, supabase: SupabaseClient): Promise<number> {
-  if (!env.GROQ_API_KEY) {
-    console.warn('[ThreatIntel] GROQ_API_KEY ausente — ingestão limitada (sem parse LLM)');
+  if (!env.NVIDIA_API_KEY && !env.GROQ_API_KEY) {
+    console.warn('[ThreatIntel] NVIDIA_API_KEY ausente — ingestão limitada (sem parse LLM)');
   }
   const [fatfItems, bacenItems, cryptoItems] = await Promise.all([
     fetchFATF(env),
