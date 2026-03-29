@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -67,6 +67,7 @@ model Deal {
   lostReason       String?
   lostNote         String?
   notes            String?
+  meddpicc         String?  // JSON: { metrics, economicBuyer, decisionCriteria, ... }
   tags             String?
   ownerId          String
   owner            User      @relation(fields: [ownerId], references: [id])
