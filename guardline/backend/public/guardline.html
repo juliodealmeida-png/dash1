@@ -14450,19 +14450,40 @@
     } catch(e) { console.error('[FraudMap] Erro:', e); }
   }
 
-  async function init() {
-    injectCSS();
+  var _fmActive = false;
+  var _fmInterval = null;
+
+  async function onFraudMapEnter() {
     hookRefreshButton();
     await refresh();
-    setInterval(refresh, CFG.REFRESH_MS);
-    console.log('[FraudMap] 🚀 Ativo — CISA KEV, NVD, Abuse.ch Feodo, Google News, THN, BleepingComputer');
-    if (!CFG.OTX_API_KEY) console.info('[FraudMap] 💡 Para AlienVault OTX: defina CFG.OTX_API_KEY em https://otx.alienvault.com');
+    if (_fmInterval) clearInterval(_fmInterval);
+    _fmInterval = setInterval(function() {
+      if (document.getElementById('fraud-feed-list')) refresh();
+      else { clearInterval(_fmInterval); _fmInterval = null; _fmActive = false; }
+    }, CFG.REFRESH_MS);
+    console.log('[FraudMap] \uD83D\uDE80 Fraud Map aberto — buscando dados reais');
+  }
+
+  function init() {
+    injectCSS();
+    var observer = new MutationObserver(function() {
+      var feedList = document.getElementById('fraud-feed-list');
+      if (feedList && !_fmActive) {
+        _fmActive = true;
+        onFraudMapEnter();
+      } else if (!feedList && _fmActive) {
+        _fmActive = false;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    if (document.getElementById('fraud-feed-list')) { _fmActive = true; onFraudMapEnter(); }
+    console.log('[FraudMap] \u23F3 Aguardando navega\u00E7\u00E3o para Fraud Map\u2026');
   }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    setTimeout(init, 1500);
+    setTimeout(init, 500);
   }
 })();
   </script>
