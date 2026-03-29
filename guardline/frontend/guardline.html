@@ -7,7 +7,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Pacifico&family=Satisfy&family=Great+Vibes&family=Yellowtail&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
   <script>
     /* ── Guardline local dev config ── */
     window.GUARDLINE_API_BASE        = 'https://guardline-engine-production.up.railway.app/api';
@@ -16,7 +15,6 @@
     window.GUARDLINE_N8N_WEBHOOK_BASE = 'https://guardline.app.n8n.cloud/webhook';
   </script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
-  <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
@@ -2876,7 +2874,7 @@
         <h2>Revenue OS</h2>
         <p>Entre para acessar seu Revenue Intelligence</p>
         <p id="login-error" class="login-error" role="alert" hidden></p>
-        <form id="login-form">
+        <form id="login-form" method="post" action="javascript:void(0)">
           <div class="form-group">
             <label for="login-email">Email</label>
             <input type="email" id="login-email" name="email" placeholder="seu@email.com" required autocomplete="username" inputmode="email" />
@@ -3121,6 +3119,14 @@
     var fraudMapCleanup = null;
     var signalFeedTimer = null;
     var kpiRefreshInterval = null;
+    var _fraudToastLastShownAt = 0;
+    var FRAUD_TOAST_THROTTLE_MS = 5 * 60 * 1000;
+    function showFraudToastThrottled(title, msg) {
+      var now = Date.now();
+      if (now - _fraudToastLastShownAt < FRAUD_TOAST_THROTTLE_MS) return;
+      _fraudToastLastShownAt = now;
+      if (typeof showToast === 'function') showToast('warning', title, msg);
+    }
     var guardlineSocket = null;
     window.currentJulioConversationId = null;
     window.__guardlineDealsFromApi = false;
@@ -3178,15 +3184,6 @@
           refresh: guardlineWindowConfig('GUARDLINE_N8N_WF07_REFRESH', 'wf07-guardline-signal-refresh-v1'),
           intent: guardlineWindowConfig('GUARDLINE_N8N_WF07_INTENT', 'wf07-guardline-first-party-intent-v1'),
         },
-      },
-      anthropic: {
-        key: '',
-        model: 'claude-sonnet-4-5',
-      },
-      groq: {
-        key: '',
-        base: 'https://api.groq.com/openai/v1/chat/completions',
-        model: 'llama-3.3-70b-versatile',
       },
       mapbox: {
         token: guardlineWindowConfig('GUARDLINE_MAPBOX_TOKEN', ''),
@@ -3264,6 +3261,17 @@
       negotiation: 'Negociação',
       won: 'Fechado Ganho',
       lost: 'Fechado Perdido',
+    };
+
+    var STAGE_PROBABILITY = {
+      prospecting: 10,
+      qualification: 25,
+      qualified: 25,
+      presentation: 40,
+      proposal: 50,
+      negotiation: 75,
+      won: 100,
+      lost: 0,
     };
 
     var PT_TO_STAGE_KEY = {
@@ -5508,7 +5516,7 @@
           ? d.daysSinceContact
           : d.lastContactAt
             ? Math.floor((Date.now() - new Date(d.lastContactAt).getTime()) / 86400000)
-            : Math.floor((Date.now() - new Date(d.createdAt).getTime()) / 86400000);
+            : null;
       var acts = d.activities || [];
       var emails = d.emails || [];
       return {
@@ -5522,6 +5530,7 @@
         phone: d.contactPhone || '—',
         risk: d.riskScore,
         daysNoContact: dn,
+        daysNoContactLabel: dn !== null ? dn + 'd sem contato' : 'sem registro',
         nextAction: d.notes ? String(d.notes).slice(0, 96) : '—',
         owner: (u && u.name) || 'Eu',
         ownerInitials: initials((u && u.name) || ''),
@@ -6180,6 +6189,11 @@
         try { c.destroy(); } catch (e) {}
       });
       screenCharts = [];
+      try {
+        if (typeof Chart !== 'undefined') {
+          Object.values(Chart.instances || {}).forEach(function(c) { try { c.destroy(); } catch(e){} });
+        }
+      } catch(e) {}
       screenIntervals.forEach(function (id) {
         try { clearInterval(id); } catch (e) {}
         try { clearTimeout(id); } catch (e) {}
@@ -6749,14 +6763,34 @@
       showToast('info', 'PDF', 'Exportação PDF disponível na próxima integração — use Copiar por ora.');
     }
 
-    var JULIO_CHAT_SESSION_KEY = 'julio_chat_history';
+    var JULIO_CHAT_SESSION_KEY = 'julio_chat_history_v2';
 
-    function persistJulioChatHistory() {
+    function getJulioChatHistory() {
+      try { return JSON.parse(sessionStorage.getItem(JULIO_CHAT_SESSION_KEY) || '[]'); } catch(e) { return []; }
+    }
+
+    function saveJulioChatMessage(role, content) {
+      try {
+        var history = getJulioChatHistory();
+        history.push({ role: role, content: content, timestamp: Date.now() });
+        if (history.length > 100) history = history.slice(-100);
+        sessionStorage.setItem(JULIO_CHAT_SESSION_KEY, JSON.stringify(history));
+      } catch(e) {}
+    }
+
+    function persistJulioChatHistory() {}
+
+    function restoreJulioChatHistory() {
       var hist = document.getElementById('julio-chat-history');
       if (!hist) return;
-      try {
-        sessionStorage.setItem(JULIO_CHAT_SESSION_KEY, hist.innerHTML);
-      } catch (e) {}
+      var history = getJulioChatHistory();
+      history.forEach(function(msg) {
+        var d = document.createElement('div');
+        d.className = 'chat-msg ' + (msg.role === 'user' ? 'user' : 'julio');
+        d.textContent = msg.content;
+        hist.appendChild(d);
+      });
+      hist.scrollTop = hist.scrollHeight;
     }
 
     function appendChatUser(text) {
@@ -6767,7 +6801,7 @@
       d.textContent = text;
       hist.appendChild(d);
       hist.scrollTop = hist.scrollHeight;
-      persistJulioChatHistory();
+      saveJulioChatMessage('user', text);
     }
 
     function appendTypingIndicator() {
@@ -6810,7 +6844,7 @@
         wi = 0;
         if (si >= segments.length) {
           julioTypewriterTimer = null;
-          persistJulioChatHistory();
+          saveJulioChatMessage('julio', text);
           return;
         }
         var seg = segments[si++];
@@ -8057,6 +8091,7 @@
     }
 
     function renderLeads() {
+      try {
       leadsPageState.page = 1;
       if (!guardlineSupabaseReady()) {
         window.__guardlineLeadsFromSupabaseMode = false;
@@ -8064,7 +8099,7 @@
       document.getElementById('content-area').innerHTML =
         '<div class="pipeline-page-wrap"><h2 style="margin:0 0 16px;font-size:1.35rem">Leads</h2>' +
         '<div class="leads-kpi-bar">' +
-        '<div class="leads-kpi-pill">Total este mês: <strong>847</strong></div>' +
+        '<div class="leads-kpi-pill">Total este mês: <strong>' + (window.__guardlineLeads ? window.__guardlineLeads.length : (typeof getLeads === \'function\' ? getLeads().length : 0)) + '</strong></div>' +
         '<div class="leads-kpi-pill">Novos hoje: <strong>23</strong></div>' +
         '<div class="leads-kpi-pill">Taxa Lead→Deal: <strong>18.4%</strong></div>' +
         '<div class="leads-kpi-pill">Score médio: <strong>64</strong></div>' +
@@ -8118,6 +8153,12 @@
       };
       if (guardlineSupabaseReady()) loadLeadsPageSupabase();
       else renderLeadsTable();
+      } catch(err) {
+        console.error('[renderLeads]', err);
+        if (typeof showToast === 'function') showToast('error', 'Leads', (err && err.message) || 'Erro ao carregar leads');
+        var area = document.getElementById('content-area');
+        if (area) area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center;color:var(--text-muted)">Não foi possível carregar os leads. Tente novamente.</div></div>';
+      }
     }
 
     var signalFeedFilter = 'all';
@@ -9173,7 +9214,7 @@
     }
 
     function renderAutomations() {
-      var rows = AppData.automationLog
+      var rows = (AppData.automationLog || [])
         .map(function (r) {
           var icon = r.ok === false ? '✗' : r.ok === null ? '⟳' : '✓';
           var err = r.ok === false;
@@ -9657,12 +9698,13 @@
         pipelineTotal: total,
         activeDeals: openD.length,
         atRisk: risks,
-        leadsMonth: 847,
+        leadsMonth: (window.__guardlineLeads || []).length || (typeof getLeads === 'function' ? getLeads().length : 847),
         winRate: 34,
         forecastCommitted: 142000,
         alerts: 7 + risks,
         healthScore: Math.min(100, Math.max(42, 100 - risks * 6 - stale * 2)),
       };
+      AppData.metrics = window.GuardlineMetrics;
       return window.GuardlineMetrics;
     }
 
@@ -10706,6 +10748,12 @@
       try {
         var res = await API.get('/leads?perPage=100');
         var leads = res.data || [];
+        leads.forEach(function(l) {
+          if (typeof l.scoreBreakdown === 'string') {
+            try { l.scoreBreakdown = JSON.parse(l.scoreBreakdown); } catch(e) { l.scoreBreakdown = {}; }
+          }
+          l.scoreBreakdown = l.scoreBreakdown || {};
+        });
         window.__guardlineContactsCache = leads;
         var bySrc = {};
         var sumSc = 0;
@@ -13564,6 +13612,7 @@
         currentScreen = screen;
         if (typeof window !== 'undefined') window.currentScreen = screen;
         liveSeconds = 0;
+        try { history.pushState({ screen: screen }, '', '#' + screen); } catch(e) {}
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }
 
@@ -13793,6 +13842,19 @@
         btn.disabled = false;
       }
     });
+
+    window.addEventListener('popstate', function(e) {
+      var screen = (e.state && e.state.screen) || window.location.hash.replace('#', '') || 'command';
+      if (typeof SCREENS !== 'undefined' && SCREENS[screen] && screen !== currentScreen) {
+        navigateTo(screen, true);
+      }
+    });
+    (function() {
+      var hash = window.location.hash.replace('#', '');
+      if (hash && typeof SCREENS !== 'undefined' && SCREENS[hash]) {
+        setTimeout(function() { navigateTo(hash, true); }, 0);
+      }
+    })();
 
     applyRoleVisibility();
     initSparklines();
