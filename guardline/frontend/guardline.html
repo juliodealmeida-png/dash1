@@ -6996,21 +6996,38 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    async function _loadJulioBriefItems() {
+      try {
+        var res = await API.get('/julio/brief/latest', { silent: true });
+        var brief = res && res.data && res.data.brief;
+        if (!brief || !brief.items || !brief.items.length) return null;
+        var prioClass = { 1: 'p1', 2: 'p2', 3: 'p3' };
+        var typeLabel = { risk: 'Risco', alert: 'Alerta', opportunity: 'Oportunidade', info: 'Info', celebration: '🎉' };
+        return brief.items.map(function(item) {
+          var cls = prioClass[item.priority] || 'p3';
+          var lbl = typeLabel[item.type] || item.type;
+          return '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio ' + cls + '">' + escapeHtml(lbl) + '</span>' +
+            '<span>' + (item.dealName ? '<strong>' + escapeHtml(item.dealName) + '</strong> — ' : '') + escapeHtml(item.title || '') + '</span></summary>' +
+            '<div class="bf-body">' + escapeHtml(item.detail || '') + (item.action ? '<br><em>→ ' + escapeHtml(item.action) + '</em>' : '') + '</div></details>';
+        }).join('');
+      } catch(e) { return null; }
+    }
+
+    var JULIO_STATIC_BRIEF_HTML =
+      '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p1">Risco</span><span><strong>Deal XYZ</strong> — 8 dias sem contato; SLA de follow-up violado.</span></summary><div class="bf-body">Agendar ligação antes das 14h. Script sugerido: validar recebimento da proposta + próximo passo com data.</div></details>' +
+      '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p2">Alerta</span><span><strong>Win rate</strong> — queda 4% MoM; cold email como outlier.</span></summary><div class="bf-body">Comparar cohort por fonte; pausar sequência B2 e redistribuir para outbound LinkedIn.</div></details>' +
+      '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Forecast</strong> — gap $17k vs meta com 12 dias úteis.</span></summary><div class="bf-body">Cenário precisa de 2 fechamentos em Negociação; priorizar Alfa e Tech Ventures.</div></details>' +
+      '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p2">Oportunidade</span><span><strong>3 leads LinkedIn</strong> com score &gt;75 ontem.</span></summary><div class="bf-body">Atribuir ao SDR da rota A; primeiro toque em &lt;2h aumenta conversão estimada em 22%.</div></details>' +
+      '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Automações</strong> — 2 falhas noturnas no sync Gmail.</span></summary><div class="bf-body">Ver log em Integrações; reiniciar workflow WF-Sync-02 após reconectar OAuth.</div></details>';
+
     function renderJulio() {
       document.getElementById('content-area').innerHTML =
         '<div class="julio-page-grid">' +
         '<div class="julio-left-col">' +
         '<div class="card briefing-full">' +
-        '<div class="card-header"><span class="card-title">Briefing completo</span><span class="card-subtitle">Julio AI · hoje</span></div>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p1">Risco</span><span><strong>Deal XYZ</strong> — 8 dias sem contato; SLA de follow-up violado.</span></summary><div class="bf-body">Agendar ligação antes das 14h. Script sugerido: validar recebimento da proposta + próximo passo com data.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p2">Alerta</span><span><strong>Win rate</strong> — queda 4% MoM; cold email como outlier.</span></summary><div class="bf-body">Comparar cohort por fonte; pausar sequência B2 e redistribuir para outbound LinkedIn.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Forecast</strong> — gap $17k vs meta com 12 dias úteis.</span></summary><div class="bf-body">Cenário precisa de 2 fechamentos em Negociação; priorizar Alfa e Tech Ventures.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p2">Oportunidade</span><span><strong>3 leads LinkedIn</strong> com score &gt;75 ontem.</span></summary><div class="bf-body">Atribuir ao SDR da rota A; primeiro toque em &lt;2h aumenta conversão estimada em 22%.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Automações</strong> — 2 falhas noturnas no sync Gmail.</span></summary><div class="bf-body">Ver log em Integrações; reiniciar workflow WF-Sync-02 após reconectar OAuth.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p1">Risco</span><span><strong>Investor pipeline</strong> — 1 deal em due diligence pausado.</span></summary><div class="bf-body">Enviar status resumido ao conselho; Julio pode gerar Investor Update.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Compliance</strong> — novo sinal regulatório na fila (PLD).</span></summary><div class="bf-body">Revisar Fraud Map e Signal Feed para detalhes; sem ação imediata obrigatória.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p2">Alerta</span><span><strong>Campanha evento</strong> — CPL 12% acima da média.</span></summary><div class="bf-body">Ajustar landing e formulário; teste A/B de headline recomendado.</div></details>' +
-        '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio p3">Info</span><span><strong>Receita</strong> — NDR 112% mantém tração saudável.</span></summary><div class="bf-body">Continuar playbook de expansão em contas enterprise com módulo analytics.</div></details>' +
+        '<div class="card-header"><span class="card-title">Briefing completo</span><span class="card-subtitle">Julio AI · hoje</span>' +
+        '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-brief-refresh-btn\');if(b)b.disabled=true;_loadJulioBriefItems().then(function(h){var slot=document.getElementById(\'julio-brief-items\');if(slot&&h)slot.innerHTML=h;if(b)b.disabled=false;});})()" id="julio-brief-refresh-btn" style="margin-left:auto;font-size:11px">↻ Atualizar</button></div>' +
+        '<div id="julio-brief-items">' + JULIO_STATIC_BRIEF_HTML + '</div>' +
         '</div>' +
 
         '<div class="card">' +
@@ -7059,6 +7076,13 @@
         '<button type="button" class="chat-send-btn" id="julio-chat-send">Enviar</button></div></div></div></div>';
 
       setTimeout(initJulioPage, 0);
+      if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
+        _loadJulioBriefItems().then(function(html) {
+          if (!html) return;
+          var slot = document.getElementById('julio-brief-items');
+          if (slot) slot.innerHTML = html;
+        }).catch(function() {});
+      }
     }
 
     var PIPELINE_STAGES = ['Prospecção', 'Qualificado', 'Apresentação', 'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido'];
@@ -7368,6 +7392,7 @@
         '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">AUTOMAÇÕES DISPARADAS</h4>' +
         autosHtml +
         '<button type="button" class="btn-full" style="margin-top:14px" onclick="guardlineN8nManualShow()">Disparar automação manual</button>' +
+        '<button type="button" class="btn-full" style="margin-top:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5)" onclick="(function(){var d=dealById(\'' + String(deal.id || '').replace(/'/g, "\\'") + '\');if(!d)return;var msg=\'Analise o deal \' + escapeHtml(deal.company) + \' — valor $\' + (deal.value||0).toLocaleString(\'en-US\') + \', estágio \' + escapeHtml(deal.stage) + \', risk score \' + (deal.risk||0) + \'/100. Quais são as 3 ações mais urgentes?\';if(typeof julioFloatOpen===\'function\')julioFloatOpen(msg);else if(typeof navigateTo===\'function\')navigateTo(\'julio\',true);})()">🤖 Perguntar ao Júlio sobre este deal</button>' +
         '<div id="deal-meddpicc-slot"></div><div id="deal-next-questions"></div></div></div>';
 
       document.getElementById('deal-layer-backdrop').classList.add('visible');
