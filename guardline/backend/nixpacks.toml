@@ -2,4 +2,4 @@
 cmds = ["npm install --ignore-scripts"]
 
 [phases.build]
-cmds = ["npx prisma generate", "node copy-frontend-assets.js"]
+cmds = ["npx prisma generate", "npx prisma db push --accept-data-loss=false --skip-generate", "node copy-frontend-assets.js"]
