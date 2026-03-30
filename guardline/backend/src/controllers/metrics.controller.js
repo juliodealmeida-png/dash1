@@ -110,14 +110,14 @@ async function summary(req, res, next) {
   try {
     const userId = req.user.id;
     const openWhere = { ownerId: userId, deletedAt: null, stage: { notIn: ['won', 'lost'] } };
-    const [openD, leadsCount, fraudCount, signalCount] = await Promise.all([
+    const [openD, leadsCount, fraudCount, criticalSignalCount] = await Promise.all([
       prisma.deal.findMany({
         where: openWhere,
         select: { value: true, riskScore: true },
       }),
       prisma.lead.count({ where: { ownerId: userId } }),
       prisma.fraudEvent.count(),
-      prisma.signal.count(),
+      prisma.signal.count({ where: { read: false, severity: { in: ['critical', 'warning'] } } }),
     ]);
 
     const pipelineTotal = openD.reduce((a, d) => a + d.value, 0);
@@ -163,9 +163,9 @@ async function summary(req, res, next) {
       leadsTotal: leadsCount,
       winRate,
       forecastCommitted: Math.round(forecastCommitted),
-      alerts: 7 + atRisk,
+      alerts: criticalSignalCount + atRisk,
       fraudEvents: fraudCount,
-      signals: signalCount,
+      signals: criticalSignalCount,
       healthScore,
     });
   } catch (e) {
