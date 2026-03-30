@@ -14,6 +14,7 @@
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
     "setup": "npm install && prisma migrate deploy && node prisma/seed.js",
+    "user:activate": "node scripts/activate-user.js",
     "test": "jest --coverage",
     "postinstall": "prisma generate"
   },
