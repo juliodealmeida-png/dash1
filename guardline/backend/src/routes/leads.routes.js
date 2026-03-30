@@ -61,6 +61,20 @@ router.put(
 );
 
 router.patch(
+  '/:id',
+  [param('id').notEmpty(), body('email').optional().isEmail()],
+  validateRequest,
+  leads.updateFull
+);
+
+router.post(
+  '/:id/enrich',
+  [param('id').notEmpty()],
+  validateRequest,
+  leads.enrich
+);
+
+router.patch(
   '/:id/convert',
   [
     param('id').notEmpty(),

@@ -122,25 +122,45 @@ model DealEmail {
 // ──────────────────────────────────
 
 model Lead {
-  id              String     @id @default(cuid())
-  name            String
-  email           String?
-  phone           String?
-  company         String?
-  jobTitle        String?
-  source          String?
-  status          String     @default("new")
-  score           Int        @default(0)
-  scoreBreakdown  String?
-  notes           String?
-  tags            String?
-  ownerId         String
-  owner           User       @relation(fields: [ownerId], references: [id])
-  convertedDealId String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  lastContactAt   DateTime?
-  campaigns       Campaign[] @relation("CampaignLeads")
+  id               String     @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  company          String?    @map("company_name")
+  jobTitle         String?
+  source           String?
+  status           String     @default("new")
+  score            Int        @default(0)
+  scoreBreakdown   String?
+  notes            String?
+  tags             String?
+  ownerId          String
+  owner            User       @relation(fields: [ownerId], references: [id])
+  convertedDealId  String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  lastContactAt    DateTime?
+  campaigns        Campaign[] @relation("CampaignLeads")
+  // Enrichment fields (populated by n8n WF06/WF07)
+  contactLinkedin  String?
+  contactTitle     String?
+  companyWebsite   String?
+  companyIndustry  String?
+  companySize      String?
+  companyCountry   String?
+  companyLinkedin  String?
+  temperature      String?
+  route            String?
+  replyStatus      String?
+  meetingStatus    String?
+  meddpiccScore    Int?
+  nextAction       String?
+  owner2           String?
+  intentSignals    String?
+  news             String?
+  linkedinPosts    String?
+  timeline         String?
+  lastActivity     DateTime?
 
   @@map("leads")
 }

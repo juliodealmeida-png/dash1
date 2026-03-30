@@ -8850,39 +8850,57 @@
         { id: 'deal',      label: 'Deal',         icon: '💼',  color: '#4ade80' },
       ];
 
+      function _parseJ(v) {
+        if (!v) return null;
+        if (Array.isArray(v) || (v && typeof v === 'object')) return v;
+        try { return JSON.parse(v); } catch(e) { return null; }
+      }
+
       function normalizeLead(lead) {
-        var score = Number(lead.lead_score || lead.score || 0);
-        var temp = lead.lead_temperature || lead.temperature ||
-          (score >= 70 ? 'hot' : score >= 40 ? 'warm' : score > 0 ? 'cold' : '');
+        var score   = Number(lead.lead_score || lead.score || 0);
         var company = lead.companyName || lead.company_name || lead.company || lead.account || '';
-        var contact = lead.contactName || lead.contact_name || lead.name || lead.contact || '';
+        var contact = lead.contactName  || lead.contact_name  || lead.name    || lead.contact  || '';
+        var temp    = lead.lead_temperature || lead.temperature ||
+          (score >= 70 ? 'hot' : score >= 40 ? 'warm' : score > 0 ? 'cold' : '');
+        var sb      = _parseJ(lead.scoreBreakdown   || lead.score_breakdown);
+        var intSig  = _parseJ(lead.intentSignals    || lead.intent_signals)  || [];
+        var news    = _parseJ(lead.news)            || [];
+        var posts   = _parseJ(lead.linkedinPosts    || lead.linkedin_posts)  || [];
+        var tline   = _parseJ(lead.timeline)        || [];
+        if (!Array.isArray(intSig)) intSig = [];
+        if (!Array.isArray(news))   news   = [];
+        if (!Array.isArray(posts))  posts  = [];
+        if (!Array.isArray(tline))  tline  = [];
         return {
           _raw:             lead,
           id:               lead.id || '',
           account:          (company && company !== contact) ? company : (company || '—'),
-          domain:           lead.domain || ((lead.contactEmail || lead.email) ? String(lead.contactEmail || lead.email).split('@')[1] : '') || '',
+          domain:           lead.domain || ((lead.email) ? String(lead.email).split('@')[1] : '') || '',
           contact:          contact || '—',
-          title:            lead.contact_title || lead.contactTitle || lead.jobTitle || lead.title || '',
-          email:            lead.contactEmail  || lead.contact_email || lead.email || '',
-          phone:            lead.contact_phone || lead.contactPhone  || lead.phone || '',
-          linkedin:         lead.contact_linkedin || lead.contactLinkedin || lead.linkedin_url || lead.linkedin || '',
-          company_website:  lead.company_website  || lead.website || '',
-          company_industry: lead.company_industry || lead.industry || '',
-          company_size:     lead.company_size || '',
-          company_country:  lead.company_country || '',
+          title:            lead.contactTitle     || lead.contact_title  || lead.jobTitle || lead.title || '',
+          email:            lead.email            || lead.contact_email  || '',
+          phone:            lead.phone            || lead.contact_phone  || '',
+          linkedin:         lead.contactLinkedin  || lead.contact_linkedin || lead.linkedin_url || lead.linkedin || '',
+          company_website:  lead.companyWebsite   || lead.company_website  || lead.website || '',
+          company_industry: lead.companyIndustry  || lead.company_industry || lead.industry || '',
+          company_size:     lead.companySize      || lead.company_size || '',
+          company_country:  lead.companyCountry   || lead.company_country || '',
           lead_score:       score,
+          score_breakdown:  sb,
           lead_temperature: temp,
-          route:            lead.route || '',
-          reply_status:     lead.reply_status || '',
-          meeting_status:   lead.meeting_status || '',
-          meddpicc_completion: Number(lead.meddpicc_score || lead.meddpicc_completion || 0),
-          next_action:      lead.next_action || '',
-          owner:            lead.owner || lead.ownerName || '',
-          source:           lead.source || lead.campaign_name || '',
+          route:            lead.route       || '',
+          reply_status:     lead.replyStatus || lead.reply_status    || '',
+          meeting_status:   lead.meetingStatus || lead.meeting_status || '',
+          meddpicc_completion: Number(lead.meddpiccScore || lead.meddpicc_score || lead.meddpicc_completion || 0),
+          next_action:      lead.nextAction  || lead.next_action  || '',
+          owner:            lead.owner2      || lead.owner        || lead.ownerName || '',
+          source:           lead.source      || lead.campaign_name || '',
           tags:             Array.isArray(lead.tags) ? lead.tags : [],
-          notes:            lead.notes || '',
-          timeline:         Array.isArray(lead.timeline)       ? lead.timeline       : [],
-          intent_signals:   Array.isArray(lead.intent_signals) ? lead.intent_signals : [],
+          notes:            lead.notes       || '',
+          timeline:         tline,
+          intent_signals:   intSig,
+          news:             news,
+          linkedin_posts:   posts,
           _status:          lead.status || '',
         };
       }
@@ -9174,33 +9192,52 @@
           }).join('') + '</div>' : '') +
         '</div>' +
         (function() {
-          var sbParsed = null;
-          if (lead.score_breakdown) { try { sbParsed = typeof lead.score_breakdown === 'string' ? JSON.parse(lead.score_breakdown) : lead.score_breakdown; } catch(e) {} }
-          var factorLabels = { fonte: 'Fonte / Canal', source: 'Fonte / Canal', fit: 'Fit com ICP', engajamento: 'Engajamento', engagement: 'Engajamento', velocidade: 'Velocidade', velocity: 'Velocidade', intent: 'Sinal de Intenção' };
+          var FL = { fonte:'Fonte / Canal', source:'Fonte / Canal', fit:'Fit com ICP',
+            engajamento:'Engajamento', engagement:'Engajamento',
+            velocidade:'Velocidade', velocity:'Velocidade', intent:'Intenção', score:'Score' };
+          function barRow(label, val, max) {
+            max = max || 10;
+            var pct = Math.min(100, Math.round((val / max) * 100));
+            var col = pct >= 70 ? '#34d399' : pct >= 40 ? '#fb923c' : '#9ca3af';
+            return '<div style="margin-bottom:12px">' +
+              '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">' +
+              '<span style="color:var(--text-secondary)">' + escapeHtml(label) + '</span>' +
+              '<span style="color:' + col + ';font-weight:700">' + val + '/' + max + '</span></div>' +
+              '<div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">' +
+              '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:3px;transition:width .5s ease"></div></div></div>';
+          }
+          var sb = lead.score_breakdown;
+          var isEstimated = false;
+          if (!sb && lead.lead_score > 0) {
+            isEstimated = true;
+            var srcQ = { apollo:7, linkedin:9, inbound:8, referral:10, 'first_party':9, organic:7 };
+            var srcKey = (lead.source || '').toLowerCase();
+            var fv = 5;
+            Object.keys(srcQ).forEach(function(k) { if (srcKey.includes(k)) fv = srcQ[k]; });
+            var rs = (lead.reply_status || '').toLowerCase();
+            var ms = (lead.meeting_status || '').toLowerCase();
+            var ev = ms === 'occurred' ? 10 : ms === 'scheduled' ? 8 : rs === 'positive' ? 7 : rs === 'neutral' ? 5 : 3;
+            var vv = ms === 'occurred' ? 10 : ms === 'scheduled' ? 8 : rs === 'positive' ? 6 : 4;
+            var fiv = Math.min(10, Math.max(1, Math.round(lead.lead_score / 11)));
+            sb = { 'Fonte / Canal': fv, 'Fit com ICP': fiv, 'Engajamento': ev, 'Velocidade': vv };
+          }
           var sbHtml = '';
-          if (sbParsed) {
-            sbHtml = Object.keys(sbParsed).map(function(k) {
-              var val = Math.min(100, Math.max(0, Number(sbParsed[k]) || 0));
-              var col = val >= 7 ? '#34d399' : val >= 4 ? '#fb923c' : '#9ca3af';
-              return '<div style="margin-bottom:12px">' +
-                '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">' +
-                '<span style="color:var(--text-secondary)">' + escapeHtml(factorLabels[k] || k) + '</span>' +
-                '<span style="color:' + col + ';font-weight:700">' + val + '/10</span></div>' +
-                '<div style="height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">' +
-                '<div style="height:100%;width:' + (val * 10) + '%;background:' + col + ';border-radius:3px;transition:width .4s"></div></div></div>';
+          if (sb) {
+            sbHtml = Object.keys(sb).map(function(k) {
+              var raw = Number(sb[k]) || 0;
+              var max = raw > 10 ? 100 : 10;
+              return barRow(FL[k] || k, raw, max);
             }).join('');
-          } else if (lead.lead_score > 0) {
-            sbHtml = '<div style="font-size:12px;color:var(--text-muted);padding:12px 0">Breakdown detalhado não disponível.<br>Score ' + lead.lead_score + '/100 calculado pelo WF06 baseado em: fonte do lead, fit com ICP, sinais de intenção e velocidade de resposta.</div>';
           }
           var intentHtml = '';
           if (lead.intent_signals && lead.intent_signals.length) {
-            intentHtml = '<div class="lfd-section"><div class="lfd-section-title">Sinais de Intenção detectados</div>' +
+            intentHtml = '<div class="lfd-section"><div class="lfd-section-title">Sinais de Intenção</div>' +
               lead.intent_signals.slice(0, 6).map(function(sig) {
                 var str = Math.min(100, Number(sig.strength || sig.score || 0));
                 var col = str > 70 ? '#34d399' : str > 40 ? '#fb923c' : '#9ca3af';
-                var date = sig.date ? ' · ' + new Date(sig.date).toLocaleDateString('pt-BR') : '';
+                var dt = sig.date ? ' · ' + new Date(sig.date).toLocaleDateString('pt-BR') : '';
                 return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">' +
-                  '<span>' + escapeHtml(sig.signal || sig.name || '') + '<span style="font-size:10px;color:var(--text-muted)">' + escapeHtml(date) + '</span></span>' +
+                  '<span>' + escapeHtml(sig.signal || sig.name || '') + '<span style="font-size:10px;color:var(--text-muted)">' + escapeHtml(dt) + '</span></span>' +
                   '<span style="color:' + col + ';font-weight:700">' + str + '%</span></div>' +
                   '<div style="height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden"><div style="height:100%;width:' + str + '%;background:' + col + ';border-radius:2px"></div></div></div>';
               }).join('') + '</div>';
@@ -9210,7 +9247,7 @@
             newsHtml = '<div class="lfd-section"><div class="lfd-section-title">Notícias da empresa</div>' +
               lead.news.slice(0, 4).map(function(n) {
                 return '<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">' +
-                  '<a href="' + escapeHtml(n.url || '#') + '" target="_blank" style="color:var(--text-primary);font-size:12px;font-weight:500;text-decoration:none;display:block">' + escapeHtml(n.title || '') + '</a>' +
+                  '<a href="' + escapeHtml(n.url || '#') + '" target="_blank" style="color:#06b6d4;font-size:12px;font-weight:500;text-decoration:none;display:block">' + escapeHtml(n.title || '') + '</a>' +
                   '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">' + escapeHtml(n.source || '') + (n.date ? ' · ' + new Date(n.date).toLocaleDateString('pt-BR') : '') + '</div></div>';
               }).join('') + '</div>';
           }
@@ -9219,15 +9256,21 @@
             postsHtml = '<div class="lfd-section"><div class="lfd-section-title">Posts LinkedIn recentes</div>' +
               lead.linkedin_posts.slice(0, 3).map(function(p) {
                 return '<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)">' +
-                  '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5">' + escapeHtml((p.text || '').slice(0, 120)) + (p.text && p.text.length > 120 ? '…' : '') + '</div>' +
-                  '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">' + (p.likes ? '👍 ' + p.likes : '') + (p.date ? ' · ' + new Date(p.date).toLocaleDateString('pt-BR') : '') + '</div></div>';
+                  '<div style="font-size:12px;color:var(--text-secondary);line-height:1.5">' + escapeHtml((p.text || '').slice(0, 140)) + (p.text && p.text.length > 140 ? '…' : '') + '</div>' +
+                  '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">' + (p.likes ? '👍 ' + p.likes + ' ' : '') + (p.date ? new Date(p.date).toLocaleDateString('pt-BR') : '') + '</div></div>';
               }).join('') + '</div>';
           }
-          var noData = !sbParsed && !lead.intent_signals.length && !lead.news && !lead.linkedin_posts;
+          var noEnrich = !lead.intent_signals.length && !lead.news.length && !lead.linkedin_posts.length;
+          var enrichBtn = noEnrich
+            ? '<div style="margin-top:20px;padding:16px;background:rgba(124,58,237,.08);border:1px dashed rgba(124,58,237,.3);border-radius:10px;text-align:center">' +
+              '<div style="font-size:12px;color:var(--text-muted);margin-bottom:10px">Enriqueça este lead com dados do WF06/WF07:<br>notícias, LinkedIn, sinais de intenção.</div>' +
+              '<button type="button" class="btn-activate" style="font-size:12px" onclick="enrichLFLead(\'' + escapeHtml(lead.id) + '\',this)">🔬 Enriquecer com WF06</button>' +
+              '</div>' : '';
           return '<div class="lfd-pane" id="lfd-pane-intel">' +
-            (sbParsed || lead.lead_score > 0 ? '<div class="lfd-section"><div class="lfd-section-title">Composição do Score (' + lead.lead_score + '/100)</div>' + sbHtml + '</div>' : '') +
-            intentHtml + newsHtml + postsHtml +
-            (noData ? '<div style="text-align:center;padding:32px;color:var(--text-muted)">Dados de inteligência ainda não disponíveis.<br><span style="font-size:11px">Dispare o WF06/WF07 para enriquecer este lead.</span></div>' : '') +
+            (sb ? '<div class="lfd-section"><div class="lfd-section-title">Score ' + lead.lead_score + '/100' +
+              (isEstimated ? ' <span style="font-size:10px;color:var(--accent-amber,#f59e0b);font-weight:400">(estimado)</span>' : '') +
+              '</div>' + sbHtml + '</div>' : '') +
+            intentHtml + newsHtml + postsHtml + enrichBtn +
             '</div>';
         })() +
         '<div class="lfd-pane" id="lfd-pane-empresa">' +
@@ -9287,6 +9330,32 @@
         showToast('success', 'Notas', 'Salvo.');
       } catch(e) {
         showToast('error', 'Notas', e.message || 'Erro');
+      }
+    }
+
+    async function enrichLFLead(leadId, btn) {
+      if (!leadId) return;
+      var orig = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = '⟳ Enviando…'; }
+      try {
+        var n8nBase = String(window.GUARDLINE_N8N_URL || '').replace(/\/$/, '');
+        var apiBase = String(window.GUARDLINE_API_BASE || 'https://guardline-engine-production.up.railway.app/api').replace(/\/$/, '');
+        if (n8nBase) {
+          var wh = n8nBase + '/webhook/wf06-enrich';
+          await fetch(wh, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadId: leadId, source: 'dashboard' }) });
+          showToast('success', 'WF06 disparado', 'O n8n está a enriquecer o lead. Actualize em 30s.');
+        } else {
+          var token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
+          var headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+          if (token) headers['Authorization'] = 'Bearer ' + token;
+          var r = await fetch(apiBase + '/leads/' + leadId + '/enrich', { method: 'POST', headers: headers, body: JSON.stringify({ rescore: true }) });
+          if (!r.ok) throw new Error('API ' + r.status);
+          showToast('info', 'Rescore', 'Solicitado. Configure GUARDLINE_N8N_URL para enriquecimento completo.');
+        }
+      } catch(e) {
+        showToast('error', 'Enriquecer', e.message || 'Erro ao contactar WF06');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = orig; }
       }
     }
 

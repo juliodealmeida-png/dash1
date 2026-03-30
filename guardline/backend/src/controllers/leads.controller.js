@@ -162,18 +162,18 @@ async function updateFull(req, res, next) {
 
     const b = req.body;
     const data = {};
-    if (b.name !== undefined) data.name = b.name;
-    if (b.email !== undefined) data.email = b.email;
-    if (b.phone !== undefined) data.phone = b.phone;
-    if (b.company !== undefined) data.company = b.company;
-    if (b.jobTitle !== undefined) data.jobTitle = b.jobTitle;
-    if (b.source !== undefined) data.source = b.source;
-    if (b.status !== undefined) data.status = b.status;
-    if (b.notes !== undefined) data.notes = b.notes;
-    if (b.tags !== undefined) data.tags = b.tags;
-    if (b.lastContactAt !== undefined) {
-      data.lastContactAt = b.lastContactAt ? new Date(b.lastContactAt) : null;
-    }
+    const strFields = ['name','email','phone','company','jobTitle','source','status','notes','tags',
+      'contactLinkedin','contactTitle','companyWebsite','companyIndustry','companySize',
+      'companyCountry','companyLinkedin','temperature','route','replyStatus','meetingStatus',
+      'nextAction','owner2'];
+    strFields.forEach(function(f) { if (b[f] !== undefined) data[f] = b[f]; });
+    if (b.meddpiccScore !== undefined) data.meddpiccScore = b.meddpiccScore != null ? parseInt(b.meddpiccScore, 10) : null;
+    if (b.lastContactAt !== undefined) data.lastContactAt = b.lastContactAt ? new Date(b.lastContactAt) : null;
+    if (b.lastActivity !== undefined) data.lastActivity = b.lastActivity ? new Date(b.lastActivity) : null;
+    const jsonFields = ['intentSignals','news','linkedinPosts','timeline','scoreBreakdown'];
+    jsonFields.forEach(function(f) {
+      if (b[f] !== undefined) data[f] = b[f] != null ? (typeof b[f] === 'string' ? b[f] : JSON.stringify(b[f])) : null;
+    });
 
     if (b.rescore === true || b.source !== undefined || b.email !== undefined) {
       const merged = { ...existing, ...b };
@@ -292,6 +292,52 @@ async function importCsv(req, res, next) {
   }
 }
 
+async function enrich(req, res, next) {
+  try {
+    const existing = await prisma.lead.findFirst({
+      where: { id: req.params.id, ownerId: req.user.id },
+    });
+    if (!existing) return fail(res, 404, 'Lead não encontrado', 'NOT_FOUND');
+
+    const b = req.body;
+    const data = {};
+
+    const strEnrich = ['contactLinkedin','contactTitle','companyWebsite','companyIndustry',
+      'companySize','companyCountry','companyLinkedin','temperature','route',
+      'replyStatus','meetingStatus','nextAction'];
+    strEnrich.forEach(function(f) { if (b[f] != null) data[f] = b[f]; });
+
+    if (b.meddpiccScore != null) data.meddpiccScore = parseInt(b.meddpiccScore, 10);
+    if (b.lastActivity != null) data.lastActivity = new Date(b.lastActivity);
+
+    const jsonEnrich = ['intentSignals','news','linkedinPosts','timeline'];
+    jsonEnrich.forEach(function(f) {
+      if (b[f] != null) data[f] = typeof b[f] === 'string' ? b[f] : JSON.stringify(b[f]);
+    });
+
+    if (b.scoreBreakdown != null) {
+      data.scoreBreakdown = typeof b.scoreBreakdown === 'string' ? b.scoreBreakdown : JSON.stringify(b.scoreBreakdown);
+      const sb = typeof b.scoreBreakdown === 'string' ? JSON.parse(b.scoreBreakdown) : b.scoreBreakdown;
+      const vals = Object.values(sb).map(Number).filter(n => !isNaN(n));
+      if (vals.length) {
+        const maxVal = Math.max(...vals);
+        const ratio = maxVal > 10 ? 1 : 10;
+        const total = Math.min(100, Math.round(vals.reduce((a, v) => a + v, 0) / vals.length * ratio));
+        data.score = total;
+      }
+    }
+
+    if (b.score != null) data.score = parseInt(b.score, 10);
+
+    const lead = await prisma.lead.update({ where: { id: existing.id }, data });
+    const io = req.app.get('io');
+    if (io) emitToUser(io, req.user.id, 'lead:enriched', lead);
+    return ok(res, lead);
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function remove(req, res, next) {
   try {
     const existing = await prisma.lead.findFirst({
@@ -312,6 +358,7 @@ module.exports = {
   getOne,
   create,
   updateFull,
+  enrich,
   convert,
   importCsv,
   remove,
