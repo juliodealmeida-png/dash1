@@ -41,6 +41,7 @@ router.post(
 
 router.post('/logout', authController.logout);
 router.get('/me', authMiddleware, authController.me);
+router.post('/bootstrap-admin', authController.bootstrapAdmin);
 
 router.post(
   '/forgot-password',

@@ -6436,6 +6436,7 @@
           reconnectionAttempts: 10,
         }
       );
+      window.__guardlineSocket = guardlineSocket;
 
       guardlineSocket.on('connect', function () {
         var el = document.querySelector('.live-status');
@@ -6473,6 +6474,36 @@
       guardlineSocket.on('deal:updated', function () {
         window.__guardlineDealsFromApi = false;
         if (currentScreen === 'pipeline') navigateTo('pipeline', true);
+      });
+
+      guardlineSocket.on('deal:created', function () {
+        window.__guardlineDealsFromApi = false;
+        if (currentScreen === 'pipeline') navigateTo('pipeline', true);
+        if (currentScreen === 'command') {
+          if (typeof hydrateCommandCenterFromApi === 'function') hydrateCommandCenterFromApi();
+          if (typeof refreshCommandBarFromApi === 'function') refreshCommandBarFromApi();
+        }
+      });
+
+      function refreshLeadScreens() {
+        if (currentScreen === 'leads') navigateTo('leads', true);
+        if (currentScreen === 'lead-flow') navigateTo('lead-flow', true);
+        if (currentScreen === 'command') {
+          if (typeof hydrateCommandCenterFromApi === 'function') hydrateCommandCenterFromApi();
+          if (typeof refreshCommandBarFromApi === 'function') refreshCommandBarFromApi();
+        }
+      }
+
+      guardlineSocket.on('lead:created', function () {
+        refreshLeadScreens();
+      });
+
+      guardlineSocket.on('lead:updated', function () {
+        refreshLeadScreens();
+      });
+
+      guardlineSocket.on('lead:enriched', function () {
+        refreshLeadScreens();
       });
 
       guardlineSocket.on('metrics:refresh', function () {
@@ -9344,20 +9375,21 @@
       var orig = btn ? btn.textContent : '';
       if (btn) { btn.disabled = true; btn.textContent = '⟳ Enviando…'; }
       try {
-        var n8nBase = String(window.GUARDLINE_N8N_URL || '').replace(/\/$/, '');
-        var apiBase = String(window.GUARDLINE_API_BASE || 'https://guardline-engine-production.up.railway.app/api').replace(/\/$/, '');
-        if (n8nBase) {
-          var wh = n8nBase + '/webhook/wf06-enrich';
-          await fetch(wh, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ leadId: leadId, source: 'dashboard' }) });
-          showToast('success', 'WF06 disparado', 'O n8n está a enriquecer o lead. Actualize em 30s.');
-        } else {
-          var token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
-          var headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
-          if (token) headers['Authorization'] = 'Bearer ' + token;
-          var r = await fetch(apiBase + '/leads/' + leadId + '/enrich', { method: 'POST', headers: headers, body: JSON.stringify({ rescore: true }) });
-          if (!r.ok) throw new Error('API ' + r.status);
-          showToast('info', 'Rescore', 'Solicitado. Configure GUARDLINE_N8N_URL para enriquecimento completo.');
+        var lead = null;
+        if (guardlineSupabaseReady()) {
+          var rows = await DB.query('leads', { filter: 'id=eq.' + encodeURIComponent(leadId), limit: 1, order: '' });
+          lead = rows && rows[0] ? rows[0] : null;
+        } else if (Auth && Auth.isLoggedIn && Auth.isLoggedIn()) {
+          var lr = await API.get('/leads/' + encodeURIComponent(leadId), { silent: true });
+          lead = lr && lr.data ? lr.data : null;
         }
+        if (lead) {
+          await N8N.processLead(Object.assign({}, lead, { leadId: leadId, source: 'dashboard' }));
+          showToast('success', 'WF06 disparado', 'O n8n está a enriquecer o lead. Atualize em 30s.');
+          return;
+        }
+        await API.post('/leads/' + encodeURIComponent(leadId) + '/enrich', { rescore: true });
+        showToast('info', 'Rescore', 'Solicitado. Configure n8n para enriquecimento completo.');
       } catch(e) {
         showToast('error', 'Enriquecer', e.message || 'Erro ao contactar WF06');
       } finally {
@@ -10693,8 +10725,8 @@
           var res = await API.get('/integrations');
           var apiData = res.data || [];
           if (apiData.length) {
-            var iconMap = { gmail: '📧', slack: '💬', n8n: '⚡', whatsapp: '💚', hubspot: '🔶' };
-            var nameMap = { gmail: 'Gmail', slack: 'Slack', n8n: 'n8n', whatsapp: 'WhatsApp Business', hubspot: 'HubSpot' };
+            var iconMap = { gmail: '📧', slack: '💬', n8n: '⚡', whatsapp: '💚', hubspot: '🔶', waalaxy: '👽', calendar: '📅', linkedin: '💼' };
+            var nameMap = { gmail: 'Gmail', slack: 'Slack', n8n: 'n8n', whatsapp: 'WhatsApp Business', hubspot: 'HubSpot', waalaxy: 'Waalaxy', calendar: 'Calendar', linkedin: 'LinkedIn' };
             integrations = apiData.map(function(item) {
               var active = item.status === 'connected';
               var offline = item.status === 'error';
@@ -10706,6 +10738,7 @@
               if (item.type === 'slack') actList = active ? ['Desconectar', 'Testar Slack'] : ['Conectar'];
               else if (item.type === 'n8n') actList = active ? ['Abrir n8n', 'Sincronizar HubSpot'] : ['Conectar'];
               else if (item.type === 'hubspot') actList = active ? ['Sincronizar', 'Desconectar'] : ['Conectar'];
+              else if (['waalaxy', 'calendar', 'linkedin'].indexOf(item.type) > -1) actList = active ? ['Configurar', 'Desconectar'] : ['Conectar'];
               else actList = active ? ['Desconectar'] : ['Conectar'];
               return {
                 id: tid, name: nameMap[item.type] || item.type, icon: iconMap[item.type] || '🔌',
@@ -10771,7 +10804,10 @@
               else if (a === 'Conectar' && tid === 'hubspot') onclick = ' onclick="intConnectHubspot()"';
               else if (a === 'Conectar' && tid === 'slack') onclick = ' onclick="intConnectSlack()"';
               else if (a === 'Conectar' && tid === 'n8n') onclick = ' onclick="intConnectN8n()"';
-              else if (a === 'Conectar' && (tid === 'whatsapp' || tid === 'wa')) onclick = ' onclick="intConnectWhatsapp()"';
+              else if ((a === 'Conectar' || a === 'Configurar') && (tid === 'whatsapp' || tid === 'wa')) onclick = ' onclick="intConnectConnector(\'whatsapp\')"';
+              else if ((a === 'Conectar' || a === 'Configurar') && tid === 'waalaxy') onclick = ' onclick="intConnectConnector(\'waalaxy\')"';
+              else if ((a === 'Conectar' || a === 'Configurar') && tid === 'calendar') onclick = ' onclick="intConnectConnector(\'calendar\')"';
+              else if ((a === 'Conectar' || a === 'Configurar') && tid === 'linkedin') onclick = ' onclick="intConnectConnector(\'linkedin\')"';
               else if (a === 'Testar' || a === 'Testar Slack') onclick = ' onclick="intTestSlack()"';
               else if (a === 'Sincronizar' || a === 'Sincronizar HubSpot') onclick = ' onclick="intSyncHubspot()"';
               else if (a === 'Abrir n8n') onclick = ' onclick="intOpenN8n()"';
@@ -10857,7 +10893,8 @@
       }).catch(function(e) { showToast('error', 'HubSpot Sync', e.message || 'Falha no sync'); });
     }
     function intOpenN8n() {
-      var base = (window.GUARDLINE_N8N_URL || 'https://guardline.app.n8n.cloud');
+      var base = (window.GUARDLINE_N8N_BASE || window.GUARDLINE_N8N_URL || (CONFIG && CONFIG.n8n && CONFIG.n8n.base) || 'https://guardline.app.n8n.cloud');
+      base = String(base).replace(/\/webhook\/?$/i, '');
       window.open(base, '_blank');
     }
     function intConnectSlack() {
@@ -10875,13 +10912,81 @@
         'Reiniciar o serviço no Railway após configurar.',
       ]);
     }
-    function intConnectWhatsapp() {
-      showIntEnvModal('WhatsApp Business', [
-        'Use o webhook do n8n (WF06) com o nó WhatsApp Business Cloud.',
-        'WHATSAPP_TOKEN — token de acesso permanente do Meta Business.',
-        'WHATSAPP_PHONE_ID — ID do número de telefone no Meta.',
-      ]);
+    function intConnectConnector(type) {
+      var titles = {
+        waalaxy: '👽 Configurar Waalaxy',
+        calendar: '📅 Configurar Calendar',
+        whatsapp: '💚 Configurar WhatsApp Business',
+        linkedin: '💼 Configurar LinkedIn'
+      };
+      var fields = {
+        waalaxy: [{ name: 'apiKey', label: 'API Key do Waalaxy', type: 'password' }],
+        calendar: [{ name: 'calendarUrl', label: 'URL do Calendário (ex: Calendly)', type: 'text' }],
+        whatsapp: [
+          { name: 'whatsappToken', label: 'Token de Acesso (Meta)', type: 'password' },
+          { name: 'phoneId', label: 'ID do Número de Telefone', type: 'text' }
+        ],
+        linkedin: [
+          { name: 'linkedinEmail', label: 'Email do LinkedIn', type: 'text' },
+          { name: 'linkedinPassword', label: 'Senha do LinkedIn', type: 'password' }
+        ]
+      };
+
+      var title = titles[type] || ('Configurar ' + type);
+      var typeFields = fields[type] || [];
+
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+      
+      var inputsHtml = typeFields.map(function(f) {
+        return '<div style="margin-bottom:12px">' +
+          '<label style="display:block;font-size:12px;color:var(--text-muted);margin-bottom:4px">' + escapeHtml(f.label) + '</label>' +
+          '<input type="' + f.type + '" id="conn_' + f.name + '" style="width:100%;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;color:#fff;font-size:13px">' +
+          '</div>';
+      }).join('');
+
+      overlay.innerHTML =
+        '<div style="background:var(--card);border-radius:16px;padding:28px 32px;max-width:420px;width:90%;border:1px solid var(--border)">' +
+        '<div style="font-size:16px;font-weight:800;margin-bottom:16px">' + escapeHtml(title) + '</div>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Insira suas credenciais abaixo. Elas serão criptografadas e usadas apenas pelos fluxos automatizados do n8n.</p>' +
+        inputsHtml +
+        '<div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" class="act-btn" onclick="this.closest(\'[style*=fixed]\').remove()" style="font-size:13px">Cancelar</button>' +
+        '<button type="button" class="btn-activate" id="btn-save-connector" style="font-size:13px">Salvar Credenciais</button>' +
+        '</div></div>';
+
+      overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+      document.body.appendChild(overlay);
+
+      document.getElementById('btn-save-connector').onclick = async function() {
+        var payload = {};
+        typeFields.forEach(function(f) {
+          payload[f.name] = document.getElementById('conn_' + f.name).value.trim();
+        });
+
+        try {
+          var btn = this;
+          btn.textContent = 'Salvando...';
+          btn.disabled = true;
+          
+          var res = await API.post('/connectors/' + type, payload);
+          if (res.data && res.data.connected) {
+            showToast('Credenciais salvas com sucesso!', 'success');
+            overlay.remove();
+            renderIntegrations(); // Refresh list
+          } else {
+            showToast('Falha ao salvar credenciais.', 'error');
+            btn.textContent = 'Salvar Credenciais';
+            btn.disabled = false;
+          }
+        } catch (e) {
+          showToast('Erro: ' + (e.response?.data?.error || e.message), 'error');
+          this.textContent = 'Salvar Credenciais';
+          this.disabled = false;
+        }
+      };
     }
+    
     function showIntEnvModal(title, steps) {
       var overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';

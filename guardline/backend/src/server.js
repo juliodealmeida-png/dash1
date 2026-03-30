@@ -206,9 +206,10 @@ app.use(['/api/ai', '/api/fraud-map', '/api/events', '/api/realtime', '/api/hubs
   proxyToDataApi(req, res, upstreamPath);
 });
 
-// Unify deals + leads on Supabase: proxy all reads AND writes to Data API.
+// Optional: proxy deals + leads to Data API (Supabase) when explicitly enabled.
 // Write methods (POST/PATCH/PUT/DELETE) require a valid JWT before forwarding.
-if (DATA_API_BASE) {
+const ENABLE_DATA_API_PROXY = DATA_API_BASE && String(process.env.DATA_API_PROXY || '').toLowerCase() === 'true';
+if (ENABLE_DATA_API_PROXY) {
   const { authMiddleware } = require('./middleware/auth');
   const WRITE_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
@@ -273,6 +274,7 @@ app.use('/api/julio', require('./routes/julio.routes'));
 app.use('/api/metrics', require('./routes/metrics.routes'));
 app.use('/api/signals', require('./routes/signals.routes'));
 app.use('/api/integrations', require('./routes/integrations.routes'));
+app.use('/api/connectors', require('./routes/connectors.routes'));
 app.use('/api/investor', require('./routes/investor.routes'));
 app.use('/api/documents', require('./routes/documents.routes'));
 app.use('/api/forum', require('./routes/forum.routes'));

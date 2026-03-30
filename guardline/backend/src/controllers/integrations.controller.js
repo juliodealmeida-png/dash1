@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { prisma } = require('../config/database');
 const { ok, fail } = require('../utils/response');
 const {
@@ -8,7 +9,57 @@ const {
 } = require('../services/gmail.service');
 const { sendSlackMessage } = require('../services/slack.service');
 
-const INTEGRATION_TYPES = ['gmail', 'slack', 'n8n', 'whatsapp', 'hubspot'];
+const INTEGRATION_TYPES = ['gmail', 'slack', 'n8n', 'whatsapp', 'hubspot', 'waalaxy', 'calendar', 'linkedin'];
+
+function encryptionKey() {
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw) return null;
+  const key = Buffer.from(String(raw), 'utf8');
+  if (key.length !== 32) return null;
+  return key;
+}
+
+function encryptConfigObject(obj) {
+  const raw = JSON.stringify(obj || {});
+  const key = encryptionKey();
+  if (!key) return raw;
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const enc = Buffer.concat([cipher.update(raw, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:v1:${iv.toString('base64')}.${tag.toString('base64')}.${enc.toString('base64')}`;
+}
+
+function decryptConfigString(config) {
+  if (!config || typeof config !== 'string') return config;
+  if (!config.startsWith('enc:v1:')) return config;
+  const key = encryptionKey();
+  if (!key) return config;
+  const payload = config.slice('enc:v1:'.length);
+  const parts = payload.split('.');
+  if (parts.length !== 3) return config;
+  try {
+    const iv = Buffer.from(parts[0], 'base64');
+    const tag = Buffer.from(parts[1], 'base64');
+    const enc = Buffer.from(parts[2], 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+    return dec.toString('utf8');
+  } catch {
+    return config;
+  }
+}
+
+function parseIntegrationConfig(config) {
+  if (!config) return null;
+  const raw = decryptConfigString(config);
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
 
 function frontendOrigin() {
   const raw = process.env.FRONTEND_URL || 'http://localhost:4000';
@@ -26,7 +77,7 @@ function maskIntegrationRow(row) {
   let configPublic = {};
   if (row.config) {
     try {
-      const c = JSON.parse(row.config);
+      const c = parseIntegrationConfig(row.config) || {};
       configPublic = {
         email: c.email || null,
         hasTokens: !!(c.tokens && (c.tokens.access_token || c.tokens.refresh_token)),
@@ -148,7 +199,7 @@ async function gmailCallback(req, res, next) {
     }
 
     const { tokens, email } = await exchangeCodeForTokens(String(code));
-    const config = JSON.stringify({ tokens, email });
+    const config = encryptConfigObject({ tokens, email });
 
     const existing = await prisma.integration.findFirst({
       where: { type: 'gmail', userId: payload.userId },
@@ -191,7 +242,7 @@ async function connectHubspot(req, res, next) {
       return fail(res, 400, 'Forneça o HubSpot PAT no body {pat:"..."}  ou defina HUBSPOT_PAT no .env', 'HUBSPOT_PAT_MISSING');
     }
     const existing = await prisma.integration.findFirst({ where: { type: 'hubspot', userId: req.user.id } });
-    const config = JSON.stringify({ pat });
+    const config = encryptConfigObject({ pat });
     if (existing) {
       await prisma.integration.update({ where: { id: existing.id }, data: { status: 'connected', config, errorMessage: null } });
     } else {

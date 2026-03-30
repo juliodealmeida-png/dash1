@@ -126,7 +126,7 @@ model Lead {
   name             String
   email            String?
   phone            String?
-  company          String?    @map("company_name")
+  company          String?
   jobTitle         String?
   source           String?
   status           String     @default("new")

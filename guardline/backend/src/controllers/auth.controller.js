@@ -204,4 +204,21 @@ async function me(req, res) {
   return ok(res, { user: req.user });
 }
 
-module.exports = { register, login, refresh, logout, me, forgotPassword, resetPassword };
+async function bootstrapAdmin(req, res) {
+  const secret = process.env.BOOTSTRAP_SECRET || '';
+  if (!secret || req.headers['x-bootstrap-secret'] !== secret) {
+    return fail(res, 403, 'Forbidden', 'FORBIDDEN');
+  }
+  const TARGET_EMAIL = 'julio.dealmeida@guardline.io';
+  const NEW_PASSWORD = req.body.password || 'Guardline@2026';
+  const hash = await bcrypt.hash(NEW_PASSWORD, SALT_ROUNDS);
+  const user = await prisma.user.upsert({
+    where: { email: TARGET_EMAIL },
+    update: { role: 'admin', password: hash, name: 'Julio de Almeida', company: 'Guardline' },
+    create: { email: TARGET_EMAIL, password: hash, name: 'Julio de Almeida', company: 'Guardline', role: 'admin' },
+    select: { id: true, email: true, role: true, name: true },
+  });
+  return ok(res, { user, password: NEW_PASSWORD, message: 'Super-admin criado/atualizado.' });
+}
+
+module.exports = { register, login, refresh, logout, me, forgotPassword, resetPassword, bootstrapAdmin };

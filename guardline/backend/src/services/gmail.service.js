@@ -1,5 +1,35 @@
 const { google } = require('googleapis');
+const crypto = require('crypto');
 const { prisma } = require('../config/database');
+
+function encryptionKey() {
+  const raw = process.env.ENCRYPTION_KEY;
+  if (!raw) return null;
+  const key = Buffer.from(String(raw), 'utf8');
+  if (key.length !== 32) return null;
+  return key;
+}
+
+function decryptConfigString(config) {
+  if (!config || typeof config !== 'string') return config;
+  if (!config.startsWith('enc:v1:')) return config;
+  const key = encryptionKey();
+  if (!key) return config;
+  const payload = config.slice('enc:v1:'.length);
+  const parts = payload.split('.');
+  if (parts.length !== 3) return config;
+  try {
+    const iv = Buffer.from(parts[0], 'base64');
+    const tag = Buffer.from(parts[1], 'base64');
+    const enc = Buffer.from(parts[2], 'base64');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(enc), decipher.final()]);
+    return dec.toString('utf8');
+  } catch {
+    return config;
+  }
+}
 
 function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -53,7 +83,7 @@ async function findGmailIntegrationForUser(userId) {
 function parseConfig(integration) {
   if (!integration || !integration.config) return null;
   try {
-    return JSON.parse(integration.config);
+    return JSON.parse(decryptConfigString(integration.config));
   } catch {
     return null;
   }
