@@ -1,0 +1,23 @@
+name: Deploy → Cloudflare Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'guardline/frontend/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy frontend to Cloudflare Pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: 99f04b37de1e8cd3aac9952b74276c44
+          command: pages deploy guardline/frontend --project-name=guardline-dashboard --branch=main --commit-dirty=true
