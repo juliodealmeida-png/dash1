@@ -13930,16 +13930,16 @@
       el.style.cssText = 'display:block!important;padding:10px 14px;margin:12px 0;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:#f87171;font-size:13px;word-break:break-word';
     }
 
-    document.getElementById('login-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      var email = document.getElementById('login-email').value;
-      var password = document.getElementById('login-password').value;
+    window._guardlineLogin = async function(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      var email = (document.getElementById('login-email') || {}).value || '';
+      var password = (document.getElementById('login-password') || {}).value || '';
       var btn = document.getElementById('login-btn');
       setLoginFormError('');
-      btn.textContent = 'Entrando...';
-      btn.disabled = true;
+      if (btn) { btn.textContent = 'Entrando...'; btn.disabled = true; }
+      var _apiBase = (window.GUARDLINE_API_BASE || (typeof API_BASE !== 'undefined' ? API_BASE : 'https://guardline-engine-production.up.railway.app/api')).replace(/\/$/, '');
       try {
-        var res = await fetch(API_BASE + '/auth/login', {
+        var res = await fetch(_apiBase + '/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: email, password: password }),
@@ -13950,11 +13950,7 @@
           data = await res.json();
         } else {
           var raw = await res.text();
-          throw new Error(
-            res.status +
-              ': a API não respondeu em JSON. Backend em http://localhost:3001 a correr? ' +
-              (raw ? raw.slice(0, 120) : '')
-          );
+          throw new Error(res.status + ': a API não respondeu em JSON. ' + (raw ? raw.slice(0, 120) : ''));
         }
         if (!res.ok || !data.success) {
           throw new Error((data && data.error) || 'Falha no login (HTTP ' + res.status + ')');
@@ -13973,10 +13969,12 @@
         setLoginFormError(msg);
         if (typeof showToast === 'function') showToast('error', 'Login', msg);
       } finally {
-        btn.textContent = 'Entrar no Guardline';
-        btn.disabled = false;
+        if (btn) { btn.textContent = 'Entrar no Guardline'; btn.disabled = false; }
       }
-    });
+    };
+    if (document.getElementById('login-form')) {
+      document.getElementById('login-form').addEventListener('submit', window._guardlineLogin);
+    }
 
     window.addEventListener('popstate', function(e) {
       var screen = (e.state && e.state.screen) || window.location.hash.replace('#', '') || 'command';
