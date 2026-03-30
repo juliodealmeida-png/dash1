@@ -3181,64 +3181,172 @@
         </form>
         <script>
           (function() {
+            // ═══════════════════════════════════════════════════════════════════
+            // GUARDLINE LOGIN HANDLERS - Isolated & Robust
+            // This script runs BEFORE the main 500k script to ensure login works
+            // ═══════════════════════════════════════════════════════════════════
+            
+            // Always use Railway API, never Netlify
+            var RESOLVED_API_BASE = (function() {
+              if (window.GUARDLINE_API_BASE) return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
+              if (window.location.hostname === 'localhost') return 'http://localhost:3001/api';
+              return 'https://guardline-engine-production.up.railway.app/api';
+            })();
+            window.GUARDLINE_API_BASE = RESOLVED_API_BASE; // Expose globally
+            
+            // Error display helper
+            function setLoginError(msg, isSuccess) {
+              var el = document.getElementById('login-error');
+              if (!el) return;
+              if (!msg) {
+                el.hidden = true;
+                el.textContent = '';
+                el.style.cssText = '';
+                return;
+              }
+              el.hidden = false;
+              el.textContent = msg;
+              var bg = isSuccess ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+              var border = isSuccess ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)';
+              var color = isSuccess ? '#22c55e' : '#f87171';
+              el.style.cssText = 'display:block!important;padding:10px 14px;margin:12px 0;background:'+bg+';border:1px solid '+border+';border-radius:8px;color:'+color+';font-size:13px;word-break:break-word';
+            }
+            
+            // ── LOGIN SUBMIT HANDLER ──────────────────────────────────────────
             window._guardlineLogin = async function(e) {
               if (e && e.preventDefault) e.preventDefault();
               var email = (document.getElementById('login-email') || {}).value || '';
               var password = (document.getElementById('login-password') || {}).value || '';
               var btn = document.getElementById('login-btn');
-              var errEl = document.getElementById('login-error');
-              function _setErr(msg) {
-                if (!errEl) return;
-                if (!msg) { errEl.hidden = true; errEl.textContent = ''; errEl.style.cssText = ''; return; }
-                errEl.hidden = false; errEl.textContent = msg;
-                errEl.style.cssText = 'display:block!important;padding:10px 14px;margin:12px 0;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:8px;color:#f87171;font-size:13px;word-break:break-word';
+              
+              if (!email.trim() || !password) {
+                setLoginError('Por favor preencha email e senha.');
+                return;
               }
-              _setErr('');
-              if (btn) { btn.textContent = 'Entrando...'; btn.disabled = true; }
-              var _api = ((window.GUARDLINE_API_BASE) || 'https://guardline-engine-production.up.railway.app/api').replace(/\/$/, '');
+              
+              setLoginError('');
+              if (btn) { 
+                btn.textContent = 'Entrando...'; 
+                btn.disabled = true;
+                btn.classList.add('loading');
+              }
+              
               try {
-                var res = await fetch(_api + '/auth/login', {
+                var res = await fetch(RESOLVED_API_BASE + '/auth/login', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ email: email, password: password })
+                  body: JSON.stringify({ email: email.trim(), password: password })
                 });
-                var ct = (res.headers.get('content-type') || '').toLowerCase();
+                
                 var data;
-                if (ct.indexOf('application/json') !== -1) {
-                  data = await res.json();
+                try { data = await res.json(); } catch(e) { data = {}; }
+                
+                if (res.ok && (data.success || data.token || (data.data && data.data.accessToken))) {
+                  // Success - save tokens
+                  var token = data.token || (data.data && data.data.accessToken);
+                  var refresh = data.refreshToken || (data.data && data.data.refreshToken);
+                  if (token) localStorage.setItem('guardline_token', token);
+                  if (refresh) localStorage.setItem('guardline_refresh', refresh);
+                  
+                  // Hide login screen
+                  var ls = document.getElementById('login-screen');
+                  if (ls) { ls.style.display = 'none'; ls.classList.remove('visible'); }
+                  
+                  // Try to init app, fallback to reload
+                  if (typeof Auth !== 'undefined' && Auth.setToken) {
+                    Auth.setToken(token);
+                    if (data.data && data.data.user && Auth.setUser) Auth.setUser(data.data.user);
+                  }
+                  if (typeof showDashboard === 'function') {
+                    showDashboard();
+                    if (typeof navigateTo === 'function') navigateTo('command', true);
+                  } else {
+                    window.location.reload();
+                  }
                 } else {
-                  var raw = await res.text();
-                  throw new Error(res.status + ': API nao respondeu em JSON. ' + (raw ? raw.slice(0, 120) : ''));
-                }
-                if (!res.ok || !data.success) throw new Error((data && data.error) || 'Falha no login (HTTP ' + res.status + ')');
-                try { localStorage.setItem('guardline_token', data.data.accessToken); } catch(_e2) {}
-                try { localStorage.setItem('guardline_refresh', data.data.refreshToken); } catch(_e2) {}
-                if (typeof Auth !== 'undefined' && Auth.setToken) { Auth.setToken(data.data.accessToken); if (Auth.setUser) Auth.setUser(data.data.user); }
-                if (typeof showDashboard === 'function') {
-                  showDashboard();
-                  if (typeof guardlineRunOnboardingGate === 'function') { var g = await guardlineRunOnboardingGate(); if (!g) return; }
-                  if (typeof navigateTo === 'function') navigateTo('command', true);
-                  if (typeof refreshCommandBarFromApi === 'function') await refreshCommandBarFromApi();
-                  if (typeof guardlineBootstrapDataLayer === 'function') await guardlineBootstrapDataLayer();
-                } else {
-                  window.location.reload();
+                  throw new Error(data.error || data.message || 'Credenciais inválidas. Tente novamente.');
                 }
               } catch(err) {
-                _setErr((err && err.message) || String(err));
-                if (typeof showToast === 'function') showToast('error', 'Login', (err && err.message) || String(err));
+                setLoginError((err && err.message) || 'Erro de conexão. Verifique sua internet.');
               } finally {
-                if (btn) { btn.textContent = 'Entrar no Guardline'; btn.disabled = false; }
+                if (btn) { 
+                  btn.textContent = 'Entrar no Guardline'; 
+                  btn.disabled = false;
+                  btn.classList.remove('loading');
+                }
               }
             };
-            var _f = document.getElementById('login-form');
-            if (_f) _f.addEventListener('submit', window._guardlineLogin);
+            
+            // ── DEMO MODE HANDLER ─────────────────────────────────────────────
+            window._guardlineDemo = function() {
+              try {
+                var u = new URL(window.location.href);
+                u.searchParams.set('demo', '1');
+                window.location.href = u.toString();
+              } catch(e) {
+                window.location.href = window.location.pathname + '?demo=1';
+              }
+            };
+            
+            // ── FORGOT PASSWORD HANDLER ───────────────────────────────────────
+            window._guardlineForgot = async function() {
+              var email = (document.getElementById('login-email') || {}).value || '';
+              if (!email.trim()) {
+                setLoginError('Digite seu email acima primeiro.');
+                return;
+              }
+              try {
+                var res = await fetch(RESOLVED_API_BASE + '/auth/forgot-password', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ email: email.trim() })
+                });
+                if (res.ok) {
+                  setLoginError('Email de recuperação enviado! Verifique sua caixa de entrada.', true);
+                } else {
+                  setLoginError('Não foi possível enviar o email. Tente novamente.');
+                }
+              } catch(e) {
+                setLoginError('Erro de conexão.');
+              }
+            };
+            
+            // ── BIND ALL HANDLERS ─────────────────────────────────────────────
+            function bindLoginHandlers() {
+              var form = document.getElementById('login-form');
+              var demoBtn = document.getElementById('login-demo-btn');
+              var forgotBtn = document.getElementById('forgot-password-btn');
+              
+              if (form && !form._bound) {
+                form.addEventListener('submit', window._guardlineLogin);
+                form._bound = true;
+              }
+              if (demoBtn && !demoBtn._bound) {
+                demoBtn.addEventListener('click', window._guardlineDemo);
+                demoBtn._bound = true;
+              }
+              if (forgotBtn && !forgotBtn._bound) {
+                forgotBtn.addEventListener('click', window._guardlineForgot);
+                forgotBtn._bound = true;
+              }
+            }
+            
+            // Call immediately (DOM is ready since script is after form)
+            bindLoginHandlers();
+            
+            // Also call on DOMContentLoaded as backup
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', bindLoginHandlers);
+            }
+            
+            console.log('[Guardline] Login handlers bound. API:', RESOLVED_API_BASE);
           })();
         </script>
         <div class="login-links">
-          <button type="button" id="forgot-password-btn" class="link-btn">Esqueci minha senha</button>
+          <button type="button" id="forgot-password-btn" class="link-btn" onclick="if(typeof window._guardlineForgot==='function')window._guardlineForgot();">Esqueci minha senha</button>
         </div>
         <div style="text-align:center;margin-top:16px">
-          <button type="button" id="login-demo-btn" class="login-demo-btn">
+          <button type="button" id="login-demo-btn" class="login-demo-btn" onclick="if(typeof window._guardlineDemo==='function')window._guardlineDemo();else{var u=new URL(location.href);u.searchParams.set('demo','1');location.href=u.toString();}">
             <svg style="width:14px;height:14px;margin-right:6px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
             Ver em modo demo
           </button>
