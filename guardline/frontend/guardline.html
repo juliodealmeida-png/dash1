@@ -10357,9 +10357,13 @@
           var btns = (x.actions || [])
             .map(function(a) {
               var onclick = '';
-              if (a === 'Desconectar') onclick = ' onclick="intDisconnect(\'' + (x._type || x.id) + '\')"';
-              else if (a === 'Conectar' && (x._type || x.id) === 'gmail') onclick = ' onclick="intConnectGmail()"';
-              else if (a === 'Conectar' && (x._type || x.id) === 'hubspot') onclick = ' onclick="intConnectHubspot()"';
+              var tid = x._type || x.id;
+              if (a === 'Desconectar') onclick = ' onclick="intDisconnect(\'' + tid + '\')"';
+              else if (a === 'Conectar' && tid === 'gmail') onclick = ' onclick="intConnectGmail()"';
+              else if (a === 'Conectar' && tid === 'hubspot') onclick = ' onclick="intConnectHubspot()"';
+              else if (a === 'Conectar' && tid === 'slack') onclick = ' onclick="intConnectSlack()"';
+              else if (a === 'Conectar' && tid === 'n8n') onclick = ' onclick="intConnectN8n()"';
+              else if (a === 'Conectar' && (tid === 'whatsapp' || tid === 'wa')) onclick = ' onclick="intConnectWhatsapp()"';
               else if (a === 'Testar' || a === 'Testar Slack') onclick = ' onclick="intTestSlack()"';
               else if (a === 'Sincronizar' || a === 'Sincronizar HubSpot') onclick = ' onclick="intSyncHubspot()"';
               else if (a === 'Abrir n8n') onclick = ' onclick="intOpenN8n()"';
@@ -10408,9 +10412,20 @@
     }
     function intConnectGmail() {
       API.get('/integrations/gmail/auth').then(function(res) {
-        if (res.data && res.data.url) window.open(res.data.url, '_blank');
-        else showToast('info', 'Gmail', 'Configure GMAIL_CLIENT_ID no .env');
-      }).catch(function(e) { showToast('error', 'Gmail', e.message || 'Erro'); });
+        var url = res.data && (res.data.authUrl || res.data.url);
+        if (url) window.open(url, '_blank');
+        else showToast('info', 'Gmail', 'GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET não configurados no Railway.');
+      }).catch(function(e) {
+        if ((e.message || '').toLowerCase().includes('503') || (e.message || '').toLowerCase().includes('não configurado')) {
+          showIntEnvModal('Gmail OAuth', [
+            'GMAIL_CLIENT_ID — do Google Cloud Console',
+            'GMAIL_CLIENT_SECRET — do Google Cloud Console',
+            'GMAIL_REDIRECT_URI — https://SUA-API.railway.app/api/integrations/gmail/callback',
+          ]);
+        } else {
+          showToast('error', 'Gmail', e.message || 'Erro');
+        }
+      });
     }
     function intTestSlack() {
       API.post('/integrations/slack/test').then(function() {
@@ -10436,6 +10451,45 @@
     function intOpenN8n() {
       var base = (window.GUARDLINE_N8N_URL || 'https://guardline.app.n8n.cloud');
       window.open(base, '_blank');
+    }
+    function intConnectSlack() {
+      showIntEnvModal('Slack Bot Token', [
+        'SLACK_BOT_TOKEN — gerado em api.slack.com/apps → OAuth & Permissions',
+        'SLACK_CHANNEL_ALERTS — ID do canal default (ex: C0123456789)',
+        'Reiniciar o serviço no Railway após configurar.',
+      ]);
+    }
+    function intConnectN8n() {
+      showIntEnvModal('n8n Cloud', [
+        'N8N_BASE_URL — ex: https://guardline.app.n8n.cloud',
+        'N8N_API_KEY — gerado em n8n → Settings → API',
+        'N8N_WEBHOOK_SECRET — string aleatória para validar webhooks',
+        'Reiniciar o serviço no Railway após configurar.',
+      ]);
+    }
+    function intConnectWhatsapp() {
+      showIntEnvModal('WhatsApp Business', [
+        'Use o webhook do n8n (WF06) com o nó WhatsApp Business Cloud.',
+        'WHATSAPP_TOKEN — token de acesso permanente do Meta Business.',
+        'WHATSAPP_PHONE_ID — ID do número de telefone no Meta.',
+      ]);
+    }
+    function showIntEnvModal(title, steps) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+      overlay.innerHTML =
+        '<div style="background:var(--card);border-radius:16px;padding:28px 32px;max-width:520px;width:90%;border:1px solid var(--border)">' +
+        '<div style="font-size:16px;font-weight:800;margin-bottom:16px">⚙️ Configurar ' + escapeHtml(title) + '</div>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">Adicione estas variáveis de ambiente no Railway <b>→ Variables</b> e faça redeploy:</p>' +
+        '<div style="background:var(--bg-secondary);border-radius:8px;padding:14px;font-family:monospace;font-size:12px;line-height:1.9">' +
+        steps.map(function(s) { return '<div>• ' + escapeHtml(s) + '</div>'; }).join('') +
+        '</div>' +
+        '<div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end">' +
+        '<button type="button" class="act-btn" onclick="window.open(\'https://railway.app/dashboard\',\'_blank\')" style="font-size:13px">Abrir Railway</button>' +
+        '<button type="button" class="btn-activate" onclick="this.closest(\'[style*=fixed]\').remove()" style="font-size:13px">Fechar</button>' +
+        '</div></div>';
+      overlay.onclick = function(ev) { if (ev.target === overlay) overlay.remove(); };
+      document.body.appendChild(overlay);
     }
 
     var INV_STAGES = ['Cold Outreach', 'First Meeting', 'Interest Confirmed', 'Term Sheet', 'Due Diligence', 'Closed'];
