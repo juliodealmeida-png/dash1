@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -3441,6 +3441,15 @@
         <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder">
           <i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span>
         </button>
+        <button type="button" class="nav-item" data-screen="buyer-persona" data-roles="founder">
+          <i data-lucide="users-round" class="nav-icon"></i><span class="nav-label">Buyer Personas</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="tco-calculator" data-roles="founder,sdr">
+          <i data-lucide="calculator" class="nav-icon"></i><span class="nav-label">TCO Calculator</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="battlecard" data-roles="founder,sdr">
+          <i data-lucide="swords" class="nav-icon"></i><span class="nav-label">Battlecard</span>
+        </button>
 
         <div class="nav-section-label" data-section="acq">Aquisição</div>
         <button type="button" class="nav-item" data-screen="campaigns" data-roles="sdr">
@@ -5348,6 +5357,110 @@
       }
     }
 
+    function mapApiLeadToTableLead(l) {
+      var u = (typeof Auth !== 'undefined' && Auth.getUser) ? Auth.getUser() : null;
+      var score = l && l.score != null ? Number(l.score) : 0;
+      var b = {};
+      try {
+        b = l && l.scoreBreakdown ? JSON.parse(l.scoreBreakdown) : {};
+      } catch (e) {
+        b = {};
+      }
+      var q = Math.max(0, Math.min(10, Math.round(((Number(b.source) || 0) / 25) * 10)));
+      var e = Math.max(0, Math.min(10, Math.round(((Number(b.engagement) || 0) / 25) * 10)));
+      var f = Math.max(0, Math.min(10, Math.round(((Number(b.companyFit) || 0) / 20) * 10)));
+      var v = Math.max(0, Math.min(10, Math.round(((Number(b.dataCompleteness) || 0) / 25) * 10)));
+
+      var srcMap = {
+        linkedin: 'LinkedIn',
+        referral: 'Indicação',
+        inbound: 'Inbound',
+        event: 'Evento',
+        cold_email: 'Cold Email',
+        other: 'Outro',
+      };
+      var statusMap = {
+        new: 'Novo',
+        contacted: 'Aguardando resposta',
+        qualifying: 'Qualificando',
+        nurturing: 'Nutrição',
+        hot: 'Quente',
+      };
+      var created = l && l.createdAt ? new Date(l.createdAt) : null;
+      var last = l && l.lastContactAt ? new Date(l.lastContactAt) : null;
+      var entry =
+        created && !isNaN(created.getTime())
+          ? created.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+          : '—';
+      var lastLabel =
+        last && !isNaN(last.getTime())
+          ? Math.max(0, Math.floor((Date.now() - last.getTime()) / 3600000)) + 'h atrás'
+          : '—';
+      var next = (l && l.nextAction) ? String(l.nextAction).slice(0, 48) : '—';
+      var statusUi = statusMap[l && l.status] || (l && l.status) || 'Novo';
+      var statusRec = score >= 80 ? 'hot' : score >= 60 ? 'warm' : 'cold';
+
+      return {
+        id: l.id,
+        name: l.name || '—',
+        company: l.company || '—',
+        source: srcMap[l.source] || (l.source ? String(l.source) : '—'),
+        score: score,
+        breakdown: { q: q, e: e, f: f, v: v },
+        entry: entry,
+        last: lastLabel,
+        next: next,
+        owner: (u && u.name) ? u.name : 'Eu',
+        status: statusUi,
+        statusRec: statusRec,
+      };
+    }
+
+    async function loadLeadsPageApi() {
+      if (!Auth || !Auth.isLoggedIn || !Auth.isLoggedIn()) return;
+      if (Auth.getToken && Auth.getToken() === 'guardline-demo-session') return;
+      try {
+        var minScore = '';
+        var maxScore = '';
+        if (leadsPageState.filterScore === 'high') minScore = '80';
+        else if (leadsPageState.filterScore === 'mid') { minScore = '60'; maxScore = '79'; }
+        else if (leadsPageState.filterScore === 'low') maxScore = '59';
+
+        var url =
+          '/leads?page=1&perPage=100&sortBy=updatedAt&sortOrder=desc' +
+          (minScore ? '&minScore=' + encodeURIComponent(minScore) : '') +
+          (maxScore ? '&maxScore=' + encodeURIComponent(maxScore) : '');
+
+        var res = await API.get(url, { silent: true });
+        var rows = (res && res.data) ? res.data : [];
+        var mapped = rows.map(mapApiLeadToTableLead);
+
+        if (leadsPageState.filterSource) {
+          mapped = mapped.filter(function (x) { return x.source === leadsPageState.filterSource; });
+        }
+        if (leadsPageState.filterStatus) {
+          mapped = mapped.filter(function (x) { return x.status === leadsPageState.filterStatus; });
+        }
+        if (leadsPageState.filterOwner) {
+          mapped = mapped.filter(function (x) { return x.owner === leadsPageState.filterOwner; });
+        }
+        if (leadsPageState.search) {
+          var q = leadsPageState.search.toLowerCase();
+          mapped = mapped.filter(function (l) {
+            return l.company.toLowerCase().indexOf(q) >= 0 || l.name.toLowerCase().indexOf(q) >= 0;
+          });
+        }
+
+        window.__guardlineLeads = mapped;
+        window.__guardlineLeadsFromSupabaseMode = false;
+        window.__guardlineLeadsFromApiMode = true;
+        renderLeadsTable();
+      } catch (e) {
+        console.error('[loadLeadsPageApi]', e);
+        if (typeof showToast === 'function') showToast('error', 'Leads', (e && e.message) || 'Erro ao carregar leads');
+      }
+    }
+
     function applyAutomationsFromSupabase(data) {
       var ex = data.executions || [];
       var st = data.stats || {};
@@ -6603,13 +6716,35 @@
       }
       /** Modo demo: abre o layout completo sem chamar /auth/me (útil sem API :4000 ou para pré-visualizar). */
       if (params.get('demo') === '1' || window.GUARDLINE_DEMO_MODE === true) {
-        Auth.setToken('guardline-demo-session');
-        Auth.setUser({
-          id: 'demo',
-          name: 'Modo demo',
-          email: 'demo@guardline.local',
-          role: 'founder',
-        });
+        var baseDemo = (typeof API_BASE !== 'undefined' && API_BASE) ? API_BASE : (window.GUARDLINE_API_BASE || '');
+        var didLogin = false;
+        if (baseDemo) {
+          try {
+            var resDemo = await fetch(baseDemo.replace(/\/$/, '') + '/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+              body: JSON.stringify({ email: 'demo@guardline.com', password: 'guardline123' }),
+            });
+            var dataDemo = await resDemo.json().catch(function () { return {}; });
+            if (resDemo.ok && dataDemo && dataDemo.success && dataDemo.data && dataDemo.data.accessToken) {
+              Auth.setToken(dataDemo.data.accessToken);
+              if (dataDemo.data.refreshToken) localStorage.setItem('guardline_refresh', dataDemo.data.refreshToken);
+              if (dataDemo.data.user) Auth.setUser(dataDemo.data.user);
+              didLogin = true;
+            }
+          } catch (e) {}
+        }
+
+        if (!didLogin) {
+          Auth.setToken('guardline-demo-session');
+          Auth.setUser({
+            id: 'demo',
+            name: 'Modo demo',
+            email: 'demo@guardline.local',
+            role: 'founder',
+          });
+        }
+
         showDashboard();
         applyRoleVisibility();
         var gateDemo = typeof guardlineRunOnboardingGate === 'function' ? await guardlineRunOnboardingGate() : true;
@@ -6617,14 +6752,24 @@
         navigateTo('command', true);
         var deep = params.get('gl_screen');
         if (deep && typeof navigateTo === 'function') navigateTo(deep, true);
-        try {
-          if (typeof refreshCommandBarFromMetrics === 'function') refreshCommandBarFromMetrics();
-        } catch (eDemo) {}
-        if (typeof guardlineBootstrapDataLayer === 'function') {
-          guardlineBootstrapDataLayer().catch(function () {});
-        }
-        if (typeof showToast === 'function') {
-          showToast('info', 'Modo demo', 'Dados de exemplo. Para API real: faça login e defina GUARDLINE_API_BASE / GUARDLINE_DATA_API_BASE.', 5000);
+        if (didLogin) {
+          await refreshCommandBarFromApi();
+          if (typeof guardlineBootstrapDataLayer === 'function') {
+            await guardlineBootstrapDataLayer();
+          }
+          if (typeof showToast === 'function') {
+            showToast('success', 'Modo demo', 'Conectado na API real com demo@guardline.com', 4500);
+          }
+        } else {
+          try {
+            if (typeof refreshCommandBarFromMetrics === 'function') refreshCommandBarFromMetrics();
+          } catch (eDemo) {}
+          if (typeof guardlineBootstrapDataLayer === 'function') {
+            guardlineBootstrapDataLayer().catch(function () {});
+          }
+          if (typeof showToast === 'function') {
+            showToast('info', 'Modo demo', 'Dados de exemplo. Para dados reais: faça login.', 4500);
+          }
         }
         return;
       }
@@ -7567,6 +7712,83 @@
       }
       removeTypingIndicator();
 
+      if (text.toLowerCase().startsWith('/clima ') || text.toLowerCase() === '/dolar' || text.toLowerCase().startsWith('/noticias ') || text.toLowerCase().startsWith('/doc ') || text.toLowerCase().startsWith('/img ')) {
+        appendChatUser(text);
+        var hist0 = document.getElementById('julio-chat-history');
+        if (!hist0) return;
+        var bubble0 = document.createElement('div');
+        bubble0.className = 'chat-msg julio';
+        var t0 = document.createElement('span');
+        t0.className = 'chat-text';
+        t0.textContent = '…';
+        bubble0.appendChild(t0);
+        hist0.appendChild(bubble0);
+        hist0.scrollTop = hist0.scrollHeight;
+        (async function() {
+          try {
+            var apiBase = GUARDLINE_API_BASE.replace(/\/$/, '');
+            var tok = (typeof Auth !== 'undefined' && Auth.getToken) ? Auth.getToken() : null;
+            var authH = tok ? { Authorization: 'Bearer ' + tok } : {};
+            if (text.toLowerCase().startsWith('/clima ')) {
+              var city = text.slice(7).trim();
+              var r = await fetch(apiBase + '/tools/weather?city=' + encodeURIComponent(city), { headers: Object.assign({ Accept: 'application/json' }, authH) });
+              var j = await r.json().catch(function(){ return {}; });
+              if (j && j.success && j.data && j.data.current) {
+                var c = j.data.current;
+                t0.textContent = 'Clima em ' + (j.data.location.name || city) + ': ' + (c.temperature_2m != null ? c.temperature_2m + '°C' : 'n/d') + (c.rain ? ' · chuva' : '');
+              } else {
+                t0.textContent = 'Não consegui obter o clima agora.';
+              }
+            } else if (text.toLowerCase() === '/dolar') {
+              var r2 = await fetch(apiBase + '/tools/forex?base=USD&quote=BRL', { headers: Object.assign({ Accept: 'application/json' }, authH) });
+              var j2 = await r2.json().catch(function(){ return {}; });
+              if (j2 && j2.success) {
+                t0.textContent = 'US$1 = R$' + Number(j2.data.rate).toFixed(3) + ' (' + j2.data.ts + ')';
+              } else {
+                t0.textContent = 'Não consegui obter a cotação agora.';
+              }
+            } else if (text.toLowerCase().startsWith('/noticias ')) {
+              var q = text.slice(10).trim();
+              var r3 = await fetch(apiBase + '/tools/news?query=' + encodeURIComponent(q), { headers: Object.assign({ Accept: 'application/json' }, authH) });
+              var j3 = await r3.json().catch(function(){ return {}; });
+              if (j3 && j3.success && j3.data && j3.data.items && j3.data.items.length) {
+                var top = j3.data.items.slice(0, 5).map(function(it, i){ return (i+1) + '. ' + it.title + ' — ' + it.url; }).join('\\n');
+                t0.textContent = 'Top notícias para "' + q + '":\\n' + top;
+              } else {
+                t0.textContent = 'Sem notícias agora.';
+              }
+            } else if (text.toLowerCase().startsWith('/doc ')) {
+              var rest = text.slice(5);
+              var parts = rest.split('|');
+              var title = (parts[0] || 'Documento').trim();
+              var content = (parts.slice(1).join('|') || 'Conteúdo gerado pelo Julio.').trim();
+              var r4 = await fetch(apiBase + '/tools/doc', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, authH), body: JSON.stringify({ title: title, content: content }) });
+              var j4 = await r4.json().catch(function(){ return {}; });
+              if (j4 && j4.success) {
+                var url = j4.data.url;
+                t0.innerHTML = 'Documento PDF pronto: <a href="' + url + '" target="_blank" rel="noopener">abrir</a>';
+              } else {
+                t0.textContent = 'Não consegui gerar o PDF agora.';
+              }
+            } else if (text.toLowerCase().startsWith('/img ')) {
+              var msg = text.slice(5).trim();
+              var r5 = await fetch(apiBase + '/tools/image', { method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Accept: 'application/json' }, authH), body: JSON.stringify({ text: msg }) });
+              var j5 = await r5.json().catch(function(){ return {}; });
+              if (j5 && j5.success) {
+                var url2 = j5.data.url;
+                t0.innerHTML = 'Imagem criada: <a href="' + url2 + '" target="_blank" rel="noopener">abrir</a>';
+              } else {
+                t0.textContent = 'Não consegui criar a imagem agora.';
+              }
+            }
+          } catch (e) {
+            t0.textContent = 'Erro ao executar comando.';
+          }
+          persistJulioChatHistory();
+        })();
+        return;
+      }
+
       if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
         appendChatUser(text);
         var hist = document.getElementById('julio-chat-history');
@@ -7853,17 +8075,7 @@
 
     function mapApiDealToUiDeal(d) {
       if (!d) return null;
-      var sm = {
-        prospecting: 'Prospecção',
-        qualification: 'Qualificação',
-        presentation: 'Apresentação',
-        proposal: 'Proposta',
-        negotiation: 'Negociação',
-        contract: 'Contrato',
-        won: 'Fechado Ganho',
-        lost: 'Fechado Perdido',
-      };
-      var stagePt = sm[d.stage] || d.stage || '—';
+      var stagePt = (typeof stageApiToPt === 'function') ? stageApiToPt(d.stage) : (d.stage || '—');
       return {
         id: d.id,
         company: d.companyName || d.company || '—',
@@ -7871,7 +8083,7 @@
         stage: stagePt,
         source: d.source || '—',
         contact: d.contactName || '—',
-        phone: d.phone || '—',
+        phone: d.contactPhone || d.phone || '—',
         risk: d.riskScore != null ? Number(d.riskScore) : 0,
         daysNoContact: d.daysSinceContact != null ? Number(d.daysSinceContact) : 0,
         nextAction: 'Ver no pipeline',
@@ -7880,7 +8092,7 @@
         entry: d.createdAt ? new Date(d.createdAt).toLocaleDateString('pt-BR') : '—',
         timeline: (d.activities || []).slice(0, 20).map(function (a) {
           return {
-            d: a.createdAt ? new Date(a.createdAt).toLocaleDateString('pt-BR') : '—',
+            d: a.date ? new Date(a.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—',
             t: a.title || a.type || 'Atividade',
           };
         }),
@@ -8541,6 +8753,7 @@
       if (window.__guardlineLeadsFromSupabaseMode) {
         return window.__guardlineLeadsSupabaseRows || [];
       }
+      if (window.__guardlineLeadsFromApiMode && window.__guardlineLeads) return window.__guardlineLeads;
       if (!window.__guardlineLeads) window.__guardlineLeads = buildLeadsSeed();
       return window.__guardlineLeads;
     }
@@ -9429,6 +9642,7 @@
         leadsPageState.search = document.getElementById('lf-search').value;
         leadsPageState.page = 1;
         if (guardlineSupabaseReady()) loadLeadsPageSupabase();
+        else if (Auth && Auth.isLoggedIn && Auth.isLoggedIn() && Auth.getToken() !== 'guardline-demo-session') loadLeadsPageApi();
         else renderLeadsTable();
       }
       ['lf-source', 'lf-score', 'lf-status', 'lf-owner'].forEach(function (id) {
@@ -9457,6 +9671,7 @@
         }
       };
       if (guardlineSupabaseReady()) loadLeadsPageSupabase();
+      else if (Auth && Auth.isLoggedIn && Auth.isLoggedIn() && Auth.getToken() !== 'guardline-demo-session') loadLeadsPageApi();
       else renderLeadsTable();
       } catch(err) {
         console.error('[renderLeads]', err);
@@ -9673,6 +9888,21 @@
       showToast('info', 'Sinal', 'Marcado como lido.');
     }
 
+    function markAllSignalsRead() {
+      if (!Auth || !Auth.isLoggedIn || !Auth.isLoggedIn()) {
+        showToast('info', 'Sinais', 'Faça login para marcar como lido.');
+        return;
+      }
+      API.patch('/signals/read-all')
+        .then(function () {
+          showToast('success', 'Sinais', 'Todos marcados como lidos.');
+          if (typeof initSignalFeedPage === 'function') initSignalFeedPage();
+        })
+        .catch(function (e) {
+          showToast('error', 'Sinais', (e && e.message) || 'Falha ao marcar como lido');
+        });
+    }
+
     function guardlineRegisterActivity(dealId) {
       var overlay = document.createElement('div');
       overlay.className = 'modal-backdrop';
@@ -9749,29 +9979,59 @@
             paintSignalFeed();
           });
       } else if (Auth.isLoggedIn()) {
-        API.get('/signals?take=25').then(function(res) {
-          var signals = res.data || [];
-          signalFeedItems = signals.map(function(s) {
-            var sev = s.severity || 'info';
-            var type = sev === 'critical' ? 'critical' : sev === 'warning' ? 'risk' : sev === 'success' ? 'positive' : 'auto';
-            return {
-              type: type,
-              ts: s.createdAt ? new Date(s.createdAt).getTime() : Date.now(),
-              title: s.title || 'Sinal',
-              detail: escapeHtml(s.message || ''),
-              dealVal: formatSignalDealLabel(s),
-              signalId: s.id,
-              dealId: s.dealId || (s.deal && s.deal.id) || null,
-            };
-          });
-          if (!signalFeedItems.length) signalFeedItems = buildInitialSignals();
-          var lbl2 = document.getElementById('sf-count-label');
-          if (lbl2) lbl2.textContent = signalFeedItems.length + ' sinais recentes';
-          paintSignalFeed();
-        }).catch(function() {
-          signalFeedItems = buildInitialSignals();
-          paintSignalFeed();
-        });
+        (function loadFromApi() {
+          API.get('/signals?take=25', { silent: true })
+            .then(function (res) {
+              var signals = res.data || [];
+              signalFeedItems = signals.map(function (s) {
+                var sev = s.severity || 'info';
+                var type = sev === 'critical' ? 'critical' : sev === 'warning' ? 'risk' : sev === 'success' ? 'positive' : 'auto';
+                return {
+                  type: type,
+                  ts: s.createdAt ? new Date(s.createdAt).getTime() : Date.now(),
+                  title: s.title || 'Sinal',
+                  detail: escapeHtml(s.message || ''),
+                  dealVal: formatSignalDealLabel(s),
+                  signalId: s.id,
+                  dealId: s.dealId || (s.deal && s.deal.id) || null,
+                };
+              });
+              if (!signalFeedItems.length) signalFeedItems = buildInitialSignals();
+              var lbl2 = document.getElementById('sf-count-label');
+              if (lbl2) lbl2.textContent = signalFeedItems.length + ' sinais recentes';
+              paintSignalFeed();
+            })
+            .catch(function () {
+              signalFeedItems = buildInitialSignals();
+              paintSignalFeed();
+            });
+        })();
+
+        var refreshId = setInterval(function () {
+          if (currentScreen !== 'signals') return;
+          if (!Auth || !Auth.isLoggedIn || !Auth.isLoggedIn()) return;
+          if (guardlineSupabaseReady()) return;
+          API.get('/signals?take=25', { silent: true })
+            .then(function (res) {
+              var signals = res.data || [];
+              signalFeedItems = signals.map(function (s) {
+                var sev = s.severity || 'info';
+                var type = sev === 'critical' ? 'critical' : sev === 'warning' ? 'risk' : sev === 'success' ? 'positive' : 'auto';
+                return {
+                  type: type,
+                  ts: s.createdAt ? new Date(s.createdAt).getTime() : Date.now(),
+                  title: s.title || 'Sinal',
+                  detail: escapeHtml(s.message || ''),
+                  dealVal: formatSignalDealLabel(s),
+                  signalId: s.id,
+                  dealId: s.dealId || (s.deal && s.deal.id) || null,
+                };
+              });
+              paintSignalFeed();
+            })
+            .catch(function () {});
+        }, 15000);
+        screenIntervals.push(refreshId);
       } else {
         signalFeedItems = buildInitialSignals();
         paintSignalFeed();
@@ -9818,7 +10078,9 @@
           scheduleSignalTick();
         }, delay);
       }
-      scheduleSignalTick();
+      if (!Auth || !Auth.isLoggedIn || !Auth.isLoggedIn() || (Auth.getToken && Auth.getToken() === 'guardline-demo-session')) {
+        scheduleSignalTick();
+      }
       var relId = setInterval(function () {
         document.querySelectorAll('.signal-rel-time[data-ts]').forEach(function (el) {
           var ts = parseInt(el.getAttribute('data-ts'), 10);
@@ -9835,7 +10097,7 @@
         '<span class="live-indicator"><span class="live-dot"></span> LIVE</span>' +
         '<span style="color:var(--text-muted);font-size:13px" id="sf-count-label">carregando sinais…</span>' +
         '<button type="button" class="act-btn">Filtros ▼</button>' +
-        '<button type="button" class="act-btn" onclick="signalFeedItems.forEach(function(){})">Marcar todos como lidos</button></div>' +
+        '<button type="button" class="act-btn" onclick="markAllSignalsRead()">Marcar todos como lidos</button></div>' +
         '<div class="signal-filter-chips">' +
         '<button type="button" class="sf-chip active" data-filter="all">Todos</button>' +
         '<button type="button" class="sf-chip" data-filter="critical">🔴 Crítico</button>' +
@@ -13440,6 +13702,359 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    // ══════════════════════════════════════════════════════
+    // MODULE 3 — Buyer Persona Coverage
+    // ══════════════════════════════════════════════════════
+    async function renderBuyerPersona() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = '<div class="pipeline-page-wrap"><p class="placeholder-note">Faça login.</p></div>'; return; }
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      try {
+        var r = await API.get('/deals?perPage=100&sortBy=createdAt&sortOrder=desc');
+        var deals = (r.data || []).filter(function(d){ return d.stage !== 'lost'; });
+
+        var PERSONAS = [
+          { key:'cco',  label:'CCO',  color:'#818cf8', icon:'users' },
+          { key:'cro',  label:'CRO',  color:'#34d399', icon:'trending-up' },
+          { key:'cto',  label:'CTO',  color:'#60a5fa', icon:'cpu' },
+          { key:'cfo',  label:'CFO',  color:'#fb923c', icon:'dollar-sign' },
+          { key:'ciso', label:'CISO', color:'#f472b6', icon:'shield' },
+          { key:'cpo',  label:'CPO',  color:'#a78bfa', icon:'package' },
+        ];
+
+        function getPersonaCoverage(deal) {
+          var contacts = deal.contacts || [];
+          var titles = contacts.map(function(c){ return ((c.title||c.role||'')+'').toLowerCase(); });
+          return PERSONAS.map(function(p) {
+            var hit = titles.some(function(t){ return t.includes(p.key) || t.includes(p.label.toLowerCase()); });
+            return { persona: p, hit: hit };
+          });
+        }
+
+        function coverageScore(deal) {
+          var cov = getPersonaCoverage(deal);
+          var hits = cov.filter(function(c){ return c.hit; }).length;
+          return Math.round((hits / PERSONAS.length) * 100);
+        }
+
+        var totalDeals = deals.length;
+        var fullyMapped = deals.filter(function(d){ return coverageScore(d) >= 83; }).length;
+        var avgCoverage = totalDeals ? Math.round(deals.reduce(function(a,d){ return a + coverageScore(d); },0) / totalDeals) : 0;
+        var missingCco = deals.filter(function(d){
+          var cov = getPersonaCoverage(d);
+          return !cov.find(function(c){ return c.persona.key==='cco'; }).hit;
+        }).length;
+
+        function personaDot(hit, color) {
+          return '<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;background:'+(hit?color:'rgba(255,255,255,.08)')+';font-size:10px;font-weight:700;color:'+(hit?'#0f0f1a':'rgba(255,255,255,.3)')+'"></span>';
+        }
+
+        var dealRows = deals.slice(0,20).map(function(d, i) {
+          var cov = getPersonaCoverage(d);
+          var score = coverageScore(d);
+          var scoreColor = score >= 83 ? 'var(--accent-green)' : score >= 50 ? 'var(--accent-amber,#F59E0B)' : 'var(--accent-red)';
+          var did = String(d.id||'').replace(/'/g,"\\'");
+          return '<tr style="animation:slide-up '+(0.3+i*0.03)+'s ease;border-bottom:1px solid rgba(255,255,255,.04)">'+
+            '<td style="padding:10px 8px;font-size:13px;font-weight:600;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(d.companyName||'—')+'</td>'+
+            '<td style="padding:10px 8px;font-size:11px;color:var(--text-muted)">'+escapeHtml(stageApiToPt ? stageApiToPt(d.stage||'') : (d.stage||''))+'</td>'+
+            '<td style="padding:10px 8px;font-size:12px;color:var(--accent-cyan)">$'+(d.value||0).toLocaleString('en-US')+'</td>'+
+            '<td style="padding:10px 8px"><div style="display:flex;gap:4px">'+
+            cov.map(function(c){ return '<span title="'+c.persona.label+'" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:'+(c.hit?c.persona.color:'rgba(255,255,255,.06)')+';font-size:9px;font-weight:700;color:'+(c.hit?'#0f0f1a':'rgba(255,255,255,.25)')+'">'+c.persona.label+'</span>'; }).join('')+
+            '</div></td>'+
+            '<td style="padding:10px 8px;text-align:center">'+
+            '<span style="font-size:13px;font-weight:800;color:'+scoreColor+'">'+score+'%</span></td>'+
+            '<td style="padding:10px 8px">'+
+            '<div style="height:6px;width:80px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">'+
+            '<div style="height:100%;width:'+score+'%;background:'+scoreColor+';border-radius:3px;transition:width .8s ease"></div></div></td>'+
+            '</tr>';
+        }).join('');
+
+        var personaSummary = PERSONAS.map(function(p) {
+          var mapped = deals.filter(function(d){
+            var cov = getPersonaCoverage(d);
+            return cov.find(function(c){ return c.persona.key===p.key; }).hit;
+          }).length;
+          var pct = totalDeals ? Math.round((mapped/totalDeals)*100) : 0;
+          return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+
+            '<span style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;background:'+p.color+'22;border-radius:8px;font-size:11px;font-weight:700;color:'+p.color+'">'+p.label+'</span>'+
+            '<div style="flex:1">'+
+            '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'+
+            '<span style="font-weight:600">'+p.label+'</span>'+
+            '<span style="color:'+p.color+'">'+mapped+' / '+totalDeals+' deals ('+pct+'%)</span></div>'+
+            '<div style="height:7px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden">'+
+            '<div style="height:100%;width:'+pct+'%;background:'+p.color+';border-radius:4px;transition:width .8s ease"></div></div></div></div>';
+        }).join('');
+
+        area.innerHTML = '<div class="pipeline-page-wrap">'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+          '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Buyer Persona Coverage</h2>'+
+          '<p style="font-size:13px;color:var(--text-muted);margin:0">Cobertura de stakeholders por deal · MEDDPICC — Economic Buyer & Champion</p></div></div>'+
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .3s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Deals Ativos</div><div style="font-size:26px;font-weight:800;color:var(--accent-cyan);margin:6px 0 2px">'+totalDeals+'</div><div style="font-size:11px;color:var(--text-muted)">excluindo lost</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .32s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Fully Mapped</div><div style="font-size:26px;font-weight:800;color:var(--accent-green);margin:6px 0 2px">'+fullyMapped+'</div><div style="font-size:11px;color:var(--text-muted)">≥ 5 de 6 personas</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .34s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Cobertura Média</div><div style="font-size:26px;font-weight:800;color:'+(avgCoverage>=70?'var(--accent-green)':'var(--accent-amber,#F59E0B)')+';margin:6px 0 2px">'+avgCoverage+'%</div><div style="font-size:11px;color:var(--text-muted)">target: 70%</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .36s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Sem CCO</div><div style="font-size:26px;font-weight:800;color:var(--accent-red);margin:6px 0 2px">'+missingCco+'</div><div style="font-size:11px;color:var(--text-muted)">deals sem exec. contratado</div></div>'+
+          '</div>'+
+          '<div class="command-grid" style="align-items:start;margin-bottom:16px">'+
+          '<div class="card" style="animation:slide-up .38s ease"><div class="card-header"><span class="card-title">Cobertura por Persona</span><span class="card-subtitle">todos os deals ativos</span></div><div style="padding:8px 0">'+personaSummary+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.06)">// TODO: API /deals retorna contacts[] quando MEDDPICC WF06 preencher buyer roles</div></div>'+
+          '<div class="card" style="animation:slide-up .4s ease"><div class="card-header"><span class="card-title">Legenda Personas</span></div>'+
+          '<div style="padding:8px 0">'+PERSONAS.map(function(p){ return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:'+p.color+'22;border-radius:6px;font-size:10px;font-weight:700;color:'+p.color+'">'+p.label+'</span><div style="font-size:12px"><span style="font-weight:600">'+p.label+'</span>'; }).join('')+
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:12px;line-height:1.6">CCO = Chief Commercial Officer<br>CRO = Chief Revenue Officer<br>CTO = Chief Technology Officer<br>CFO = Chief Financial Officer<br>CISO = Chief Information Security Officer<br>CPO = Chief Procurement Officer</div></div></div></div>'+
+          '<div class="card" style="grid-column:1/-1;animation:slide-up .42s ease"><div class="card-header"><span class="card-title">Persona Coverage por Deal</span><span class="card-subtitle">top 20 · clique no deal para abrir</span></div>'+
+          '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">'+
+          '<thead><tr style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted)">'+
+          '<th style="padding:8px;text-align:left">Empresa</th><th style="padding:8px;text-align:left">Estágio</th><th style="padding:8px;text-align:left">ARR</th>'+
+          '<th style="padding:8px;text-align:left">Personas mapeadas</th><th style="padding:8px;text-align:center">Score</th><th style="padding:8px;text-align:left">Barra</th></tr></thead>'+
+          '<tbody>'+dealRows+'</tbody></table></div></div></div></div>';
+      } catch(e) {
+        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // MODULE 4 — TCO Calculator (client-side)
+    // ══════════════════════════════════════════════════════
+    function renderTcoCalculator() {
+      var area = document.getElementById('content-area');
+      area.innerHTML = '<div class="pipeline-page-wrap">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+        '<div><h2 style="margin:0 0 4px;font-size:1.4rem">TCO Calculator</h2>'+
+        '<p style="font-size:13px;color:var(--text-muted);margin:0">Total Cost of Ownership · Guardline vs Stack Atual</p></div>'+
+        '<button type="button" class="btn-activate" onclick="window.tcoExport&&window.tcoExport()">Exportar PDF →</button></div>'+
+        '<div class="command-grid" style="align-items:start">'+
+        // LEFT: Inputs
+        '<div class="card" style="animation:slide-up .3s ease">'+
+        '<div class="card-header"><span class="card-title">Parâmetros do cliente</span></div>'+
+        '<div style="padding:4px 0" id="tco-inputs">'+
+        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Tamanho da equipe de segurança</label>'+
+        '<input id="tco-team" type="number" value="8" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Custo médio/hora por analista (USD)</label>'+
+        '<input id="tco-rate" type="number" value="45" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Incidentes críticos / mês</label>'+
+        '<input id="tco-incidents" type="number" value="12" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Horas médias de resolução por incidente</label>'+
+        '<input id="tco-hours" type="number" value="6" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Horas manuais de compliance / semana</label>'+
+        '<input id="tco-compliance" type="number" value="20" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<div style="margin-bottom:4px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Licença Guardline / mês (USD)</label>'+
+        '<input id="tco-license" type="number" value="4500" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '</div></div>'+
+        // RIGHT: Results
+        '<div style="display:flex;flex-direction:column;gap:16px">'+
+        '<div class="card" style="animation:slide-up .32s ease" id="tco-results">'+
+        '<div class="card-header"><span class="card-title">Resultado TCO Anual</span></div>'+
+        '<div style="padding:8px 0" id="tco-output">calculando...</div></div>'+
+        '<div class="card" style="animation:slide-up .36s ease"><div class="card-header"><span class="card-title">Breakdown de Custos</span></div>'+
+        '<div id="tco-breakdown" style="padding:8px 0">—</div></div>'+
+        '<div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:14px 16px;animation:slide-up .4s ease">'+
+        '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:8px">Modelo de Proposta</div>'+
+        '<div id="tco-pitch" style="font-size:12px;color:var(--text-muted);line-height:1.7">—</div></div>'+
+        '</div></div></div>';
+
+      window.tcoCalc = function() {
+        var team       = Math.max(1, parseInt(document.getElementById('tco-team').value)||8);
+        var rate       = Math.max(1, parseInt(document.getElementById('tco-rate').value)||45);
+        var incidents  = Math.max(0, parseInt(document.getElementById('tco-incidents').value)||12);
+        var hours      = Math.max(1, parseInt(document.getElementById('tco-hours').value)||6);
+        var compliance = Math.max(0, parseInt(document.getElementById('tco-compliance').value)||20);
+        var license    = Math.max(0, parseInt(document.getElementById('tco-license').value)||4500);
+
+        // WITHOUT Guardline
+        var annualTeam      = team * rate * 2080;          // FTE cost/year
+        var annualIncidents = incidents * hours * rate * 12;
+        var annualCompliance= compliance * rate * 52;
+        var totalWithout    = annualTeam + annualIncidents + annualCompliance;
+
+        // WITH Guardline (40% reduction in incidents, 70% in compliance hours, +25% analyst efficiency)
+        var guardTeam      = annualTeam * 0.75;            // 25% efficiency gain
+        var guardIncidents = annualIncidents * 0.60;       // 40% incident reduction
+        var guardCompliance= annualCompliance * 0.30;      // 70% compliance automation
+        var guardLicense   = license * 12;
+        var totalWith      = guardTeam + guardIncidents + guardCompliance + guardLicense;
+
+        var savings    = totalWithout - totalWith;
+        var roi        = license > 0 ? Math.round((savings / guardLicense) * 100) : 0;
+        var payback    = savings > 0 ? (guardLicense / (savings / 12)).toFixed(1) : '—';
+
+        function fmt(v) { return '$'+(Math.round(v/1000)).toLocaleString('en-US')+'k'; }
+        function row(label, without, with_, color) {
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">'+
+            '<span style="color:var(--text-muted)">'+label+'</span>'+
+            '<div style="display:flex;gap:16px">'+
+            '<span style="color:var(--accent-red);min-width:64px;text-align:right">'+fmt(without)+'</span>'+
+            '<span style="color:'+(color||'var(--accent-green)')+';min-width:64px;text-align:right">'+fmt(with_)+'</span></div></div>';
+        }
+
+        document.getElementById('tco-output').innerHTML =
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'+
+          '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-red);margin-bottom:8px">Sem Guardline / ano</div><div style="font-size:28px;font-weight:800;color:var(--accent-red)">'+fmt(totalWithout)+'</div></div>'+
+          '<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:8px">Com Guardline / ano</div><div style="font-size:28px;font-weight:800;color:var(--accent-green)">'+fmt(totalWith)+'</div></div>'+
+          '</div>'+
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
+          '<div style="text-align:center;background:rgba(108,63,197,.08);border:1px solid rgba(108,63,197,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Economia anual</div><div style="font-size:20px;font-weight:800;color:var(--accent-purple-light)">'+fmt(savings)+'</div></div>'+
+          '<div style="text-align:center;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">ROI</div><div style="font-size:20px;font-weight:800;color:var(--accent-green)">'+roi+'%</div></div>'+
+          '<div style="text-align:center;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Payback</div><div style="font-size:20px;font-weight:800;color:var(--accent-cyan)">'+payback+'m</div></div>'+
+          '</div>';
+
+        document.getElementById('tco-breakdown').innerHTML =
+          '<div style="display:flex;justify-content:flex-end;gap:16px;font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px"><span style="min-width:64px;text-align:right;color:var(--accent-red)">Sem</span><span style="min-width:64px;text-align:right;color:var(--accent-green)">Com</span></div>'+
+          row('Custo de equipe (FTE)', annualTeam, guardTeam)+
+          row('Custo de incidentes', annualIncidents, guardIncidents)+
+          row('Custo de compliance', annualCompliance, guardCompliance)+
+          row('Licença Guardline', 0, guardLicense, 'var(--accent-amber,#F59E0B)')+
+          '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:700">'+
+          '<span>Total</span>'+
+          '<div style="display:flex;gap:16px"><span style="color:var(--accent-red);min-width:64px;text-align:right">'+fmt(totalWithout)+'</span>'+
+          '<span style="color:var(--accent-green);min-width:64px;text-align:right">'+fmt(totalWith)+'</span></div></div>';
+
+        document.getElementById('tco-pitch').innerHTML =
+          '"Com base no perfil da sua operação — <strong style=\'color:#fff\'>'+team+' analistas</strong>, '+incidents+' incidentes/mês e '+compliance+' horas/semana de compliance manual — '+
+          'a Guardline elimina <strong style=\'color:var(--accent-green)\'>'+fmt(savings)+' de custo operacional anual</strong>, '+
+          'com ROI de <strong style=\'color:var(--accent-green)\'>'+roi+'%</strong> e payback em <strong style=\'color:var(--accent-cyan)\'>'+payback+' meses</strong>."';
+      };
+      window.tcoCalc();
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // ══════════════════════════════════════════════════════
+    // MODULE 5 — Competitors Battlecard
+    // ══════════════════════════════════════════════════════
+    function renderBattlecard() {
+      var area = document.getElementById('content-area');
+      var CARDS = [
+        {
+          name: 'Palo Alto Networks',
+          segment: 'Enterprise',
+          color: '#fb923c',
+          logo: 'PA',
+          overview: 'Plataforma SASE/XDR consolidada. Forte em firewall de nova geração e SOAR.',
+          strengths: ['Brand recognition top-3 mundial', 'Plataforma Cortex XDR madura', 'Integração nativa com SIEM/SOAR', 'Presença global com suporte 24/7'],
+          weaknesses: ['TCO alto: licenciamento por módulo', 'Complexidade de onboarding (6-12 meses)', 'Vendor lock-in agressivo', 'Não tem foco em PME LATAM'],
+          wins: ['Guardline deploy < 30 dias vs 6-12 meses', 'Preço 3-5x menor para mesma cobertura', 'Suporte em PT/ES nativo', 'ROI calculável e mensurável em 90d'],
+          objections: { 'Já temos Palo Alto': 'A Guardline complementa — reduz o ruído de alertas em 60% e automatiza compliance que o Cortex não cobre.', 'Somos clientes globais': 'Nossa integração com PANW está na roadmap Q3. Enquanto isso, exportamos via Syslog.' },
+        },
+        {
+          name: 'CrowdStrike',
+          segment: 'Mid-Market / Enterprise',
+          color: '#f472b6',
+          logo: 'CS',
+          overview: 'Lider em EDR/XDR cloud-native. Falcon plataform focada em endpoint.',
+          strengths: ['EDR #1 no Gartner Magic Quadrant', 'Inteligência de ameaças Adversary Intelligence', 'Detecção baseada em comportamento (não assinaturas)', 'API-first, boa integração'],
+          weaknesses: ['Foco em endpoint — fraco em OT/ICS', 'Nenhuma automação de compliance', 'Custo por endpoint escala mal em grandes redes', 'Sem relatórios executivos nativos'],
+          wins: ['Guardline inclui compliance automation nativa', 'Cobertura OT/ICS onde CrowdStrike não chega', 'Dashboard executivo pronto — CCO/CFO entende', 'Preço não escala por endpoint'],
+          objections: { 'Usamos Falcon': 'Perfeito — Guardline ingere os alertas do Falcon via API e adiciona automação de resposta + reporting executivo.', 'Somos EDR-only': 'EDR é endpoint. Guardline cobre rede, cloud, compliance e OT numa view só.' },
+        },
+        {
+          name: 'Darktrace',
+          segment: 'Enterprise',
+          color: '#818cf8',
+          logo: 'DT',
+          overview: 'AI autônoma para detecção de anomalias. Foco em comportamento de rede.',
+          strengths: ['AI/ML para detecção de ameaças desconhecidas', 'Autonomous Response (Antigena)', 'Forte em detecção de insider threats', 'Casos de uso OT/ICS'],
+          weaknesses: ['Muitos falsos positivos — alert fatigue', 'Sem compliance automation', 'Caixa preta — difícil explicar decisões ao CFO', 'Preço alto sem ROI claro'],
+          wins: ['Guardline: IA explicável + relatório para CFO/CCO', 'Falso positivo reduzido via MEDDPICC score', 'Compliance automation integrada', 'Proposta com TCO/ROI calculável'],
+          objections: { 'Já temos Darktrace': 'A Guardline adiciona a camada de Revenue Intelligence que o Darktrace não tem — você sabe o impacto de cada alerta no pipeline.', 'Preferimos AI pura': 'Nossa IA é auditável — importante para reguladores LGPD/SOC2.' },
+        },
+        {
+          name: 'Cylance / BlackBerry',
+          segment: 'PME / Mid-Market',
+          color: '#34d399',
+          logo: 'CY',
+          overview: 'Prevenção de malware ML-based. Forte em endpoint sem cloud.',
+          strengths: ['Leve — funciona offline e em endpoints legados', 'Custo menor vs CrowdStrike', 'Prevenção proativa (não reativa)', 'Sem necessidade de assinaturas atualizadas'],
+          weaknesses: ['Apenas endpoint — sem visibilidade de rede/cloud', 'Sem compliance ou reporting', 'BlackBerry perdendo market share desde 2020', 'Sem resposta automatizada'],
+          wins: ['Guardline cobre toda a superfície, não só endpoint', 'Compliance LGPD/SOC2/ISO27001 nativa', 'Relatórios executivos que Cylance não tem', 'Roadmap ativo vs Cylance em declínio'],
+          objections: { 'Cylance é mais barato': 'Cylance cobre 1 de 7 vetores de ataque. O custo real é a exposição não coberta. Nosso TCO Calculator mostra a diferença.', 'Estamos satisfeitos': 'Mostre o relatório de cobertura — quantos incidentes de rede/cloud o Cylance detectou nos últimos 90 dias?' },
+        },
+      ];
+
+      var activeCard = 0;
+
+      function renderCard(idx) {
+        var c = CARDS[idx];
+        return '<div style="animation:slide-up .3s ease">'+
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">'+
+          '<span style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:'+c.color+'22;border:1px solid '+c.color+'44;border-radius:10px;font-size:14px;font-weight:800;color:'+c.color+'">'+c.logo+'</span>'+
+          '<div><div style="font-size:16px;font-weight:700">'+c.name+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted)">'+c.segment+' · <span style="color:'+c.color+'">vs Guardline</span></div></div></div>'+
+          '<p style="font-size:12px;color:var(--text-muted);margin:0 0 16px;line-height:1.6">'+c.overview+'</p>'+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">'+
+          '<div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-red);margin-bottom:8px">Pontos Fortes</div>'+
+          c.strengths.map(function(s){ return '<div style="font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;gap:6px"><span style="color:var(--accent-red);flex-shrink:0">•</span>'+s+'</div>'; }).join('')+
+          '</div>'+
+          '<div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:8px">Por que Guardline ganha</div>'+
+          c.wins.map(function(w){ return '<div style="font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;gap:6px"><span style="color:var(--accent-green);flex-shrink:0">✓</span>'+w+'</div>'; }).join('')+
+          '</div></div>'+
+          '<div style="background:rgba(108,63,197,.06);border:1px solid rgba(108,63,197,.15);border-radius:10px;padding:12px;margin-bottom:12px">'+
+          '<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-purple);margin-bottom:8px">Objeções &amp; Respostas</div>'+
+          Object.keys(c.objections).map(function(q){
+            return '<div style="margin-bottom:10px"><div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:3px">"'+q+'"</div>'+
+            '<div style="font-size:11px;color:var(--text-muted);line-height:1.6;padding-left:10px;border-left:2px solid var(--accent-purple)">'+c.objections[q]+'</div></div>';
+          }).join('')+
+          '</div>'+
+          '<button type="button" class="btn-activate" onclick="window.battlecardAskJulio&&window.battlecardAskJulio(\''+escapeHtml(c.name)+'\')" style="width:100%;justify-content:center">Perguntar ao Julio AI sobre '+escapeHtml(c.name)+' →</button>'+
+          '</div>';
+      }
+
+      var tabs = CARDS.map(function(c, i) {
+        return '<button type="button" onclick="window.bcSwitch('+i+')" id="bc-tab-'+i+'" style="'+
+          'padding:8px 16px;border-radius:8px;border:1px solid rgba(255,255,255,'+(i===0?'.15':'.06')+');'+
+          'background:'+(i===0?'rgba(255,255,255,.08)':'transparent')+';color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">'+
+          c.name+'</button>';
+      }).join('');
+
+      area.innerHTML = '<div class="pipeline-page-wrap">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+        '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Competitors Battlecard</h2>'+
+        '<p style="font-size:13px;color:var(--text-muted);margin:0">Argumentos de vendas vs principais concorrentes · integrado ao Julio AI</p></div></div>'+
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="bc-tabs">'+tabs+'</div>'+
+        '<div class="command-grid" style="align-items:start">'+
+        '<div class="card" id="bc-card" style="grid-column:1/2">'+renderCard(0)+'</div>'+
+        '<div style="display:flex;flex-direction:column;gap:16px">'+
+        '<div class="card" style="animation:slide-up .32s ease">'+
+        '<div class="card-header"><span class="card-title">Fraquezas do Concorrente</span></div>'+
+        '<div id="bc-weaknesses" style="padding:4px 0">'+
+        CARDS[0].weaknesses.map(function(w){ return '<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:8px;color:var(--text-muted)"><span style="color:var(--accent-amber,#F59E0B);flex-shrink:0">⚠</span>'+w+'</div>'; }).join('')+
+        '</div></div>'+
+        '<div class="card" style="animation:slide-up .36s ease">'+
+        '<div class="card-header"><span class="card-title">Julio AI — Análise Competitiva</span><span class="card-subtitle">clique no botão do card</span></div>'+
+        '<div id="bc-julio-out" style="padding:8px 0;font-size:12px;color:var(--text-muted);min-height:80px">Selecione um concorrente e clique em "Perguntar ao Julio AI" para obter uma análise em tempo real.</div></div>'+
+        '</div></div></div>';
+
+      window.bcSwitch = function(idx) {
+        activeCard = idx;
+        document.getElementById('bc-card').innerHTML = renderCard(idx);
+        document.getElementById('bc-weaknesses').innerHTML =
+          CARDS[idx].weaknesses.map(function(w){ return '<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:8px;color:var(--text-muted)"><span style="color:var(--accent-amber,#F59E0B);flex-shrink:0">⚠</span>'+w+'</div>'; }).join('');
+        document.querySelectorAll('#bc-tabs button').forEach(function(btn, i) {
+          btn.style.background = i===idx ? 'rgba(255,255,255,.08)' : 'transparent';
+          btn.style.borderColor = i===idx ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.06)';
+        });
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      };
+
+      window.battlecardAskJulio = function(competitorName) {
+        var out = document.getElementById('bc-julio-out');
+        if (!Auth.isLoggedIn()) { out.innerHTML = '<span style="color:var(--accent-red)">Faça login para usar o Julio AI.</span>'; return; }
+        out.innerHTML = '<div style="display:flex;align-items:center;gap:8px"><div class="loading-spinner" style="width:16px;height:16px"></div> Julio está analisando '+escapeHtml(competitorName)+'…</div>';
+        API.post('/julio/chat', {
+          message: 'Faça uma análise competitiva rápida: Guardline vs '+competitorName+'. Destaque 3 argumentos de venda principais, 2 objeções comuns e como respondê-las. Seja direto e prático para um vendedor enterprise B2B em LATAM.',
+          conversationId: null,
+        }).then(function(r) {
+          var text = (r.data && (r.data.fullText || r.data.text || r.data.message)) || '';
+          out.innerHTML = text ? '<div style="line-height:1.7;white-space:pre-wrap">'+escapeHtml(text)+'</div>' : '<span style="color:var(--text-muted)">Sem resposta do Julio.</span>';
+        }).catch(function(e) {
+          out.innerHTML = '<span style="color:var(--accent-red)">Erro: '+escapeHtml((e&&e.message)||String(e))+'</span>';
+        });
+      };
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     async function renderMarketSignals() {
       var area = document.getElementById('content-area');
       if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Sinais', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
@@ -15267,6 +15882,9 @@
       meddpicc: renderMeddpiccScreen,
       'pipeline-health': renderPipelineHealth,
       'pipeline-funnel': renderPipelineFunnel,
+      'buyer-persona': renderBuyerPersona,
+      'tco-calculator': renderTcoCalculator,
+      'battlecard': renderBattlecard,
       'market-signals': renderMarketSignals,
       'product-intelligence': renderProductIntelligence,
       alerts: renderAlertsScreen,
@@ -15287,6 +15905,9 @@
       meddpicc: 'MEDDPICC',
       'pipeline-health': 'Pipeline Health — KPI Dashboard',
       'pipeline-funnel': 'Pipeline Funnel View',
+      'buyer-persona': 'Buyer Persona Coverage',
+      'tco-calculator': 'TCO Calculator',
+      'battlecard': 'Competitors Battlecard',
       'market-signals': 'Sinais de mercado',
       'product-intelligence': 'Inteligência de produto',
       alerts: 'Alertas',
@@ -15323,7 +15944,10 @@
     function navigateTo(screen, skipAnim) {
       var area = document.getElementById('content-area');
       var fn = SCREENS[screen];
-      if (!fn) return;
+      if (!fn) {
+        if (typeof showToast === 'function') showToast('error', 'Tela não encontrada', String(screen || ''));
+        return;
+      }
 
       document.querySelectorAll('.nav-item[data-screen]').forEach(function (el) {
         var match = el.getAttribute('data-screen') === screen && !el.classList.contains('hidden-role');
@@ -15333,7 +15957,18 @@
       function mountFull() {
         disposeActiveScreen();
         area.innerHTML = '';
-        fn();
+        try {
+          fn();
+        } catch (e) {
+          console.error('[Guardline] render screen failed:', screen, e);
+          area.innerHTML =
+            '<div class="pipeline-page-wrap"><div class="kpi-card warning" style="padding:18px"><div style="font-weight:800">⚠ Tela quebrou</div><div style="margin-top:6px;color:var(--text-muted);font-size:13px">Tela: ' +
+            escapeHtml(String(screen || '')) +
+            '<br>Erro: ' +
+            escapeHtml(String((e && e.message) || e).slice(0, 160)) +
+            '</div></div></div>';
+          if (typeof showToast === 'function') showToast('error', 'Tela quebrou', ((e && e.message) || 'Erro').slice(0, 80));
+        }
         area.style.transition = 'all 0.25s ease';
         area.style.opacity = '1';
         area.style.transform = 'translateY(0)';
