@@ -3424,6 +3424,9 @@
         <button type="button" class="nav-item" data-screen="leads" data-roles="sdr">
           <i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span>
         </button>
+        <button type="button" class="nav-item" data-screen="lead-flow" data-roles="founder,sdr">
+          <i data-lucide="git-branch" class="nav-icon"></i><span class="nav-label">Fluxo de Leads</span>
+        </button>
         <button type="button" class="nav-item" data-screen="forecast" data-roles="founder">
           <i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span>
         </button>
@@ -8752,6 +8755,176 @@
         };
       });
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function renderLeadFlow() {
+      var area = document.getElementById('content-area');
+      if (!area) return;
+      if (!document.getElementById('lf-css')) {
+        var s = document.createElement('style');
+        s.id = 'lf-css';
+        s.textContent = '.lf-funnel{display:grid;grid-template-columns:repeat(7,1fr) repeat(6,28px);gap:2px;margin-bottom:24px;border-radius:12px;overflow:hidden}.lf-stage{padding:14px 10px;background:var(--card);text-align:center;cursor:pointer;transition:background .2s}.lf-stage:hover{background:rgba(255,255,255,.06)}.lf-stage-count{font-size:24px;font-weight:700;color:var(--text-primary)}.lf-stage-label{font-size:10px;color:var(--text-muted);margin-top:2px;text-transform:uppercase;letter-spacing:.5px}.lf-stage-pct{font-size:10px;color:var(--text-dim);margin-top:3px}.lf-stage-bar{height:3px;border-radius:2px;margin-top:8px;transition:width .5s}.lf-arrow{display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:16px;background:var(--bg)}.lf-sources{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:20px}.lf-src{background:var(--card);border-radius:10px;padding:12px 14px}.lf-src-count{font-size:20px;font-weight:700;color:var(--text-primary)}.lf-src-label{font-size:11px;color:var(--text-muted);margin-top:2px}.lf-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.lf-fbtn{padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;transition:all .2s}.lf-fbtn.active{background:rgba(99,102,241,.2);border-color:#6366f1;color:#818cf8}.lf-tbl{width:100%;border-collapse:collapse;font-size:13px}.lf-tbl th{padding:7px 12px;text-align:left;color:var(--text-muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}.lf-tbl td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}.lf-tbl tr:hover td{background:rgba(255,255,255,.02)}.lf-temp{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:12px;font-size:11px;font-weight:600}.lf-temp.hot{background:rgba(239,68,68,.15);color:#f87171}.lf-temp.warm{background:rgba(251,146,60,.15);color:#fb923c}.lf-temp.cold{background:rgba(99,102,241,.15);color:#818cf8}.lf-score{display:inline-block;min-width:34px;text-align:center;padding:2px 7px;border-radius:7px;font-weight:700;font-size:12px}.lf-score.h{background:rgba(52,211,153,.15);color:#34d399}.lf-score.m{background:rgba(251,146,60,.15);color:#fb923c}.lf-score.l{background:rgba(156,163,175,.15);color:#9ca3af}.lf-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:4px}.lf-dot.g{background:#34d399}.lf-dot.a{background:#fb923c}.lf-dot.r{background:#f87171}.lf-dot.b{background:#818cf8}.lf-dot.x{background:#6b7280}';
+        document.head.appendChild(s);
+      }
+      area.innerHTML = '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">' +
+        '<h2 style="margin:0;font-size:1.35rem">Fluxo de Leads</h2>' +
+        '<span style="font-size:12px;color:var(--text-muted);background:var(--card);padding:3px 10px;border-radius:12px">WF06 · WF07 · WF08 → Supabase</span>' +
+        '<button type="button" id="lf-refresh-btn" style="margin-left:auto;padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer">⟳ Atualizar</button>' +
+        '</div>' +
+        '<div id="lf-body" style="min-height:200px;display:flex;align-items:center;justify-content:center"><div style="color:var(--text-muted)">Carregando fluxo…</div></div>' +
+        '</div>';
+
+      var stageDefs = [
+        { id: 'entered',   label: 'Entrada',      icon: '📥', color: '#818cf8' },
+        { id: 'processed', label: 'Processado',   icon: '⚙️',  color: '#60a5fa' },
+        { id: 'qualified', label: 'Qualificado',  icon: '✅',  color: '#34d399' },
+        { id: 'sent',      label: 'Ação Enviada', icon: '📤',  color: '#fb923c' },
+        { id: 'replied',   label: 'Respondeu',    icon: '💬',  color: '#f472b6' },
+        { id: 'meeting',   label: 'Reunião',      icon: '📅',  color: '#facc15' },
+        { id: 'deal',      label: 'Deal',         icon: '💼',  color: '#4ade80' }
+      ];
+
+      function classifyStage(lead) {
+        var ms = String(lead.meeting_status || '').toLowerCase();
+        var rs = String(lead.reply_status || '').toLowerCase();
+        var route = lead.route || '';
+        var score = Number(lead.lead_score || 0);
+        var meddpicc = Number(lead.meddpicc_completion || 0);
+        if (ms === 'occurred' || meddpicc >= 50) return 'deal';
+        if (ms === 'scheduled') return 'meeting';
+        if (rs && rs !== 'no_reply' && rs !== 'none' && rs !== '') return 'replied';
+        if (route && route !== '') return 'sent';
+        if (score > 0) return 'qualified';
+        if (lead.account || lead.domain || lead.contact) return 'processed';
+        return 'entered';
+      }
+
+      function renderTable(leads, stageExact) {
+        var stage = window.__lfFilterStage || null;
+        var filtered = stage ? (stageExact[stage] || []) : leads;
+        document.querySelectorAll('.lf-fbtn').forEach(function(b) {
+          b.classList.remove('active');
+          var isTodos = b.getAttribute('data-stage') === '';
+          var isStage = b.getAttribute('data-stage') === (stage || '');
+          if ((!stage && isTodos) || (stage && isStage)) b.classList.add('active');
+        });
+        var tbody = document.getElementById('lf-tbody');
+        if (!tbody) return;
+        if (!filtered.length) {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--text-muted)">📭 Nenhum lead nesta etapa</td></tr>';
+          return;
+        }
+        tbody.innerHTML = filtered.slice(0, 200).map(function(lead) {
+          var score = Number(lead.lead_score || 0);
+          var sc = score >= 70 ? 'h' : score >= 40 ? 'm' : 'l';
+          var temp = String(lead.lead_temperature || '').toLowerCase();
+          var tempHtml = temp ? '<span class="lf-temp ' + temp + '">' + (temp === 'hot' ? '🔥' : temp === 'warm' ? '🟡' : '❄️') + ' ' + temp + '</span>' : '<span style="color:var(--text-dim)">—</span>';
+          var rs = lead.reply_status || 'no_reply';
+          var ms = lead.meeting_status || 'none';
+          var rsDot = rs === 'positive' ? 'g' : (rs === 'no_reply' || rs === 'none') ? 'x' : rs === 'negative' ? 'r' : 'a';
+          var msDot = ms === 'occurred' ? 'g' : ms === 'scheduled' ? 'a' : 'x';
+          var mpc = Number(lead.meddpicc_completion || 0);
+          var mBar = '<div style="display:inline-flex;align-items:center;gap:6px"><div style="width:50px;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden"><div style="height:100%;width:' + mpc + '%;background:' + (mpc >= 60 ? '#34d399' : mpc >= 30 ? '#fb923c' : '#6b7280') + '"></div></div><span style="font-size:11px;color:var(--text-muted)">' + mpc + '%</span></div>';
+          var acct = lead.account || lead.company || '—';
+          var contact = lead.contact || '—';
+          var title = lead.title || '';
+          var domain = lead.domain || '';
+          return '<tr>' +
+            '<td style="max-width:150px"><div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="' + acct + '">' + acct + '</div><div style="font-size:11px;color:var(--text-muted)">' + domain + '</div></td>' +
+            '<td style="max-width:130px"><div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + contact + '</div><div style="font-size:11px;color:var(--text-muted)">' + title + '</div></td>' +
+            '<td><span class="lf-score ' + sc + '">' + (score || '—') + '</span></td>' +
+            '<td>' + tempHtml + '</td>' +
+            '<td style="font-size:12px;max-width:110px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (lead.route || '<span style="color:var(--text-dim)">—</span>') + '</td>' +
+            '<td style="font-size:12px"><span class="lf-dot ' + rsDot + '"></span>' + rs + '</td>' +
+            '<td style="font-size:12px"><span class="lf-dot ' + msDot + '"></span>' + ms + '</td>' +
+            '<td>' + mBar + '</td>' +
+            '<td style="font-size:11px;color:var(--text-muted);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (lead.next_action || lead.owner || '—') + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      document.getElementById('lf-refresh-btn').onclick = loadData;
+
+      async function loadData() {
+        var body = document.getElementById('lf-body');
+        if (body) body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⟳ Carregando dados…</div>';
+        var leads = [];
+        try {
+          var token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
+          var apiBase = String(window.GUARDLINE_API_BASE || 'https://guardline-engine-production.up.railway.app/api').replace(/\/$/, '');
+          var headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+          if (token && token !== 'guardline-demo-session') headers['Authorization'] = 'Bearer ' + token;
+          var res = await fetch(apiBase + '/leads?perPage=500', { headers: headers });
+          if (res.ok) {
+            var data = await res.json();
+            var raw = data.data || data.leads || data || [];
+            if (Array.isArray(raw)) leads = raw;
+            else if (raw && Array.isArray(raw.items)) leads = raw.items;
+          }
+        } catch(e) { console.warn('[LeadFlow] API:', e.message); }
+
+        if (!leads.length && typeof DB !== 'undefined' && typeof guardlineSupabaseReady === 'function' && guardlineSupabaseReady()) {
+          try {
+            var sb = await DB.from('leads').select('*').order('timestamp', { ascending: false }).limit(500);
+            if (sb && sb.data) leads = sb.data;
+          } catch(e2) { console.warn('[LeadFlow] Supabase:', e2.message); }
+        }
+
+        var total = leads.length;
+        var stageExact = {};
+        stageDefs.forEach(function(s) { stageExact[s.id] = []; });
+        leads.forEach(function(lead) { stageExact[classifyStage(lead)].push(lead); });
+
+        var sources = {};
+        var srcMap = { batch: 'batch_import', apollo: 'apollo_callback', intent: 'first_party_intent', meeting: 'meeting_memory', reply: 'reply_intake', signal: 'signal_refresh' };
+        leads.forEach(function(lead) {
+          var raw = String(lead.campaign_name || lead.source || '').toLowerCase();
+          var key = 'direto';
+          Object.keys(srcMap).forEach(function(k) { if (raw.includes(k)) key = srcMap[k]; });
+          sources[key] = (sources[key] || 0) + 1;
+        });
+        var srcLabels = { batch_import: '📋 Batch Import', apollo_callback: '🔍 Apollo Waterfall', first_party_intent: '🎯 Intent 1st Party', meeting_memory: '🗓️ Meeting Memory', reply_intake: '✉️ Reply Intake', signal_refresh: '🔄 Signal Refresh', direto: '⚡ Direto/API' };
+
+        var funnelHtml = '<div class="lf-funnel">';
+        stageDefs.forEach(function(s, i) {
+          var cnt = stageExact[s.id].length;
+          var pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+          funnelHtml += '<div class="lf-stage" data-stage="' + s.id + '" onclick="window.__lfFilterStage=\'' + s.id + '\';window.__lfRenderTable&&window.__lfRenderTable()">' +
+            '<div style="font-size:18px">' + s.icon + '</div>' +
+            '<div class="lf-stage-count">' + cnt + '</div>' +
+            '<div class="lf-stage-label">' + s.label + '</div>' +
+            '<div class="lf-stage-pct">' + pct + '%</div>' +
+            '<div class="lf-stage-bar" style="background:' + s.color + ';width:' + Math.max(8, pct) + '%"></div>' +
+            '</div>';
+          if (i < stageDefs.length - 1) funnelHtml += '<div class="lf-arrow">›</div>';
+        });
+        funnelHtml += '</div>';
+
+        var srcHtml = '<div style="margin-bottom:20px"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Fontes de Entrada (WF07)</div>' +
+          '<div class="lf-sources">' + Object.keys(sources).map(function(k) {
+            return '<div class="lf-src"><div class="lf-src-count">' + sources[k] + '</div><div class="lf-src-label">' + (srcLabels[k] || k) + '</div></div>';
+          }).join('') + (Object.keys(sources).length === 0 ? '<div style="color:var(--text-muted);font-size:13px">Nenhum lead ainda</div>' : '') + '</div></div>';
+
+        var filtersHtml = '<div class="lf-filters">' +
+          '<button type="button" class="lf-fbtn active" data-stage="" onclick="window.__lfFilterStage=null;window.__lfRenderTable&&window.__lfRenderTable()">Todos (' + total + ')</button>' +
+          stageDefs.filter(function(s) { return stageExact[s.id].length > 0; }).map(function(s) {
+            return '<button type="button" class="lf-fbtn" data-stage="' + s.id + '" onclick="window.__lfFilterStage=\'' + s.id + '\';window.__lfRenderTable&&window.__lfRenderTable()">' + s.icon + ' ' + s.label + ' (' + stageExact[s.id].length + ')</button>';
+          }).join('') + '</div>';
+
+        var tableHtml = '<div style="background:var(--card);border-radius:12px;overflow:hidden"><div style="overflow-x:auto"><table class="lf-tbl">' +
+          '<thead><tr><th>Conta</th><th>Contato</th><th>Score</th><th>Temp.</th><th>Rota</th><th>Resposta</th><th>Reunião</th><th>MEDDPICC</th><th>Próx. Ação / Owner</th></tr></thead>' +
+          '<tbody id="lf-tbody"></tbody></table></div></div>';
+
+        if (body) {
+          body.innerHTML = funnelHtml + srcHtml + filtersHtml + tableHtml;
+          window.__lfFilterStage = null;
+          window.__lfRenderTable = function() { renderTable(leads, stageExact); };
+          window.__lfRenderTable();
+        }
+      }
+
+      loadData();
     }
 
     function renderLeads() {
@@ -14209,6 +14382,7 @@
       signals: renderSignalFeed,
       pipeline: renderPipeline,
       leads: renderLeads,
+      'lead-flow': renderLeadFlow,
       forecast: renderForecast,
       loss: renderLossIntelligence,
       campaigns: renderCampaigns,
@@ -14223,7 +14397,7 @@
 
     const SCREEN_TITLES = {
       command: 'Command Center', julio: 'Julio AI', signals: 'Signal Feed', pipeline: 'Pipeline',
-      leads: 'Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
+      leads: 'Leads', 'lead-flow': 'Fluxo de Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
       attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
       integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
     };
