@@ -18,6 +18,6 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: 99f04b37de1e8cd3aac9952b74276c44
           command: pages deploy guardline/frontend --project-name=guardline-dashboard --branch=main --commit-dirty=true
