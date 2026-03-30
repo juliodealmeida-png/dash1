@@ -3411,24 +3411,24 @@
           <i data-lucide="home" class="nav-icon"></i><span class="nav-label">Command Center</span>
         </button>
         <button type="button" class="nav-item" data-screen="julio" data-roles="founder">
-          <i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span><span class="nav-badge badge-purple">3 insights</span>
+          <i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span>
         </button>
         <button type="button" class="nav-item" data-screen="signals" data-roles="founder,sdr">
-          <i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span><span class="nav-badge badge-red">12 novos</span>
+          <i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span>
         </button>
 
         <div class="nav-section-label" data-section="revenue">Receita</div>
         <button type="button" class="nav-item" data-screen="pipeline" data-roles="founder,sdr">
-          <i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span><span class="nav-badge badge-amber">4 em risco</span>
+          <i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span><span class="nav-badge badge-amber" id="nav-badge-pipeline" style="display:none"></span>
         </button>
         <button type="button" class="nav-item" data-screen="leads" data-roles="sdr">
-          <i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span><span class="nav-badge badge-purple">18 novos</span>
+          <i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span>
         </button>
         <button type="button" class="nav-item" data-screen="forecast" data-roles="founder">
           <i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span>
         </button>
         <button type="button" class="nav-item" data-screen="loss" data-roles="founder">
-          <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span><span class="nav-badge badge-green">novo</span>
+          <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span>
         </button>
 
         <div class="nav-section-label" data-section="acq">Aquisição</div>
@@ -3441,13 +3441,13 @@
 
         <div class="nav-section-label" data-section="ops">Operações</div>
         <button type="button" class="nav-item" data-screen="automations" data-roles="sdr">
-          <i data-lucide="zap" class="nav-icon"></i><span class="nav-label">Automações</span><span class="nav-badge badge-red">2 erros</span>
+          <i data-lucide="zap" class="nav-icon"></i><span class="nav-label">Automações</span>
         </button>
         <button type="button" class="nav-item" data-screen="recipes" data-roles="sdr">
           <i data-lucide="chef-hat" class="nav-icon"></i><span class="nav-label">Revenue Recipes</span>
         </button>
         <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr">
-          <i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span><span class="nav-badge badge-amber">Gmail offline</span>
+          <i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span>
         </button>
 
         <div class="nav-section-label" data-section="exp">Expansão</div>
@@ -3455,7 +3455,7 @@
           <i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span>
         </button>
         <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr">
-          <i data-lucide="map" class="nav-icon"></i><span class="nav-label">Fraud Map</span><span class="nav-badge badge-red">47 hoje</span>
+          <i data-lucide="map" class="nav-icon"></i><span class="nav-label">Fraud Map</span>
         </button>
         <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr">
           <i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios</span>
@@ -3467,10 +3467,10 @@
           <div class="julio-avatar"><i data-lucide="bot" style="width:18px;height:18px"></i></div>
           <div class="julio-info">
             <span class="julio-name">Julio AI</span>
-            <span class="julio-status"><span class="status-dot"></span>Ativo · 47 sinais</span>
+            <span class="julio-status"><span class="status-dot"></span>Ativo</span>
           </div>
         </div>
-        <div class="julio-last-insight" onclick="navigateTo('julio')">"3 deals em risco de perda esta semana — click para ver"</div>
+        <div class="julio-last-insight" id="julio-sidebar-insight" onclick="navigateTo('julio')">Carregando insights…</div>
         <button type="button" class="julio-ask-btn" onclick="typeof julioFloatOpen==='function'?julioFloatOpen():navigateTo('julio')">
           <span class="julio-ask-ico"><i data-lucide="message-circle" style="width:16px;height:16px"></i></span>
           <span>Perguntar ao Julio</span>
@@ -3505,7 +3505,7 @@
         </div>
         <button type="button" class="icon-btn" id="notif-btn" aria-label="Notificações">
           <i data-lucide="bell" style="width:20px;height:20px"></i>
-          <span class="notif-badge">7</span>
+          <span class="notif-badge" id="notif-count" style="display:none">0</span>
         </button>
         <button type="button" class="icon-btn settings" aria-label="Configurações"><i data-lucide="settings" style="width:20px;height:20px"></i></button>
         <div class="avatar-wrap">
@@ -3523,36 +3523,36 @@
         <div class="kpi-card" onclick="navigateTo('pipeline')">
           <div class="kpi-tooltip"><strong>Pipeline total</strong> — Soma total de todos os deals abertos actualmente.</div>
           <div class="kpi-label">Pipeline Total</div>
-          <div class="kpi-value" id="kpi-pipeline">$284,500</div>
-          <div class="kpi-delta positive">▲ 12% vs semana passada</div>
+          <div class="kpi-value" id="kpi-pipeline">—</div>
+          <div class="kpi-delta" id="kpi-pipeline-delta" style="visibility:hidden">—</div>
           <canvas class="kpi-sparkline" id="spark-1" width="60" height="34"></canvas>
         </div>
         <div class="kpi-card warning" onclick="navigateTo('pipeline')">
           <div class="kpi-tooltip"><strong>Deals ativos</strong> — Número de deals activos, excluindo fechados. Em risco = risk score ≥ 75.</div>
           <div class="kpi-label">Deals Ativos</div>
-          <div class="kpi-value"><span id="kpi-deals-num">23</span> <span class="kpi-sub">· <span id="kpi-deals-risk">4</span> em risco</span></div>
-          <div class="kpi-delta negative">▼ 2 deals vs ontem</div>
+          <div class="kpi-value"><span id="kpi-deals-num">—</span> <span class="kpi-sub">· <span id="kpi-deals-risk">—</span> em risco</span></div>
+          <div class="kpi-delta" style="visibility:hidden">—</div>
           <canvas class="kpi-sparkline" id="spark-2" width="60" height="34"></canvas>
         </div>
         <div class="kpi-card" onclick="navigateTo('forecast')">
           <div class="kpi-tooltip"><strong>Win rate</strong> — Taxa de conversão global dos últimos 90 dias.</div>
           <div class="kpi-label">Win Rate</div>
-          <div class="kpi-value"><span id="kpi-winrate">34</span>%<div class="kpi-winrate-meta" id="kpi-winrate-target">Meta: 40% · Gap: —</div></div>
-          <div class="kpi-delta negative">▼ 2% este mês</div>
+          <div class="kpi-value"><span id="kpi-winrate">—</span>%<div class="kpi-winrate-meta" id="kpi-winrate-target">carregando…</div></div>
+          <div class="kpi-delta" style="visibility:hidden">—</div>
           <canvas class="kpi-sparkline" id="spark-3" width="60" height="34"></canvas>
         </div>
         <div class="kpi-card" onclick="navigateTo('forecast')">
           <div class="kpi-tooltip"><strong>Forecast 90d</strong> — Receita committed calculada com base no pipeline actual.</div>
           <div class="kpi-label">Forecast 90d</div>
-          <div class="kpi-value">$<span id="kpi-forecast-k">142</span>k <span class="kpi-sub">committed</span></div>
-          <div class="kpi-delta positive">▲ $18k vs mês passado</div>
+          <div class="kpi-value">$<span id="kpi-forecast-k">—</span>k <span class="kpi-sub">committed</span></div>
+          <div class="kpi-delta" style="visibility:hidden">—</div>
           <canvas class="kpi-sparkline" id="spark-4" width="60" height="34"></canvas>
         </div>
         <div class="kpi-card critical" onclick="navigateTo('signals')">
           <div class="kpi-tooltip"><strong>Alertas</strong> — Alertas críticos que requerem atenção imediata.</div>
           <div class="kpi-label">Alertas Ativos</div>
-          <div class="kpi-value"><span id="kpi-alerts-num">7</span> <span class="kpi-sub">críticos</span></div>
-          <div class="kpi-delta">3 novos hoje</div>
+          <div class="kpi-value"><span id="kpi-alerts-num">—</span> <span class="kpi-sub">críticos</span></div>
+          <div class="kpi-delta" style="visibility:hidden">—</div>
           <canvas class="kpi-sparkline" id="spark-5" width="60" height="34"></canvas>
         </div>
       </div>
@@ -3581,11 +3581,8 @@
       <h3>Notificações</h3>
       <button type="button" class="icon-btn" id="notif-close" aria-label="Fechar"><i data-lucide="x" style="width:18px;height:18px"></i></button>
     </div>
-    <div class="notif-list">
-      <div class="notif-item">Deal Mercado Pago — sem atividade há 14 dias</div>
-      <div class="notif-item">Novo signal: CNBV — atualização PLD</div>
-      <div class="notif-item">Workflow n8n WF03 falhou (retry em 5 min)</div>
-      <div class="notif-item">3 leads quentes atribuídos à fila SDR</div>
+    <div class="notif-list" id="notif-list-items">
+      <div class="notif-item" style="color:var(--text-muted);text-align:center;padding:24px">Nenhuma notificação pendente.</div>
     </div>
   </aside>
 
@@ -6641,6 +6638,32 @@
           animateNumber(fk, parseInt(fk.textContent, 10) || 0, Math.round((m.forecast.committed || 0) / 1000), 600, false);
         var an = document.getElementById('kpi-alerts-num');
         if (an) animateNumber(an, parseInt(an.textContent, 10) || 0, m.criticalAlerts || 0, 600, false);
+
+        // Update nav badge for at-risk deals
+        var navBadge = document.getElementById('nav-badge-pipeline');
+        if (navBadge && m.atRiskDeals > 0) {
+          navBadge.textContent = m.atRiskDeals + ' em risco';
+          navBadge.style.display = '';
+        }
+
+        // Update notif badge
+        var notifCount = document.getElementById('notif-count');
+        if (notifCount && m.criticalAlerts > 0) {
+          notifCount.textContent = m.criticalAlerts;
+          notifCount.style.display = '';
+        }
+
+        // Update Julio sidebar insight from API metrics
+        var julioInsight = document.getElementById('julio-sidebar-insight');
+        if (julioInsight) {
+          if (m.atRiskDeals > 0) {
+            julioInsight.textContent = '"' + m.atRiskDeals + ' deal' + (m.atRiskDeals > 1 ? 's' : '') + ' em risco esta semana — clique para ver"';
+          } else if (m.activeDeals > 0) {
+            julioInsight.textContent = '"' + m.activeDeals + ' deals ativos · pipeline saudável"';
+          } else {
+            julioInsight.textContent = '"Nenhum dado disponível ainda"';
+          }
+        }
       } catch (e) {}
     }
 
@@ -8740,11 +8763,9 @@
       document.getElementById('content-area').innerHTML =
         '<div class="pipeline-page-wrap"><h2 style="margin:0 0 16px;font-size:1.35rem">Leads</h2>' +
         '<div class="leads-kpi-bar">' +
-        '<div class="leads-kpi-pill">Total este mês: <strong>' + (window.__guardlineLeads ? window.__guardlineLeads.length : (typeof getLeads === 'function' ? getLeads().length : 0)) + '</strong></div>' +
-        '<div class="leads-kpi-pill">Novos hoje: <strong>23</strong></div>' +
-        '<div class="leads-kpi-pill">Taxa Lead→Deal: <strong>18.4%</strong></div>' +
-        '<div class="leads-kpi-pill">Score médio: <strong>64</strong></div>' +
-        '<div class="leads-kpi-pill">Aguardando ação: <strong>31</strong></div></div>' +
+        '<div class="leads-kpi-pill">Total: <strong id="leads-kpi-total">' + (window.__guardlineLeads ? window.__guardlineLeads.length : (typeof getLeads === 'function' ? getLeads().length : 0)) + '</strong></div>' +
+        '<div class="leads-kpi-pill">Score médio: <strong id="leads-kpi-avg-score">—</strong></div>' +
+        '<div class="leads-kpi-pill">Aguardando ação: <strong id="leads-kpi-waiting">—</strong></div></div>' +
         '<div class="leads-filters">' +
         '<select id="lf-source"><option value="">Fonte</option><option>LinkedIn</option><option>Indicação</option><option>Inbound</option><option>Evento</option><option>Cold Email</option></select>' +
         '<select id="lf-score"><option value="">Score</option><option value="high">80+</option><option value="mid">60–79</option><option value="low">&lt;60</option></select>' +
