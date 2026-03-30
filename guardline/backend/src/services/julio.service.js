@@ -2,6 +2,8 @@ const { prisma } = require('../config/database');
 
 const NVIDIA_API_BASE = 'https://integrate.api.nvidia.com/v1';
 
+const _pipelineContextCache = new Map();
+
 function getNvidiaKey() {
   return process.env.NVIDIA_API_KEY || process.env.ANTHROPIC_API_KEY || null;
 }
@@ -24,12 +26,14 @@ async function nvidiaChat(messages, maxTokens = 600) {
   const key = getNvidiaKey();
   if (!key) throw new Error('NVIDIA_API_KEY não configurada');
 
+  const signal = AbortSignal.timeout(parseInt(process.env.AI_HTTP_TIMEOUT_MS) || 20000);
   const res = await fetch(`${NVIDIA_API_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
+    signal,
     body: JSON.stringify({
       model: getModel(),
       messages,
@@ -56,12 +60,14 @@ async function nvidiaChatStream(messages, maxTokens = 600, onChunk) {
   const key = getNvidiaKey();
   if (!key) throw new Error('NVIDIA_API_KEY não configurada');
 
+  const signal = AbortSignal.timeout(parseInt(process.env.AI_HTTP_TIMEOUT_MS) || 20000);
   const res = await fetch(`${NVIDIA_API_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
+    signal,
     body: JSON.stringify({
       model: getModel(),
       messages,
@@ -186,6 +192,10 @@ function sanitizeApiMessages(messages) {
 }
 
 async function buildPipelineContext(userId) {
+  const ttlMs = parseInt(process.env.JULIO_CONTEXT_CACHE_MS) || 30000;
+  const cached = _pipelineContextCache.get(userId);
+  if (cached && (Date.now() - cached.ts) < ttlMs) return cached.text;
+
   const [deals, leadsWeek, recentLosses, fraud24h] = await Promise.all([
     prisma.deal.findMany({
       where: { ownerId: userId, deletedAt: null, stage: { notIn: ['won', 'lost'] } },
@@ -261,6 +271,90 @@ ${recentLosses
 FRAUDES (últimas 24h): ${fraud24h} eventos detectados
 === FIM DO CONTEXTO ===
 `;
+}
+
+async function maybeHandleFastTool(userMessage) {
+  const m = String(userMessage || '').trim();
+  const lower = m.toLowerCase();
+
+  const wantsUsdBrl = /\b(d[oó]lar|usd)\b/.test(lower);
+  const wantsWeather = /\b(clima|tempo|vai chover|chuva)\b/.test(lower);
+  const wantsNews = /\b(not[ií]cias?|news)\b/.test(lower);
+
+  if (!wantsUsdBrl && !wantsWeather && !wantsNews) return null;
+
+  if (wantsUsdBrl) {
+    try {
+      const r = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=BRL', {
+        signal: AbortSignal.timeout(8000),
+      });
+      const j = await r.json().catch(() => ({}));
+      const rate = j.rates && j.rates.BRL;
+      if (rate) {
+        return `Cotação agora: **US$1 = R$${Number(rate).toFixed(3)}** (${j.date || 'hoje'}). Próxima ação: quer que eu compare com a média dos últimos 7 dias?`;
+      }
+    } catch (_) {}
+    return 'Não consegui puxar a cotação agora. Próxima ação: tente novamente em 30s.';
+  }
+
+  if (wantsWeather) {
+    const cityMatch = m.match(/\bem\s+([A-Za-zÀ-ÿ\s-]{2,60})/i);
+    const city = cityMatch ? cityMatch[1].trim() : '';
+    if (!city) {
+      return 'Me diga a cidade (ex.: “vai chover **em São Paulo**?”). Próxima ação: informe a cidade.';
+    }
+    try {
+      const geores = await fetch(
+        'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&count=1&language=pt&format=json',
+        { signal: AbortSignal.timeout(8000) }
+      );
+      const geo = await geores.json().catch(() => ({}));
+      const loc = geo.results && geo.results[0];
+      if (!loc) return `Não achei a cidade “${city}”. Próxima ação: tente com outro nome (ex.: “São Paulo”).`;
+      const wres = await fetch(
+        'https://api.open-meteo.com/v1/forecast?latitude=' +
+          loc.latitude +
+          '&longitude=' +
+          loc.longitude +
+          '&current=temperature_2m,precipitation,rain,weather_code&timezone=auto',
+        { signal: AbortSignal.timeout(8000) }
+      );
+      const data = await wres.json().catch(() => ({}));
+      const c = data.current || {};
+      const temp = c.temperature_2m != null ? `${c.temperature_2m}°C` : 'n/d';
+      const rain = c.rain ? 'sim' : 'não';
+      return `Clima agora em **${loc.name}**: **${temp}** · chuva: **${rain}**. Próxima ação: quer previsão para as próximas 6h?`;
+    } catch (_) {
+      return 'Não consegui consultar o clima agora. Próxima ação: tente novamente em 30s.';
+    }
+  }
+
+  if (wantsNews) {
+    const q = m.replace(/not[ií]cias?|news/gi, '').trim() || 'tecnologia';
+    const key = process.env.NEWS_API_KEY || '';
+    try {
+      if (key) {
+        const r = await fetch(
+          'https://gnews.io/api/v4/search?q=' + encodeURIComponent(q) + '&lang=pt&country=br&max=5&token=' + key,
+          { signal: AbortSignal.timeout(9000) }
+        );
+        const j = await r.json().catch(() => ({}));
+        const items = (j.articles || []).slice(0, 5).map((a) => `- ${a.title} (${a.url})`).join('\n');
+        return `Top notícias sobre **${q}**:\n${items}\n\nPróxima ação: quer que eu resuma uma dessas?`;
+      }
+      const r = await fetch(
+        'https://hn.algolia.com/api/v1/search?query=' + encodeURIComponent(q) + '&tags=story&hitsPerPage=5',
+        { signal: AbortSignal.timeout(9000) }
+      );
+      const j = await r.json().catch(() => ({}));
+      const items = (j.hits || []).slice(0, 5).map((h) => `- ${h.title} (${h.url || ('https://news.ycombinator.com/item?id=' + h.objectID)})`).join('\n');
+      return `Top notícias sobre **${q}**:\n${items}\n\nPróxima ação: quer que eu filtre por “Brasil” ou por “mercado”?`;
+    } catch (_) {
+      return 'Não consegui buscar notícias agora. Próxima ação: tente novamente em 30s.';
+    }
+  }
+
+  return null;
 }
 
 async function generateDailyBrief(userId) {
@@ -358,10 +452,18 @@ async function persistConversation(userId, conversationId, messages) {
 async function chatWithJulio(userId, conversationId, userMessage) {
   if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
-  const context = await buildPipelineContext(userId);
+  const fast = await maybeHandleFastTool(userMessage);
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
 
+  if (fast) {
+    messages.push({ role: 'user', content: userMessage });
+    messages.push({ role: 'assistant', content: fast });
+    const id = await persistConversation(userId, conversationId, messages);
+    return { message: fast, conversationId: id };
+  }
+
+  const context = await buildPipelineContext(userId);
   const fullMessages = [
     { role: 'system', content: `${buildJulioSystemPrompt()}\n\n${context}` },
     ...messages,
@@ -384,17 +486,27 @@ async function chatWithJulio(userId, conversationId, userMessage) {
 async function streamJulioChat(userId, conversationId, userMessage, onChunk) {
   if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
-  const context = await buildPipelineContext(userId);
+  const fast = await maybeHandleFastTool(userMessage);
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
 
+  if (fast) {
+    if (onChunk) onChunk(fast);
+    messages.push({ role: 'user', content: userMessage });
+    messages.push({ role: 'assistant', content: fast });
+    const id = await persistConversation(userId, conversationId, messages);
+    return { fullText: fast, conversationId: id };
+  }
+
+  const context = await buildPipelineContext(userId);
   const fullMessages = [
     { role: 'system', content: `${buildJulioSystemPrompt()}\n\n${context}` },
     ...messages,
     { role: 'user', content: userMessage },
   ];
 
-  const fullText = await nvidiaChatStream(fullMessages, parseInt(process.env.AI_MAX_TOKENS) || 16384, onChunk);
+  const maxTokens = parseInt(process.env.AI_MAX_TOKENS) || 1024;
+  const fullText = await nvidiaChatStream(fullMessages, maxTokens, onChunk);
 
   messages.push({ role: 'user', content: userMessage });
   messages.push({ role: 'assistant', content: fullText });
