@@ -6,14 +6,26 @@ const { prisma } = require('./database');
  * @param {import('http').Server} httpServer
  */
 function initSocket(httpServer) {
-  const origins = (process.env.FRONTEND_URL || 'http://localhost:3001,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5500')
+  const extraOrigins = (process.env.FRONTEND_URL || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
 
+  function socketOrigin(origin, callback) {
+    if (!origin) return callback(null, true);
+    try {
+      const host = new URL(origin).hostname;
+      if (host === 'localhost' || host === '127.0.0.1') return callback(null, true);
+      if (host.endsWith('.pages.dev') || host.endsWith('.netlify.app') ||
+          host.endsWith('.railway.app') || host.endsWith('.up.railway.app')) return callback(null, true);
+    } catch (e) { return callback(null, false); }
+    if (extraOrigins.includes(origin)) return callback(null, true);
+    callback(null, false);
+  }
+
   const io = new Server(httpServer, {
     cors: {
-      origin: origins.length ? origins : true,
+      origin: socketOrigin,
       methods: ['GET', 'POST'],
       credentials: true,
     },

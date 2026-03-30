@@ -115,7 +115,7 @@ function corsAllowOrigin(origin, callback) {
   try {
     const host = new URL(origin).hostname;
     if (host === 'localhost' || host === '127.0.0.1') return callback(null, true);
-    if (host.endsWith('.netlify.app') || host.endsWith('.railway.app') || host.endsWith('.up.railway.app')) return callback(null, true);
+    if (host.endsWith('.netlify.app') || host.endsWith('.railway.app') || host.endsWith('.up.railway.app') || host.endsWith('.pages.dev')) return callback(null, true);
   } catch (e) {
     return callback(null, false);
   }
