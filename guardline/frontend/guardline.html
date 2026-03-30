@@ -12837,7 +12837,7 @@
         var leads = [];
         var deals = [];
         if (guardlineDataApiRoot()) {
-          var lr = await guardlineFetchMetricsJson('/leads?perPage=200');
+          var lr = await guardlineFetchMetricsJson('/leads?perPage=100');
           var dr = await guardlineFetchMetricsJson('/deals?perPage=100');
           leads = lr.data || [];
           deals = dr.data || [];
@@ -12863,7 +12863,7 @@
           });
         } else {
           var results = await Promise.all([
-            API.get('/leads?perPage=200'),
+            API.get('/leads?perPage=100'),
             API.get('/deals?perPage=100'),
           ]);
           leads = results[0].data || [];
