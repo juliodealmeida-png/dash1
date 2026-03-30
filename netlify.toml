@@ -1,0 +1,9 @@
+[build]
+  base = "guardline/frontend"
+  publish = "guardline/frontend"
+  command = "echo 'Static dashboard — no build'"
+
+[[redirects]]
+  from = "/"
+  to = "/guardline.html"
+  status = 302
