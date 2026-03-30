@@ -278,6 +278,33 @@ app.use('/api/documents', require('./routes/documents.routes'));
 app.use('/api/forum', require('./routes/forum.routes'));
 app.use('/api/profile', require('./routes/profile.routes'));
 
+app.get('/api/config/public', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      supabase: {
+        url: process.env.SUPABASE_URL || '',
+        anonKey: process.env.SUPABASE_ANON_KEY || '',
+      },
+      n8n: {
+        base: process.env.N8N_BASE_URL || '',
+        wf06: process.env.N8N_PATH_WF06 || 'wf06-guardline-autonomous-revenue-system-v52-execution-ready',
+        wf07batch: process.env.N8N_PATH_WF07_BATCH || 'wf07-guardline-batch-intake-v1',
+      },
+      mapbox: {
+        token: process.env.MAPBOX_TOKEN || '',
+      },
+      features: {
+        supabaseReady: !!(process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY),
+        n8nReady: !!process.env.N8N_BASE_URL,
+        gmailReady: !!(process.env.GMAIL_CLIENT_ID && process.env.GMAIL_CLIENT_SECRET),
+        slackReady: !!process.env.SLACK_BOT_TOKEN,
+        hubspotReady: !!process.env.HUBSPOT_PAT,
+      },
+    },
+  });
+});
+
 function sendGuardlineHtml(res, next) {
   const file = path.join(frontendDir, 'guardline.html');
   res.sendFile(file, (err) => {

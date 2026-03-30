@@ -6599,6 +6599,19 @@
       try {
         var res = await API.get('/auth/me', { silent: true });
         Auth.setUser(res.data.user || res.data);
+        try {
+          var cfgRes = await API.get('/config/public', { silent: true });
+          var cfg = cfgRes.data || {};
+          if (cfg.supabase && cfg.supabase.url) CONFIG.supabase.url = cfg.supabase.url;
+          if (cfg.supabase && cfg.supabase.anonKey) CONFIG.supabase.key = cfg.supabase.anonKey;
+          if (cfg.n8n && cfg.n8n.base) CONFIG.n8n.base = cfg.n8n.base;
+          if (cfg.n8n && cfg.n8n.wf06) CONFIG.n8n.wf06 = cfg.n8n.wf06;
+          if (cfg.n8n && cfg.n8n.wf07batch) CONFIG.n8n.wf07batch = cfg.n8n.wf07batch;
+          if (cfg.mapbox && cfg.mapbox.token) CONFIG.mapbox.token = cfg.mapbox.token;
+          window.__guardlineFeatures = cfg.features || {};
+        } catch (cfgErr) {
+          console.warn('[Guardline] /config/public indisponível:', cfgErr.message);
+        }
         showDashboard();
         if (!CONFIG.supabase.url || !CONFIG.supabase.key) {
           console.info('[Guardline] KPIs via Railway API (Supabase não configurado)');
