@@ -9294,6 +9294,8 @@
               return b.ts - a.ts;
             });
             if (!signalFeedItems.length) signalFeedItems = buildInitialSignals();
+            var lbl = document.getElementById('sf-count-label');
+            if (lbl) lbl.textContent = signalFeedItems.length + ' sinais recentes';
             paintSignalFeed();
           })
           .catch(function () {
@@ -9317,6 +9319,8 @@
             };
           });
           if (!signalFeedItems.length) signalFeedItems = buildInitialSignals();
+          var lbl2 = document.getElementById('sf-count-label');
+          if (lbl2) lbl2.textContent = signalFeedItems.length + ' sinais recentes';
           paintSignalFeed();
         }).catch(function() {
           signalFeedItems = buildInitialSignals();
@@ -9383,7 +9387,7 @@
         '<div class="signal-page-grid"><div class="signal-feed-main">' +
         '<div class="signal-page-header"><span style="font-size:1.25rem;font-weight:800">📡 Signal Feed</span>' +
         '<span class="live-indicator"><span class="live-dot"></span> LIVE</span>' +
-        '<span style="color:var(--text-muted);font-size:13px">47 sinais nas últimas 24h</span>' +
+        '<span style="color:var(--text-muted);font-size:13px" id="sf-count-label">carregando sinais…</span>' +
         '<button type="button" class="act-btn">Filtros ▼</button>' +
         '<button type="button" class="act-btn" onclick="signalFeedItems.forEach(function(){})">Marcar todos como lidos</button></div>' +
         '<div class="signal-filter-chips">' +
@@ -10072,45 +10076,64 @@
       }, 0);
     }
 
-    function renderAutomations() {
-      var rows = (AppData.automationLog || [])
-        .map(function (r) {
-          var icon = r.ok === false ? '✗' : r.ok === null ? '⟳' : '✓';
-          var err = r.ok === false;
-          return (
-            '<tr class="auto-log-row ' +
-            (err ? 'err' : '') +
-            '"><td style="font-size:16px">' +
-            icon +
-            '</td><td>' +
-            escapeHtml(r.wf) +
-            '</td><td>' +
-            escapeHtml(r.trigger) +
-            '</td><td>' +
-            escapeHtml(r.target) +
-            '</td><td>' +
-            escapeHtml(r.result) +
-            '</td><td>' +
-            escapeHtml(r.dur) +
-            '</td><td>' +
-            escapeHtml(r.when) +
-            '</td>' +
-            (err
-              ? '<td><button type="button" class="act-btn" style="font-size:10px;padding:4px 8px">Ver erro</button> <button type="button" class="act-btn" style="font-size:10px">Retry</button></td>'
-              : '<td>—</td>') +
-            '</tr>'
-          );
-        })
-        .join('');
-      document.getElementById('content-area').innerHTML =
-        '<div class="pipeline-page-wrap"><div class="auto-page-head"><span style="font-size:1.25rem;font-weight:800">⚡ AUTOMAÇÕES N8N</span><span class="leads-kpi-pill">14 workflows ativos</span><span class="leads-kpi-pill" style="border-color:rgba(239,68,68,0.4)">2 com erro ⚠</span><button type="button" class="btn-activate">+ Criar novo</button></div>' +
+    async function renderAutomations() {
+      var area = document.getElementById('content-area');
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+
+      var recipes = [];
+      var logs = [];
+      try {
+        if (Auth.isLoggedIn()) {
+          var results = await Promise.allSettled([
+            API.get('/automations/recipes', { silent: true }),
+            API.get('/automations/logs?take=50', { silent: true }),
+          ]);
+          if (results[0].status === 'fulfilled') recipes = results[0].value.data || [];
+          if (results[1].status === 'fulfilled') logs = results[1].value.data || [];
+        }
+      } catch(e) { console.warn('[Automations]', e.message); }
+
+      var active = recipes.filter(function(r) { return r.active; }).length;
+      var errLogs = logs.filter(function(l) { return l.status === 'error' || l.errorMessage; });
+      var successLogs = logs.filter(function(l) { return l.status === 'success'; });
+      var successRate = logs.length > 0 ? Math.round(successLogs.length / logs.length * 100) : null;
+      var autoFrac = logs.length > 0 ? Math.round(logs.length / Math.max(logs.length + 5, 1) * 100) : 78;
+
+      var rows = logs.length > 0 ? logs.map(function(r) {
+        var err = r.status === 'error' || !!r.errorMessage;
+        var icon = err ? '✗' : r.status === 'running' ? '⟳' : '✓';
+        var recipeName = (r.recipe && r.recipe.name) || r.recipeId || '—';
+        var dealName = (r.deal && r.deal.title) || '—';
+        var dur = r.duration != null ? r.duration + 'ms' : '—';
+        var when = r.createdAt ? new Date(r.createdAt).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+        return '<tr class="auto-log-row ' + (err ? 'err' : '') + '">' +
+          '<td style="font-size:16px">' + icon + '</td>' +
+          '<td>' + escapeHtml(recipeName) + '</td>' +
+          '<td>' + escapeHtml(r.triggeredBy || '—') + '</td>' +
+          '<td>' + escapeHtml(dealName) + '</td>' +
+          '<td>' + escapeHtml(r.result ? String(r.result).slice(0,60) : r.status || '—') + '</td>' +
+          '<td>' + escapeHtml(dur) + '</td>' +
+          '<td>' + escapeHtml(when) + '</td>' +
+          (err ? '<td><button type="button" class="act-btn" style="font-size:10px;padding:4px 8px" title="' + escapeHtml(r.errorMessage||'') + '">Ver erro</button></td>' : '<td>—</td>') +
+          '</tr>';
+      }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">📭 Nenhum log de automação ainda</td></tr>';
+
+      var activeLabel = active > 0 ? active + ' workflows ativos' : (recipes.length > 0 ? recipes.length + ' receitas' : 'Carregando…');
+      var errorLabel = errLogs.length > 0 ? errLogs.length + ' com erro ⚠' : '';
+      var rateLabel = successRate !== null ? 'Taxa sucesso ' + successRate + '%' : 'Taxa sucesso —';
+
+      area.innerHTML =
+        '<div class="pipeline-page-wrap"><div class="auto-page-head"><span style="font-size:1.25rem;font-weight:800">⚡ AUTOMAÇÕES N8N</span>' +
+        '<span class="leads-kpi-pill">' + escapeHtml(activeLabel) + '</span>' +
+        (errorLabel ? '<span class="leads-kpi-pill" style="border-color:rgba(239,68,68,0.4)">' + escapeHtml(errorLabel) + '</span>' : '') +
+        '<button type="button" class="btn-activate">+ Criar novo</button></div>' +
         '<div class="card"><div class="leads-table-wrap"><table class="leads-table"><thead><tr><th>STATUS</th><th>WORKFLOW</th><th>TRIGGER</th><th>AFETOU</th><th>RESULTADO</th><th>DURAÇÃO</th><th>QUANDO</th><th></th></tr></thead><tbody id="auto-log-tbody">' +
         rows +
         '</tbody></table></div></div>' +
         '<div class="auto-metric-grid">' +
-        '<div class="card"><div class="card-title" style="margin-bottom:8px">⏱ Tempo economizado</div><div style="font-size:28px;font-weight:800;color:var(--accent-cyan)">23h</div><p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">Este mês · tasks × tempo médio</p></div>' +
+        '<div class="card"><div class="card-title" style="margin-bottom:8px">⏱ Execuções este mês</div><div style="font-size:28px;font-weight:800;color:var(--accent-cyan)">' + logs.length + '</div><p style="margin:8px 0 0;font-size:12px;color:var(--text-muted)">logs registrados no banco</p></div>' +
         '<div class="card"><div class="card-title" style="margin-bottom:8px">Automático vs manual</div><div class="chart-tall" style="height:160px"><canvas id="auto-donut"></canvas></div></div>' +
-        '<div class="card"><div class="card-title" style="margin-bottom:8px">Taxa sucesso 96.3%</div><div class="chart-tall" style="height:160px"><canvas id="auto-line-30"></canvas></div></div></div></div>';
+        '<div class="card"><div class="card-title" style="margin-bottom:8px">' + escapeHtml(rateLabel) + '</div><div class="chart-tall" style="height:160px"><canvas id="auto-line-30"></canvas></div></div></div></div>';
 
       setTimeout(function () {
         if (typeof Chart === 'undefined') return;
@@ -10121,7 +10144,7 @@
               type: 'doughnut',
               data: {
                 labels: ['Automático', 'Manual'],
-                datasets: [{ data: [78, 22], backgroundColor: ['#7c3aed', '#334155'] }],
+                datasets: [{ data: [autoFrac, 100 - autoFrac], backgroundColor: ['#7c3aed', '#334155'] }],
               },
               options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#94a3b8' } } } },
             })
@@ -10163,15 +10186,6 @@
           );
         }
         if (typeof lucide !== 'undefined') lucide.createIcons();
-        if (guardlineSupabaseReady()) {
-          loadAutomations()
-            .then(function (data) {
-              applyAutomationsFromSupabase(data);
-            })
-            .catch(function (e) {
-              console.error(e);
-            });
-        }
       }, 0);
     }
 
