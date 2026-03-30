@@ -275,6 +275,8 @@ app.use('/api/signals', require('./routes/signals.routes'));
 app.use('/api/integrations', require('./routes/integrations.routes'));
 app.use('/api/investor', require('./routes/investor.routes'));
 app.use('/api/documents', require('./routes/documents.routes'));
+app.use('/api/forum', require('./routes/forum.routes'));
+app.use('/api/profile', require('./routes/profile.routes'));
 
 function sendGuardlineHtml(res, next) {
   const file = path.join(frontendDir, 'guardline.html');

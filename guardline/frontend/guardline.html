@@ -3454,6 +3454,12 @@
         <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr">
           <i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span>
         </button>
+        <button type="button" class="nav-item" data-screen="forum" data-roles="founder,sdr">
+          <i data-lucide="message-square" class="nav-icon"></i><span class="nav-label">Forum</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="profile" data-roles="founder,sdr">
+          <i data-lucide="user-cog" class="nav-icon"></i><span class="nav-label">Meu Perfil</span>
+        </button>
 
         <div class="nav-section-label" data-section="exp">Expansão</div>
         <button type="button" class="nav-item" data-screen="investor" data-roles="founder">
@@ -14215,116 +14221,212 @@
     async function renderProfile() {
       var area = document.getElementById('content-area');
       if (!area) return;
-      if (!guardlineSupabaseReady()) {
-        area.innerHTML = '<p class="placeholder-note">Supabase não configurado.</p>';
+      if (!Auth.isLoggedIn()) {
+        area.innerHTML = '<div class="pipeline-page-wrap"><p class="placeholder-note">Faça login para acessar seu perfil.</p></div>';
         return;
       }
-      var userData = await guardlineFetchUserProfileRow();
-      if (!userData) {
-        area.innerHTML =
-          '<div class="profile-page"><p class="placeholder-note">Perfil não encontrado. Complete o onboarding.</p></div>';
-        return;
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      var u = {};
+      var p = {};
+      try {
+        var pr = await API.get('/profile');
+        u = pr.data || {};
+        p = u.profile || {};
+      } catch(e) {
+        u = Auth.getUser() || {};
       }
-      window.__guardlineCachedProfileRow = userData;
-      window.currentSignatureSVG = '';
-      var li = userData.linkedin_url || '';
-      var liSlug = li.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '').replace(/\/$/, '');
-      var initials = guardlineProfileInitials(userData);
+      var initials = ((u.name || '?').trim().split(' ').map(function(w) { return w[0]; }).join('').slice(0,2)).toUpperCase();
       area.innerHTML =
-        '<div class="profile-page">' +
-        '<div class="profile-header">' +
-        '<div class="profile-avatar-large">' +
-        (userData.photo_url
-          ? '<img src="' +
-            guardlineXmlEscape(userData.photo_url) +
-            '" alt=""/>' +
-            '<label class="change-photo-btn" for="profile-photo-input">📷 Alterar</label>'
-          : '<div class="avatar-initials-large">' +
-            initials +
-            '</div><label class="change-photo-btn" for="profile-photo-input">📷 Adicionar foto</label>') +
-        '<input type="file" id="profile-photo-input" accept="image/*" style="display:none" onchange="handleProfilePhotoEdit(event)"/></div>' +
-        '<div class="profile-name-info"><h1>' +
-        guardlineXmlEscape((userData.first_name || '') + ' ' + (userData.last_name || '')) +
-        '</h1><span class="profile-job">' +
-        guardlineXmlEscape(userData.job_title || 'Sem cargo') +
-        '</span> ' +
-        (userData.department
-          ? '<span class="profile-dept badge">' + guardlineXmlEscape(userData.department) + '</span>'
-          : '') +
-        '</div></div>' +
-        '<div class="profile-tabs">' +
-        '<button type="button" class="tab active" data-tab="personal" onclick="showProfileTab(\'personal\')">Dados pessoais</button>' +
-        '<button type="button" class="tab" data-tab="contact" onclick="showProfileTab(\'contact\')">Contato</button>' +
-        '<button type="button" class="tab" data-tab="signature" onclick="showProfileTab(\'signature\')">Assinatura</button></div>' +
-        '<div class="profile-tab-content" id="tab-personal">' +
+        '<div class="pipeline-page-wrap" style="max-width:760px">' +
+        '<div class="card" style="padding:24px 28px;margin-bottom:16px;display:flex;gap:20px;align-items:center">' +
+        '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;flex-shrink:0">' + escapeHtml(initials) + '</div>' +
+        '<div><div style="font-size:18px;font-weight:700">' + escapeHtml(u.name || '') + '</div>' +
+        '<div style="font-size:13px;color:var(--text-muted)">' + escapeHtml(u.email || '') + '</div>' +
+        '<div style="font-size:12px;color:var(--accent-cyan);margin-top:4px">' + escapeHtml(u.role || '') + (u.company ? ' · ' + escapeHtml(u.company) : '') + '</div></div></div>' +
+        '<div class="card" style="padding:24px 28px">' +
+        '<div style="font-size:14px;font-weight:700;margin-bottom:16px;color:var(--text-secondary)">👤 DADOS PESSOAIS</div>' +
         '<div class="ob-form-grid">' +
-        '<div class="ob-form-group"><label>Nome</label><input type="text" id="pf-first" value="' +
-        guardlineXmlEscape(userData.first_name || '') +
-        '"/></div>' +
-        '<div class="ob-form-group"><label>Sobrenome</label><input type="text" id="pf-last" value="' +
-        guardlineXmlEscape(userData.last_name || '') +
-        '"/></div>' +
-        '<div class="ob-form-group ob-full"><label>Nascimento</label><input type="date" id="pf-birth" value="' +
-        (userData.birthdate || '').slice(0, 10) +
-        '"/></div>' +
-        '<div class="ob-form-group ob-full"><label>Cargo</label><input type="text" id="pf-job" value="' +
-        guardlineXmlEscape(userData.job_title || '') +
-        '"/></div>' +
-        '<div class="ob-form-group ob-full"><label>Departamento</label><select id="pf-dept">' +
-        ['', 'sales', 'sdr', 'founders', 'partnerships', 'customer_success', 'operations']
-          .map(function (v) {
-            var labels = {
-              '': 'Selecionar',
-              sales: 'Vendas',
-              sdr: 'SDR/BDR',
-              founders: 'Founders',
-              partnerships: 'Parcerias',
-              customer_success: 'CS',
-              operations: 'Operações',
-            };
-            return (
-              '<option value="' +
-              v +
-              '"' +
-              (userData.department === v ? ' selected' : '') +
-              '>' +
-              labels[v] +
-              '</option>'
-            );
-          })
-          .join('') +
-        '</select></div></div></div>' +
-        '<div class="profile-tab-content hidden" id="tab-contact">' +
-        '<div class="ob-form-grid">' +
-        '<div class="ob-form-group ob-full"><label>Email</label><input type="email" id="pf-email" readonly value="' +
-        guardlineXmlEscape(userData.email || '') +
-        '"/></div>' +
-        '<div class="ob-form-group"><label>Telefone</label><input type="text" id="pf-phone" value="' +
-        guardlineXmlEscape(userData.phone || '') +
-        '"/></div>' +
-        '<div class="ob-form-group"><label>WhatsApp</label><input type="text" id="pf-wa" value="' +
-        guardlineXmlEscape(userData.whatsapp || '') +
-        '"/></div>' +
-        '<div class="ob-form-group ob-full"><label>Calendário</label><input type="url" id="pf-cal" value="' +
-        guardlineXmlEscape(userData.calendar_url || '') +
-        '"/></div>' +
-        '<div class="ob-form-group ob-full"><label>LinkedIn (slug)</label><input type="text" id="pf-li" value="' +
-        guardlineXmlEscape(liSlug) +
-        '"/></div></div></div>' +
-        '<div class="profile-tab-content hidden" id="tab-signature">' +
-        '<div class="current-signature"><h3>Assinatura atual</h3><div class="sig-preview" id="pf-sig-preview">' +
-        (userData.signature_svg || '<p>Sem assinatura</p>') +
+        '<div class="ob-form-group"><label>Nome completo</label><input type="text" id="pf-name" value="' + escapeHtml(u.name || '') + '"/></div>' +
+        '<div class="ob-form-group"><label>Empresa</label><input type="text" id="pf-company" value="' + escapeHtml(u.company || '') + '"/></div>' +
         '</div>' +
-        '<button type="button" class="btn-regenerate" onclick="regenerateProfileSignature()">🔄 Nova assinatura</button></div>' +
-        '<div class="ob-form-group"><label>Tipo doc.</label><select id="pf-id-type">' +
-        '<option value="">—</option><option value="cpf">CPF</option><option value="rg">RG</option><option value="passport">Passaporte</option><option value="dni">DNI</option><option value="curp">CURP</option><option value="other">Outro</option></select></div>' +
-        '<div class="ob-form-group"><label>Número</label><input type="text" id="pf-id-num" value="' +
-        guardlineXmlEscape(userData.signature_id_number || '') +
-        '"/></div></div>' +
-        '<button type="button" class="btn-save-profile" onclick="saveProfile()">💾 Salvar alterações</button></div>';
-      var sel = document.getElementById('pf-id-type');
-      if (sel && userData.signature_id_type) sel.value = userData.signature_id_type;
+        '<div style="font-size:14px;font-weight:700;margin:20px 0 16px;color:var(--text-secondary)">📤 PERFIL DE PROSPECÇÃO</div>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Estes dados alimentam o n8n (WF06/WF07) como contexto do vendedor.</p>' +
+        '<div class="ob-form-grid">' +
+        '<div class="ob-form-group ob-full"><label>Email de saída</label><input type="email" id="pf-email-out" placeholder="seu@email.com" value="' + escapeHtml(p.emailOutreach || '') + '"/></div>' +
+        '<div class="ob-form-group ob-full"><label>LinkedIn URL</label><input type="url" id="pf-li" placeholder="https://linkedin.com/in/seu-slug" value="' + escapeHtml(p.linkedinUrl || '') + '"/></div>' +
+        '<div class="ob-form-group ob-full"><label>Link do calendário (Calendly / Cal.com)</label><input type="url" id="pf-cal" placeholder="https://calendly.com/seu-link" value="' + escapeHtml(p.calendarUrl || '') + '"/></div>' +
+        '<div class="ob-form-group"><label>Telefone</label><input type="text" id="pf-phone" placeholder="+55 11 99999-9999" value="' + escapeHtml(p.phone || '') + '"/></div>' +
+        '<div class="ob-form-group"><label>Timezone</label><select id="pf-tz">' +
+        ['America/Sao_Paulo','America/Manaus','America/Fortaleza','America/Belem','America/Recife','America/Bogota','America/Mexico_City','America/New_York','America/Chicago','America/Denver','America/Los_Angeles','Europe/Lisbon','Europe/London','Europe/Madrid'].map(function(tz) {
+          return '<option value="' + tz + '"' + ((p.timezone || 'America/Sao_Paulo') === tz ? ' selected' : '') + '>' + tz + '</option>';
+        }).join('') + '</select></div>' +
+        '<div class="ob-form-group ob-full"><label>Bio / pitch pessoal (max 500 chars)</label><textarea id="pf-bio" rows="3" maxlength="500" style="width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:10px;font-size:13px;resize:vertical">' + escapeHtml(p.bio || '') + '</textarea></div>' +
+        '</div>' +
+        '<div style="font-size:14px;font-weight:700;margin:20px 0 16px;color:var(--text-secondary)">⚡ CONFIGURAÇÃO N8N</div>' +
+        '<div class="ob-form-grid">' +
+        '<div class="ob-form-group ob-full"><label>Webhook path personalizado (opcional)</label><input type="text" id="pf-n8n" placeholder="wf06-meu-workflow-v1" value="' + escapeHtml(p.n8nWebhookPath || '') + '"/></div>' +
+        '</div>' +
+        '<div style="margin-top:20px;display:flex;gap:12px">' +
+        '<button type="button" class="btn-activate" onclick="saveSellerProfile()">💾 Salvar perfil</button>' +
+        '<button type="button" class="act-btn" onclick="testN8nWithProfile()">⚡ Testar WF06 com meu perfil</button>' +
+        '</div></div></div>';
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function saveSellerProfile() {
+      try {
+        var payload = {
+          name: document.getElementById('pf-name').value.trim(),
+          company: document.getElementById('pf-company').value.trim(),
+          emailOutreach: document.getElementById('pf-email-out').value.trim(),
+          linkedinUrl: document.getElementById('pf-li').value.trim(),
+          calendarUrl: document.getElementById('pf-cal').value.trim(),
+          phone: document.getElementById('pf-phone').value.trim(),
+          timezone: document.getElementById('pf-tz').value,
+          bio: document.getElementById('pf-bio').value.trim(),
+          n8nWebhookPath: document.getElementById('pf-n8n').value.trim(),
+        };
+        await API.put('/profile', payload);
+        showToast('success', 'Perfil', 'Salvo com sucesso.');
+      } catch(e) {
+        showToast('error', 'Perfil', (e && e.message) || 'Erro ao salvar');
+      }
+    }
+
+    async function testN8nWithProfile() {
+      var p = {
+        emailOutreach: (document.getElementById('pf-email-out') || {}).value || '',
+        linkedinUrl: (document.getElementById('pf-li') || {}).value || '',
+        calendarUrl: (document.getElementById('pf-cal') || {}).value || '',
+        bio: (document.getElementById('pf-bio') || {}).value || '',
+      };
+      var u = Auth.getUser() || {};
+      try {
+        showToast('info', 'n8n', 'Enviando teste para WF06…');
+        await N8N.processLead({ test: true, seller: p, user: { name: u.name, email: u.email } });
+        showToast('success', 'n8n', 'WF06 recebeu o payload com sucesso.');
+      } catch(e) {
+        showToast('error', 'n8n', (e && e.message) || 'Falhou');
+      }
+    }
+
+    async function renderForum() {
+      var area = document.getElementById('content-area');
+      if (!area) return;
+      if (!Auth.isLoggedIn()) {
+        area.innerHTML = '<div class="pipeline-page-wrap"><p class="placeholder-note">Faça login para acessar o Forum.</p></div>';
+        return;
+      }
+      var channels = ['general','revenue','automations','bugs'];
+      var channelLabels = { general:'💬 General', revenue:'💰 Revenue', automations:'⚡ Automações', bugs:'🐛 Bugs & Feedback' };
+      var activeChannel = 'general';
+      var me = Auth.getUser() || {};
+      area.innerHTML =
+        '<div style="display:grid;grid-template-columns:200px 1fr;height:calc(100vh - 80px);gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border)">' +
+        '<div style="background:var(--sidebar-bg);border-right:1px solid var(--border);padding:16px 0">' +
+        '<div style="padding:0 16px 12px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">Canais</div>' +
+        channels.map(function(ch) {
+          return '<button type="button" id="ch-btn-' + ch + '" onclick="switchForumChannel(\'' + ch + '\')" style="display:block;width:100%;text-align:left;padding:8px 16px;background:' + (ch==='general'?'rgba(124,58,237,0.2)':'transparent') + ';border:none;color:' + (ch==='general'?'#fff':'var(--text-secondary)') + ';cursor:pointer;font-size:13px;border-radius:0">' + (channelLabels[ch] || ch) + '</button>';
+        }).join('') +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;background:var(--card)">' +
+        '<div style="padding:12px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px" id="forum-channel-title">' + channelLabels['general'] + '</div>' +
+        '<div id="forum-messages" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px"><div style="text-align:center;color:var(--text-muted);padding:40px">Carregando…</div></div>' +
+        '<div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px">' +
+        '<input type="text" id="forum-input" placeholder="Escrever mensagem…" style="flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:10px 14px;font-size:13px" onkeydown="if(event.key===\'Enter\'){sendForumMessage()}" />' +
+        '<button type="button" class="btn-activate" style="padding:10px 18px" onclick="sendForumMessage()">Enviar</button>' +
+        '</div></div></div>';
+
+      window.__forumChannel = 'general';
+      window.__forumChannelLabels = channelLabels;
+      window.__forumMe = me;
+      loadForumMessages('general');
+
+      if (window.__guardlineSocket) {
+        window.__guardlineSocket.off('forum:message');
+        window.__guardlineSocket.on('forum:message', function(msg) {
+          if (msg.channel !== window.__forumChannel) return;
+          appendForumMessage(msg);
+        });
+        window.__guardlineSocket.off('forum:deleted');
+        window.__guardlineSocket.on('forum:deleted', function(ev) {
+          var el = document.getElementById('fmsg-' + ev.id);
+          if (el) el.remove();
+        });
+      }
+    }
+
+    window.switchForumChannel = function(ch) {
+      window.__forumChannel = ch;
+      var lbl = (window.__forumChannelLabels || {})[ch] || ch;
+      var title = document.getElementById('forum-channel-title');
+      if (title) title.textContent = lbl;
+      document.querySelectorAll('[id^="ch-btn-"]').forEach(function(b) {
+        var active = b.id === 'ch-btn-' + ch;
+        b.style.background = active ? 'rgba(124,58,237,0.2)' : 'transparent';
+        b.style.color = active ? '#fff' : 'var(--text-secondary)';
+      });
+      loadForumMessages(ch);
+    };
+
+    async function loadForumMessages(channel) {
+      var box = document.getElementById('forum-messages');
+      if (!box) return;
+      box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Carregando…</div>';
+      try {
+        var res = await API.get('/forum?channel=' + encodeURIComponent(channel) + '&take=50');
+        var msgs = res.data || [];
+        if (!msgs.length) {
+          box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Ainda não há mensagens neste canal.</div>';
+          return;
+        }
+        box.innerHTML = '';
+        msgs.forEach(function(m) { appendForumMessage(m); });
+        box.scrollTop = box.scrollHeight;
+      } catch(e) {
+        box.innerHTML = '<div style="text-align:center;color:var(--accent-red);padding:40px">Erro ao carregar mensagens.</div>';
+      }
+    }
+
+    function appendForumMessage(msg) {
+      var box = document.getElementById('forum-messages');
+      if (!box) return;
+      var me = window.__forumMe || Auth.getUser() || {};
+      var isMine = msg.userId === me.id || (msg.user && msg.user.id === me.id);
+      var senderName = (msg.user && msg.user.name) || 'Usuário';
+      var ts = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '';
+      var el = document.createElement('div');
+      el.id = 'fmsg-' + msg.id;
+      el.style.cssText = 'display:flex;flex-direction:column;align-items:' + (isMine ? 'flex-end' : 'flex-start');
+      el.innerHTML =
+        (isMine ? '' : '<span style="font-size:11px;color:var(--text-muted);margin-bottom:3px">' + escapeHtml(senderName) + '</span>') +
+        '<div style="max-width:70%;background:' + (isMine ? 'linear-gradient(135deg,#7c3aed,#5b21b6)' : 'var(--bg-secondary)') + ';border-radius:' + (isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';padding:10px 14px;font-size:13px">' +
+        escapeHtml(msg.content) +
+        '</div>' +
+        '<span style="font-size:10px;color:var(--text-dim);margin-top:3px">' + escapeHtml(ts) + (isMine ? ' · <span style="cursor:pointer;color:var(--accent-red)" onclick="deleteForumMessage(\'' + msg.id + '\')">apagar</span>' : '') + '</span>';
+      box.appendChild(el);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    async function sendForumMessage() {
+      var input = document.getElementById('forum-input');
+      if (!input || !input.value.trim()) return;
+      var content = input.value.trim();
+      input.value = '';
+      try {
+        await API.post('/forum', { content: content, channel: window.__forumChannel || 'general' });
+      } catch(e) {
+        showToast('error', 'Forum', 'Erro ao enviar mensagem');
+        input.value = content;
+      }
+    }
+
+    async function deleteForumMessage(id) {
+      try {
+        await API.delete('/forum/' + id);
+      } catch(e) {
+        showToast('error', 'Forum', 'Erro ao apagar mensagem');
+      }
     }
 
     function showProfileTab(name) {
@@ -14457,6 +14559,7 @@
       admin: renderAdminScreen,
       documents: function() { return window.renderDocumentsScreen(); },
       profile: renderProfile,
+      forum: renderForum,
     });
     Object.assign(SCREEN_TITLES, {
       accounts: 'Contas',
@@ -14475,6 +14578,7 @@
       admin: 'Admin',
       documents: 'Documentos',
       profile: 'Meu Perfil',
+      forum: 'Forum',
     });
 
     function applyRoleVisibility() {

@@ -30,6 +30,8 @@ model User {
   investorDeals   InvestorDeal[]
   integrations    Integration[]
   documents       Document[]
+  forumMessages    ForumMessage[]
+  sellerProfile    SellerProfile?
 
   @@map("users")
 }
@@ -531,6 +533,45 @@ model DocNotification {
 
   @@index([userId, read])
   @@map("doc_notifications")
+}
+
+// ──────────────────────────────────
+// FORUM / COMMUNITY CHAT
+// ──────────────────────────────────
+
+model ForumMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  channel   String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([channel, createdAt])
+  @@map("forum_messages")
+}
+
+// ──────────────────────────────────
+// PERFIL DE PROSPECÇÃO (por usuário)
+// ──────────────────────────────────
+
+model SellerProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailOutreach   String?
+  linkedinUrl     String?
+  calendarUrl     String?
+  phone           String?
+  bio             String?
+  timezone        String?  @default("America/Sao_Paulo")
+  n8nWebhookPath  String?
+  metadata        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("seller_profiles")
 }
 
 // Log de lembretes enviados — controle anti-spam
