@@ -3435,6 +3435,12 @@
         <button type="button" class="nav-item" data-screen="loss" data-roles="founder">
           <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span>
         </button>
+        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder">
+          <i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder">
+          <i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span>
+        </button>
 
         <div class="nav-section-label" data-section="acq">Aquisição</div>
         <button type="button" class="nav-item" data-screen="campaigns" data-roles="sdr">
@@ -13079,104 +13085,252 @@
 
     async function renderPipelineHealth() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Saúde', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Health', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
           API.get('/metrics/dashboard'),
-          API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc'),
+          API.get('/deals?perPage=200&sortBy=createdAt&sortOrder=desc'),
         ]);
         var m = results[0].data || {};
-        var deals = (results[1].data || []).filter(function(d) { return d.stage !== 'won' && d.stage !== 'lost'; });
+        var allDeals = results[1].data || [];
+        var deals = allDeals.filter(function(d) { return d.stage !== 'won' && d.stage !== 'lost'; });
+        var wonDeals = allDeals.filter(function(d) { return d.stage === 'won'; });
         var atRisk = deals.filter(function(d) { return (d.riskScore || 0) >= 75; });
-        var healthScore = m.healthScore != null ? m.healthScore : Math.max(0, 100 - Math.round((atRisk.length / (deals.length || 1)) * 100));
-        var riskRows = atRisk
-          .map(function(d) {
-            var r = d.riskScore || 0;
-            var did = String(d.id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            return (
-              '<div class="deal-row critical" style="cursor:pointer;margin-bottom:8px;animation:slide-up .35s ease" onclick="guardlineForecastOpenDeal(\'' +
-              did +
-              "')\">" +
-              '<div class="risk-badge risk-critical">' +
-              r +
-              '</div><div><div class="deal-name">' +
-              escapeHtml(d.companyName || '') +
-              '</div><div class="deal-meta"><span>$' +
-              (d.value || 0).toLocaleString('en-US') +
-              '</span><span>' +
-              (d.daysSinceContact != null ? d.daysSinceContact + 'd s/ contato' : '—') +
-              '</span></div></div><div class="deal-value">Risk</div><span class="act-btn" style="pointer-events:none">Ver</span></div>'
-            );
-          })
-          .join('');
-        var tips = atRisk.slice(0, 5).map(function(d) {
-          return (
-            '<div class="brief-item priority">Ligar / email para <strong>' +
-            escapeHtml(d.companyName || '') +
-            '</strong> — risco ' +
-            (d.riskScore || 0) +
-            ', sem contato ' +
-            (d.daysSinceContact != null ? d.daysSinceContact + 'd' : 'n/d') +
-            '</div>'
-          );
-        });
-        if (!tips.length) tips.push('<div class="brief-item success">Nenhum deal acima de 75 de risco neste recorte.</div>');
-        var stAgg = {};
-        deals.forEach(function(d) {
-          var s = d.stage || 'other';
-          if (!stAgg[s]) stAgg[s] = { n: 0, v: 0 };
-          stAgg[s].n++;
-          stAgg[s].v += d.value || 0;
-        });
-        var stMax = Object.keys(stAgg).reduce(function(m, k) { return Math.max(m, stAgg[k].n); }, 1);
-        var stageBars = Object.keys(stAgg)
-          .map(function(k) {
-            var w = Math.round((stAgg[k].n / stMax) * 100);
-            return (
-              '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px"><span style="width:110px;color:var(--text-muted)">' +
-              escapeHtml(stageApiToPt(k)) +
-              '</span><div style="flex:1;height:12px;background:var(--bg-surface);border-radius:6px;overflow:hidden"><div style="height:100%;width:' +
-              w +
-              '%;background:linear-gradient(90deg,var(--accent-purple),var(--accent-cyan));border-radius:6px"></div></div><span style="width:36px;text-align:right">' +
-              stAgg[k].n +
-              '</span><span style="width:80px;text-align:right;color:var(--accent-cyan)">$' +
-              stAgg[k].v.toLocaleString('en-US') +
-              '</span></div>'
-            );
-          })
-          .join('');
-        area.innerHTML =
-          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 8px">Saúde do pipeline</h2><p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">Health score ' +
-          healthScore +
-          '/100 · win rate ' +
-          (m.winRate || 0) +
-          '%</p>' +
-          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">' +
-          '<div class="kpi-card" style="cursor:default;animation:slide-up .3s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Ativos</div><div style="font-size:26px;font-weight:800;color:var(--accent-cyan);margin-top:6px">' +
-          deals.length +
-          '</div></div>' +
-          '<div class="kpi-card critical" style="cursor:default;animation:slide-up .32s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Em risco</div><div style="font-size:26px;font-weight:800;color:var(--accent-red);margin-top:6px">' +
-          atRisk.length +
-          '</div></div>' +
-          '<div class="kpi-card" style="cursor:default;animation:slide-up .34s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Win rate</div><div style="font-size:26px;font-weight:800;color:var(--accent-green);margin-top:6px">' +
-          (m.winRate || 0) +
-          '%</div></div>' +
-          '<div class="kpi-card" style="cursor:default;animation:slide-up .36s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Health</div><div style="font-size:26px;font-weight:800;color:var(--accent-purple-light);margin-top:6px">' +
-          healthScore +
-          '</div></div></div>' +
-          '<div class="command-grid" style="align-items:start;margin-bottom:16px">' +
-          '<div class="card" style="animation:slide-up .38s ease"><div class="card-header"><span class="card-title">Deals em risco</span><span class="card-subtitle">Score ≥ 75</span></div><div style="padding:8px 0">' +
-          (riskRows || '<p class="placeholder-note">Nenhum.</p>') +
-          '</div></div>' +
-          '<div class="card" style="animation:slide-up .4s ease"><div class="card-header"><span class="card-title">Recomendações</span></div><div style="display:flex;flex-direction:column;gap:8px;padding:8px 0">' +
-          tips.join('') +
-          '</div></div></div>' +
-          '<div class="card" style="animation:slide-up .42s ease"><div class="card-header"><span class="card-title">Distribuição por estágio</span></div><div style="padding:12px 0">' +
-          (stageBars || '<p class="placeholder-note">—</p>') +
-          '</div></div></div>';
+
+        // ── KPI calculations ──
+        // MEDDPICC Rate: deals with meddpiccScore >= 6 (mock: derive from meddpiccScore field)
+        // TODO: conectar API — usar deals.meddpiccScore quando WF06 preencher
+        var meddpiccFilled = deals.filter(function(d) { return (d.meddpiccScore || 0) >= 60; }).length;
+        var meddpiccRate = deals.length ? Math.round((meddpiccFilled / deals.length) * 100) : 42; // fallback mock
+
+        // Sales Cycle médio: avg days from createdAt to actualCloseDate for won deals
+        var cycles = wonDeals.filter(function(d) { return d.createdAt && d.actualCloseDate; })
+          .map(function(d) { return Math.max(0, Math.round((new Date(d.actualCloseDate) - new Date(d.createdAt)) / 86400000)); });
+        var avgCycle = cycles.length ? Math.round(cycles.reduce(function(a,b){return a+b;},0) / cycles.length) : 47; // fallback mock
+
+        // Avg Deal Size: avg ARR of deals in stages >= proposal
+        var proposalPlus = deals.filter(function(d) { return ['proposal','negotiation','commit','won'].includes(d.stage); });
+        var avgDealSize = proposalPlus.length ? Math.round(proposalPlus.reduce(function(a,d){return a+(d.value||0);},0) / proposalPlus.length) : 28500;
+
+        // Conversion rate Qualification → Proposal (target > 30%)
+        var qualCount = allDeals.filter(function(d){return d.stage==='qualified';}).length;
+        var proposalCount = allDeals.filter(function(d){return ['proposal','negotiation','commit','won'].includes(d.stage);}).length;
+        var convRate = (qualCount + proposalCount) ? Math.round((proposalCount / (qualCount + proposalCount)) * 100) : 34;
+
+        // Proposal Pipeline total
+        var proposalPipeline = deals.filter(function(d){return d.stage==='proposal';}).reduce(function(a,d){return a+(d.value||0);},0);
+
+        // Win rate
+        var winRate = m.winRate || (wonDeals.length ? Math.round((wonDeals.length / allDeals.length) * 100) : 0);
+
+        // ACV/S&M ratio — TODO: conectar API de custos S&M
+        var acvSmRatio = 4.2; // mock
+
+        // Health score
+        var healthScore = m.healthScore != null ? m.healthScore : Math.max(0, 100 - Math.round((atRisk.length / Math.max(deals.length,1)) * 100));
+
+        // ── Qualified Leads por país (mock data — TODO: API /leads?groupByCountry) ──
+        var leadsCountry = { AR: 28, BR: 87, COL: 22, MX: 61 };
+        var leadsTarget  = { AR: 35, BR: 100, COL: 30, MX: 80 };
+
+        // ── Build HTML ──
+        function kpiCell(label, val, sub, color, anim) {
+          return '<div class="kpi-card" style="cursor:default;animation:slide-up '+anim+'s ease">'+
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">'+label+'</div>'+
+            '<div style="font-size:26px;font-weight:800;color:'+color+';margin:6px 0 2px">'+val+'</div>'+
+            '<div style="font-size:11px;color:var(--text-muted)">'+sub+'</div></div>';
+        }
+
+        function metricBar(label, val, max, target, color) {
+          var pct = Math.min(100, Math.round((val / max) * 100));
+          var tpct = Math.min(100, Math.round((target / max) * 100));
+          var ok = val >= target;
+          return '<div style="margin-bottom:14px">'+
+            '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:5px">'+
+            '<span style="color:var(--text-muted)">'+label+'</span>'+
+            '<span style="font-weight:700;color:'+(ok?'var(--accent-green)':'var(--accent-red)')+'">'+val+' / '+target+' target</span></div>'+
+            '<div style="position:relative;height:10px;background:rgba(255,255,255,.07);border-radius:5px;overflow:visible">'+
+            '<div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:5px;transition:width .8s ease"></div>'+
+            '<div style="position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent-amber,#F59E0B);border-radius:1px;left:'+tpct+'%"></div>'+
+            '</div></div>';
+        }
+
+        var kpiGrid = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
+          kpiCell('MEDDPICC Rate', meddpiccRate+'%', 'Target: 70%', meddpiccRate>=70?'var(--accent-green)':'var(--accent-red)', '.3')+
+          kpiCell('Sales Cycle', avgCycle+'d', 'Média Qualification→Won', avgCycle<=45?'var(--accent-cyan)':'var(--accent-amber,#F59E0B)', '.32')+
+          kpiCell('Avg Deal Size', '$'+avgDealSize.toLocaleString('en-US'), 'Estágios ≥ Proposal', 'var(--accent-purple-light)', '.34')+
+          kpiCell('ACV/S&M', acvSmRatio+'x', '// TODO: conectar custos S&M', 'var(--accent-green)', '.36')+
+          '</div>';
+
+        var convSection = '<div class="card" style="animation:slide-up .38s ease;margin-bottom:16px">'+
+          '<div class="card-header"><span class="card-title">Taxas de Conversão — Playbook Targets</span></div>'+
+          '<div style="padding:8px 0">'+
+          metricBar('Qualification → Proposal', convRate, 100, 30, 'linear-gradient(90deg,var(--accent-purple),var(--accent-cyan))')+
+          metricBar('Proposal Pipeline (USD k)', Math.round(proposalPipeline/1000), 15000, 12000, 'linear-gradient(90deg,var(--accent-purple),var(--accent-amber,#F59E0B))')+
+          metricBar('Win Rate Geral', winRate, 100, 25, 'linear-gradient(90deg,var(--accent-cyan),var(--accent-green))')+
+          metricBar('MEDDPICC Rate', meddpiccRate, 100, 70, 'linear-gradient(90deg,var(--accent-purple),var(--accent-purple-light))')+
+          '</div></div>';
+
+        var countryBars = Object.keys(leadsCountry).map(function(c) {
+          var v = leadsCountry[c], t = leadsTarget[c];
+          var ok = v >= t;
+          return '<div style="margin-bottom:10px">'+
+            '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:4px">'+
+            '<span style="font-weight:600">'+c+'</span>'+
+            '<span style="color:'+(ok?'var(--accent-green)':'var(--accent-amber,#F59E0B)')+'">'+v+' / '+t+'</span></div>'+
+            '<div style="position:relative;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:visible">'+
+            '<div style="height:100%;width:'+Math.min(100,Math.round(v/t*100))+'%;background:'+(ok?'var(--accent-green)':'var(--accent-amber,#F59E0B)')+';border-radius:4px;transition:width .8s ease"></div>'+
+            '</div></div>';
+        }).join('');
+
+        var riskRows = atRisk.slice(0,5).map(function(d) {
+          var did = String(d.id||'').replace(/'/g,"\\'");
+          return '<div class="deal-row critical" style="cursor:pointer" onclick="guardlineForecastOpenDeal(\''+did+'\')">'+
+            '<div class="risk-badge risk-critical">'+(d.riskScore||0)+'</div>'+
+            '<div><div class="deal-name">'+escapeHtml(d.companyName||'')+'</div>'+
+            '<div class="deal-meta"><span>$'+(d.value||0).toLocaleString('en-US')+'</span>'+
+            '<span>'+(d.daysSinceContact!=null?d.daysSinceContact+'d s/contato':'—')+'</span></div></div>'+
+            '<span class="act-btn" style="pointer-events:none">Ver</span></div>';
+        }).join('') || '<p class="placeholder-note">Nenhum deal em risco crítico.</p>';
+
+        area.innerHTML = '<div class="pipeline-page-wrap">'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+          '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Pipeline Health Dashboard</h2>'+
+          '<p style="font-size:13px;color:var(--text-muted);margin:0">Baseado no Sales Playbook Guardline · Health score: <strong style="color:var(--accent-purple-light)">'+healthScore+'/100</strong></p></div>'+
+          '<button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-funnel\')">Ver Funil Completo →</button></div>'+
+          kpiGrid + convSection +
+          '<div class="command-grid" style="align-items:start;margin-bottom:16px">'+
+          '<div class="card" style="animation:slide-up .44s ease">'+
+          '<div class="card-header"><span class="card-title">Leads Qualificados por País</span>'+
+          '<span class="card-subtitle">// TODO: API /leads?groupByCountry</span></div>'+
+          '<div style="padding:8px 0">'+countryBars+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border-subtle,#2A2A3E);padding-top:10px;margin-top:4px">Targets: AR=35 · BR=100 · COL=30 · MX=80</div>'+
+          '</div>'+
+          '<div class="card" style="animation:slide-up .46s ease">'+
+          '<div class="card-header"><span class="card-title">Deals em Risco Crítico</span><span class="card-subtitle">Score ≥ 75</span></div>'+
+          '<div style="padding:4px 0">'+riskRows+'</div></div></div>'+
+          '<div style="font-size:11px;color:var(--text-muted);background:rgba(108,63,197,.06);border:1px solid rgba(108,63,197,.15);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px">'+
+          '<i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;color:var(--accent-purple)"></i>'+
+          'ACV/S&M Ratio, Leads por país e MEDDPICC Rate completo requerem integração com CRM/ERP. Marcados com // TODO acima.</div>'+
+          '</div>';
       } catch (e) {
-        showToast('error', 'Saúde', (e && e.message) || String(e));
+        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function renderPipelineFunnel() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Funnel', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      try {
+        var r = await API.get('/deals?perPage=200&sortBy=createdAt&sortOrder=desc');
+        var allDeals = r.data || [];
+
+        // Playbook stage definitions
+        var stages = [
+          { key:'qualified',    label:'Qualification',  wr:5,  target:50000000,  color:'#818cf8' },
+          { key:'presentation', label:'Scope & Validate', wr:12, target:20000000, color:'#60a5fa' },
+          { key:'proposal',     label:'Active Pursuit', wr:15, target:17000000,  color:'#34d399' },
+          { key:'negotiation',  label:'Proposal',       wr:20, target:12500000,  color:'#fb923c' },
+          { key:'commit',       label:'Negotiate',      wr:60, target:4200000,   color:'#f472b6' },
+          { key:'won',          label:'Commit',         wr:90, target:2800000,   color:'#4ade80' },
+        ];
+
+        // Aggregate actual deals per stage
+        var agg = {};
+        stages.forEach(function(s){ agg[s.key]={n:0,v:0}; });
+        allDeals.forEach(function(d){
+          var k = d.stage||'';
+          if(agg[k]){ agg[k].n++; agg[k].v+=(d.value||0); }
+        });
+
+        // Total pipeline & coverage ratio (ARR target = $2.5M)
+        var ARR_TARGET = 2500000;
+        var totalPipeline = Object.keys(agg).reduce(function(a,k){return a+agg[k].v;},0);
+        var coverageRatio = ARR_TARGET ? (totalPipeline / ARR_TARGET).toFixed(1) : '—';
+        var weightedForecast = stages.reduce(function(a,s){ return a + (agg[s.key].v * (s.wr/100)); }, 0);
+
+        var maxV = Math.max.apply(null, stages.map(function(s){return Math.max(agg[s.key].v, s.target);})) || 1;
+
+        function fmtM(v){
+          if(v>=1000000) return '$'+(v/1000000).toFixed(1)+'M';
+          if(v>=1000) return '$'+Math.round(v/1000)+'k';
+          return '$'+v;
+        }
+
+        var funnelRows = stages.map(function(s, i){
+          var act = agg[s.key];
+          var actPct = Math.min(100, Math.round((act.v / maxV) * 100));
+          var tgtPct = Math.min(100, Math.round((s.target / maxV) * 100));
+          var vsTarget = act.v >= s.target;
+          var weighted = Math.round(act.v * (s.wr/100));
+          return '<div style="display:grid;grid-template-columns:140px 1fr 80px 90px 80px;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);animation:slide-up '+(0.3+i*0.05)+'s ease">'+
+            '<div>'+
+            '<div style="font-size:13px;font-weight:600">'+escapeHtml(s.label)+'</div>'+
+            '<div style="font-size:10px;color:var(--text-muted);margin-top:2px">Win Rate: '+s.wr+'%</div></div>'+
+            '<div style="position:relative">'+
+            '<div style="height:12px;background:rgba(255,255,255,.06);border-radius:6px;overflow:visible;margin-bottom:3px">'+
+            '<div style="height:100%;width:'+actPct+'%;background:'+s.color+';border-radius:6px;transition:width 1s ease;opacity:.9"></div>'+
+            '<div style="position:absolute;top:0;height:12px;width:2px;background:rgba(255,255,255,.3);border-radius:1px;left:'+tgtPct+'%;"></div>'+
+            '</div>'+
+            '<div style="display:flex;gap:10px;font-size:10px;color:var(--text-muted)">'+
+            '<span style="color:'+s.color+'">Atual: '+fmtM(act.v)+'</span>'+
+            '<span>Target: '+fmtM(s.target)+'</span></div></div>'+
+            '<div style="text-align:right">'+
+            '<div style="font-size:14px;font-weight:700;color:'+s.color+'">'+act.n+'</div>'+
+            '<div style="font-size:10px;color:var(--text-muted)">deals</div></div>'+
+            '<div style="text-align:right">'+
+            '<div style="font-size:13px;font-weight:600;color:'+(vsTarget?'var(--accent-green)':'var(--accent-red)')+'">'+fmtM(act.v)+'</div>'+
+            '<div style="font-size:10px;color:var(--text-muted)">atual</div></div>'+
+            '<div style="text-align:right">'+
+            '<div style="font-size:13px;font-weight:600;color:var(--accent-cyan)">'+fmtM(weighted)+'</div>'+
+            '<div style="font-size:10px;color:var(--text-muted)">ponderado</div></div>'+
+            '</div>';
+        }).join('');
+
+        var coverageColor = Number(coverageRatio) >= 3 ? 'var(--accent-green)' : Number(coverageRatio) >= 2 ? 'var(--accent-amber,#F59E0B)' : 'var(--accent-red)';
+
+        area.innerHTML = '<div class="pipeline-page-wrap">'+
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+          '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Pipeline Funnel View</h2>'+
+          '<p style="font-size:13px;color:var(--text-muted);margin:0">Playbook: Qualification → Commit · ARR Target $2.5M</p></div>'+
+          '<button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-health\')">← KPI Dashboard</button></div>'+
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .3s ease">'+
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Pipeline Total</div>'+
+          '<div style="font-size:26px;font-weight:800;color:var(--accent-cyan);margin:6px 0 2px">'+fmtM(totalPipeline)+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted)">todos os estágios</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .32s ease">'+
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Coverage Ratio</div>'+
+          '<div style="font-size:26px;font-weight:800;color:'+coverageColor+';margin:6px 0 2px">'+coverageRatio+'x</div>'+
+          '<div style="font-size:11px;color:var(--text-muted)">pipeline / ARR target</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .34s ease">'+
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Forecast Ponderado</div>'+
+          '<div style="font-size:26px;font-weight:800;color:var(--accent-green);margin:6px 0 2px">'+fmtM(weightedForecast)+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted)">win rate × ARR por estágio</div></div>'+
+          '<div class="kpi-card" style="cursor:default;animation:slide-up .36s ease">'+
+          '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">ARR Target</div>'+
+          '<div style="font-size:26px;font-weight:800;color:var(--accent-purple-light);margin:6px 0 2px">'+fmtM(ARR_TARGET)+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted)">mensal · Sizing Guardline</div></div>'+
+          '</div>'+
+          '<div class="card" style="animation:slide-up .38s ease;margin-bottom:16px">'+
+          '<div class="card-header">'+
+          '<span class="card-title">Funil por Estágio</span>'+
+          '<div style="display:flex;gap:16px;font-size:11px;color:var(--text-muted)">'+
+          '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:2px;background:rgba(255,255,255,.3);display:inline-block"></span>Target</span>'+
+          '<span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:6px;background:var(--accent-cyan);border-radius:2px;display:inline-block"></span>Atual</span>'+
+          '</div></div>'+
+          '<div style="display:grid;grid-template-columns:140px 1fr 80px 90px 80px;gap:12px;padding:8px 0;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid rgba(255,255,255,.08)">'+
+          '<span>Estágio</span><span>Barra (vs target)</span><span style="text-align:right">Deals</span><span style="text-align:right">ARR</span><span style="text-align:right">Pond.</span></div>'+
+          funnelRows+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:8px">'+
+          '<i data-lucide="info" style="width:14px;height:14px;flex-shrink:0;color:var(--accent-green)"></i>'+
+          'Win rates do Playbook: Qualification 5% · Scope 12% · Active 15% · Proposal 20% · Negotiate 60% · Commit 90%</div>'+
+          '</div>';
+      } catch (e) {
+        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -15007,6 +15161,7 @@
       'sdr-hub': renderSdrHub,
       meddpicc: renderMeddpiccScreen,
       'pipeline-health': renderPipelineHealth,
+      'pipeline-funnel': renderPipelineFunnel,
       'market-signals': renderMarketSignals,
       'product-intelligence': renderProductIntelligence,
       alerts: renderAlertsScreen,
@@ -15025,7 +15180,8 @@
       'channel-deals': 'Deals de canal',
       'sdr-hub': 'SDR Hub',
       meddpicc: 'MEDDPICC',
-      'pipeline-health': 'Saúde & churn',
+      'pipeline-health': 'Pipeline Health — KPI Dashboard',
+      'pipeline-funnel': 'Pipeline Funnel View',
       'market-signals': 'Sinais de mercado',
       'product-intelligence': 'Inteligência de produto',
       alerts: 'Alertas',

@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Guardline Revenue OS — Command Center</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --primary:#6C3FC5;--secondary:#F97316;--bg:#0F0F1A;--surface:#1A1A2E;
+  --border:#2A2A3E;--text:#FFFFFF;--muted:#8B8BA7;--success:#10B981;
+  --danger:#EF4444;--warning:#F59E0B;--grad:linear-gradient(135deg,#6C3FC5,#F97316);
+  --hdr:60px;--sb:220px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+a{text-decoration:none;color:inherit}
+button{font-family:inherit;cursor:pointer;border:none;outline:none}
+
+/* ─── HEADER ─── */
+.hdr{position:fixed;top:0;left:0;right:0;height:var(--hdr);background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;z-index:200;opacity:0;transform:translateY(-16px)}
+.hdr.in{animation:slideDown .35s ease forwards}
+@keyframes slideDown{to{opacity:1;transform:translateY(0)}}
+.logo{display:flex;align-items:center;gap:10px;width:var(--sb);flex-shrink:0}
+.logo-shield{width:32px;height:32px;background:var(--grad);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.logo-txt{font-size:14px;font-weight:800;letter-spacing:2.5px;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdr-center{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;font-size:12px;color:var(--muted)}
+.live-dot{width:7px;height:7px;background:var(--success);border-radius:50%;animation:pulseDot 2s infinite}
+@keyframes pulseDot{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}60%{box-shadow:0 0 0 5px rgba(16,185,129,0)}}
+.hdr-right{display:flex;align-items:center;gap:12px}
+.icon-btn{position:relative;width:34px;height:34px;background:var(--surface);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .15s}
+.icon-btn:hover{border-color:var(--primary)}
+.notif-pip{position:absolute;top:7px;right:7px;width:7px;height:7px;background:var(--secondary);border-radius:50%;border:1.5px solid var(--bg)}
+.avatar{width:34px;height:34px;background:var(--grad);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;cursor:pointer}
+
+/* ─── SIDEBAR ─── */
+.sb{position:fixed;top:var(--hdr);left:0;bottom:0;width:var(--sb);background:var(--surface);border-right:1px solid var(--border);overflow-y:auto;z-index:100;opacity:0;transform:translateX(-16px)}
+.sb.in{animation:slideRight .35s .1s ease forwards}
+@keyframes slideRight{to{opacity:1;transform:translateX(0)}}
+.sb::-webkit-scrollbar{width:3px}.sb::-webkit-scrollbar-track{background:transparent}.sb::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sb-sec{padding:18px 8px 4px}
+.sb-sec-ttl{font-size:9px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted);padding:0 8px;margin-bottom:2px}
+.mi{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:13px;transition:background .15s,color .15s;position:relative;overflow:hidden}
+.mi:hover{background:rgba(108,63,197,.08);color:var(--text)}
+.mi.active{background:rgba(108,63,197,.14);color:var(--text)}
+.mi.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--primary);border-radius:0 3px 3px 0}
+.mi.active .mi-ico{color:var(--primary)}
+.mi-ico{width:16px;height:16px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.mi-lbl{flex:1;font-size:13px;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mi-bdg{font-size:10px;padding:1px 6px;border-radius:999px;font-weight:600;flex-shrink:0;line-height:1.5}
+.bdg-o{background:rgba(249,115,22,.18);color:var(--secondary)}
+.bdg-r{background:rgba(239,68,68,.18);color:var(--danger)}
+.bdg-g{background:rgba(16,185,129,.18);color:var(--success)}
+.bdg-p{background:rgba(108,63,197,.18);color:var(--primary)}
+
+/* ─── MAIN ─── */
+.main{margin-left:var(--sb);margin-top:var(--hdr);padding:20px;min-height:calc(100vh - var(--hdr))}
+
+/* ─── KPI BAR ─── */
+.kpi-bar{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px;opacity:0;transform:translateY(10px)}
+.kpi-bar.in{animation:fadeUp .4s .2s ease forwards}
+@keyframes fadeUp{to{opacity:1;transform:translateY(0)}}
+.kpi-c{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:transform .2s,box-shadow .2s,border-color .2s;position:relative;overflow:hidden}
+.kpi-c:hover{transform:scale(1.02);box-shadow:0 0 22px rgba(108,63,197,.22);border-color:rgba(108,63,197,.4)}
+.kpi-top{display:flex;align-items:flex-start;justify-content:space-between}
+.kpi-lbl{font-size:11px;color:var(--muted);font-weight:500;line-height:1}
+.kpi-spark{flex-shrink:0}
+.kpi-val{font-size:24px;font-weight:700;line-height:1;margin:6px 0 4px}
+.kpi-sub{display:flex;align-items:center;gap:5px;font-size:11px}
+.pos{color:var(--success)}.neg{color:var(--danger)}.neu{color:var(--muted)}
+.kpi-prog{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-top:6px}
+.kpi-prog-fill{height:100%;border-radius:2px;background:var(--primary);width:0;transition:width 1.5s cubic-bezier(.23,1,.32,1)}
+
+/* ─── CARDS GRID ─── */
+.row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;opacity:0;transform:translateY(20px);transition:transform .2s,box-shadow .2s}
+.card:hover{transform:scale(1.01) translateY(0);box-shadow:0 0 22px rgba(108,63,197,.14)}
+.card.in{animation:fadeUp .4s ease forwards}
+.card-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-ttl{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.card-ttl-ico{width:16px;height:16px;flex-shrink:0}
+.card-act{font-size:11px;color:var(--primary);cursor:pointer}
+
+/* ─── GAUGE ─── */
+.gauge-wrap{display:flex;align-items:center;gap:20px}
+.gauge-fig{width:140px;height:90px;flex-shrink:0;position:relative}
+#gaugeCanvas{position:absolute;top:-20px;left:0}
+.gauge-val{position:absolute;bottom:0;left:50%;transform:translateX(-50%);text-align:center}
+.gauge-num{font-size:28px;font-weight:700;line-height:1}
+.gauge-sub{font-size:10px;color:var(--muted)}
+.stat-row{display:flex;align-items:center;gap:10px;font-size:13px;padding:5px 0}
+.stat-ico{width:16px;height:16px;flex-shrink:0}
+.stat-lbl{flex:1;color:var(--muted)}
+.stat-val{font-weight:600}
+
+/* ─── INSIGHTS ─── */
+.insight{display:flex;align-items:flex-start;gap:12px;padding:11px 12px;background:rgba(108,63,197,.05);border:1px solid rgba(108,63,197,.13);border-radius:10px;margin-bottom:8px;opacity:0;transform:translateX(20px)}
+.insight.in{animation:slideLeft .4s ease forwards}
+@keyframes slideLeft{to{opacity:1;transform:translateX(0)}}
+.ins-ico{width:30px;height:30px;border-radius:8px;background:rgba(108,63,197,.18);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ins-body{flex:1}
+.ins-ttl{font-size:12px;font-weight:600;line-height:1.3}
+.ins-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.ins-tag{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;letter-spacing:.3px;flex-shrink:0;align-self:flex-start}
+.tag-r{background:rgba(239,68,68,.15);color:var(--danger)}
+.tag-y{background:rgba(245,158,11,.15);color:var(--warning)}
+.tag-g{background:rgba(16,185,129,.15);color:var(--success)}
+.see-all{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--primary);margin-top:10px}
+
+/* ─── DEALS ─── */
+.deal-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.deal-row:last-child{border-bottom:none}
+.deal-num{width:18px;font-size:11px;color:var(--muted);text-align:center;flex-shrink:0}
+.deal-name{flex:1;font-size:13px;font-weight:500}
+.deal-val{font-size:12px;color:var(--muted);flex-shrink:0}
+.deal-btn{display:flex;align-items:center;gap:4px;font-size:11px;padding:4px 10px;background:rgba(108,63,197,.13);border:1px solid rgba(108,63,197,.28);border-radius:6px;color:var(--primary);transition:background .15s;flex-shrink:0}
+.deal-btn:hover{background:rgba(108,63,197,.28)}
+.deal-score-bar{height:3px;border-radius:2px;margin-top:3px;background:var(--grad)}
+
+/* ─── WIN RATE BARS ─── */
+.wr-row{display:flex;align-items:center;gap:12px;margin-bottom:13px}
+.wr-lbl{width:78px;font-size:12px;color:var(--muted);flex-shrink:0}
+.wr-track{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden}
+.wr-fill{height:100%;border-radius:4px;width:0;transition:width 1.5s cubic-bezier(.23,1,.32,1)}
+.wr-pct{width:32px;font-size:12px;font-weight:600;text-align:right;flex-shrink:0}
+
+/* ─── CHART ─── */
+.chart-box{height:210px;position:relative}
+
+/* ─── AUTOMAÇÕES ─── */
+.auto-kpis{display:flex;align-items:center;gap:24px;margin-bottom:16px}
+.auto-big{font-size:38px;font-weight:700;line-height:1}
+.auto-lbl{font-size:11px;color:var(--muted);margin-top:2px}
+.auto-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+.auto-row:last-child{border-bottom:none}
+.a-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.a-name{flex:1}
+.a-time{color:var(--muted);font-size:11px}
+
+/* ─── SIGNAL FEED ─── */
+.sig-sec{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;opacity:0;transform:translateY(20px)}
+.sig-sec.in{animation:fadeUp .4s 1s ease forwards}
+.sig-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.sig-ttl{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600}
+.live-badge{font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 7px;border-radius:999px;background:rgba(16,185,129,.14);color:var(--success);animation:liveP 2s infinite}
+@keyframes liveP{0%,100%{opacity:1}50%{opacity:.55}}
+.sig-row{display:flex;align-items:center;gap:12px;padding:11px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;transition:background .2s}
+.sig-row:hover{background:rgba(255,255,255,.02)}
+.sig-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.sig-body{flex:1}
+.sig-txt{font-size:13px;font-weight:500}
+.sig-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.sig-acts{display:flex;gap:8px;flex-shrink:0}
+.btn-p{display:flex;align-items:center;gap:4px;font-size:11px;padding:5px 12px;background:var(--primary);border-radius:6px;color:#fff;transition:opacity .15s,transform .1s}
+.btn-p:hover{opacity:.88}.btn-p:active{transform:scale(.97)}
+.btn-g{display:flex;align-items:center;gap:4px;font-size:11px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);transition:border-color .15s,color .15s}
+.btn-g:hover{border-color:var(--muted);color:var(--text)}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1280px){.kpi-bar{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:1024px){.sb{transform:translateX(-100%)}.main{margin-left:0}.kpi-bar{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr" id="hdr">
+  <div class="logo">
+    <div class="logo-shield">🛡</div>
+    <span class="logo-txt">GUARDLINE</span>
+  </div>
+  <div class="hdr-center">
+    <div class="live-dot"></div>
+    <span>Live Intelligence &nbsp;·&nbsp; atualizado há 2s</span>
+  </div>
+  <div class="hdr-right">
+    <div class="icon-btn">
+      <svg width="15" height="15" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <div class="notif-pip"></div>
+    </div>
+    <div class="avatar">JA</div>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<nav class="sb" id="sb">
+  <div class="sb-sec">
+    <div class="sb-sec-ttl">Inteligência</div>
+    <a class="mi active" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span>
+      <span class="mi-lbl">Command Center</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg></span>
+      <span class="mi-lbl">Júlio AI</span>
+      <span class="mi-bdg bdg-p">3</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span>
+      <span class="mi-lbl">Signal Feed</span>
+      <span class="mi-bdg bdg-o">12</span>
+    </a>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-ttl">Receita</div>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>
+      <span class="mi-lbl">Pipeline</span>
+      <span class="mi-bdg bdg-r">4 risco</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <span class="mi-lbl">Leads</span>
+      <span class="mi-bdg bdg-g">18</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+      <span class="mi-lbl">Forecast BDR</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+      <span class="mi-lbl">Loss Intelligence</span>
+    </a>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-ttl">Operações</div>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+      <span class="mi-lbl">Automações</span>
+      <span class="mi-bdg bdg-r">2</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></span>
+      <span class="mi-lbl">Integrações</span>
+    </a>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-ttl">Expandido</div>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></span>
+      <span class="mi-lbl">Investor Pipeline</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span>
+      <span class="mi-lbl">Fraud Map</span>
+      <span class="mi-bdg bdg-o">47</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+      <span class="mi-lbl">Relatórios</span>
+    </a>
+  </div>
+  <div class="sb-sec">
+    <div class="sb-sec-ttl">Revenue Go-to</div>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></span>
+      <span class="mi-lbl">SDR Hub</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></span>
+      <span class="mi-lbl">Inbox</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
+      <span class="mi-lbl">Contas</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>
+      <span class="mi-lbl">Contatos</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      <span class="mi-lbl">Reuniões</span>
+    </a>
+    <a class="mi" href="#">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+      <span class="mi-lbl">Documentos</span>
+    </a>
+    <a class="mi" href="#" style="margin-bottom:12px">
+      <span class="mi-ico"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg></span>
+      <span class="mi-lbl">Admin</span>
+    </a>
+  </div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+  <!-- KPI BAR -->
+  <div class="kpi-bar" id="kpiBar">
+    <div class="kpi-c">
+      <div class="kpi-top">
+        <span class="kpi-lbl">Pipeline Total</span>
+        <canvas id="sp1" class="kpi-spark" width="60" height="28"></canvas>
+      </div>
+      <div class="kpi-val" id="kv0">$0</div>
+      <div class="kpi-sub"><span class="pos">▲ 12%</span><span class="neu">vs anterior</span></div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-top">
+        <span class="kpi-lbl">Deals Ativos</span>
+        <canvas id="sp2" class="kpi-spark" width="60" height="28"></canvas>
+      </div>
+      <div class="kpi-val" id="kv1">0</div>
+      <div class="kpi-sub"><span class="neg">▼ 2 em risco</span></div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-top"><span class="kpi-lbl">Win Rate</span></div>
+      <div class="kpi-val" id="kv2">0%</div>
+      <div class="kpi-sub"><span class="neu">Meta 65% · Gap 2%</span></div>
+      <div class="kpi-prog"><div class="kpi-prog-fill" id="wrProg"></div></div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-top">
+        <span class="kpi-lbl">ARR</span>
+        <canvas id="sp4" class="kpi-spark" width="60" height="28"></canvas>
+      </div>
+      <div class="kpi-val" id="kv3">$0</div>
+      <div class="kpi-sub"><span class="pos">▲ 8% MoM</span></div>
+    </div>
+    <div class="kpi-c">
+      <div class="kpi-top">
+        <span class="kpi-lbl">Inboxes Ativas</span>
+        <canvas id="sp5" class="kpi-spark" width="60" height="28"></canvas>
+      </div>
+      <div class="kpi-val" id="kv4">0</div>
+      <div class="kpi-sub"><span class="neg">3 com alertas</span></div>
+    </div>
+  </div>
+
+  <!-- ROW 1 -->
+  <div class="row">
+    <!-- PIPELINE HEALTH -->
+    <div class="card" id="c0">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Pipeline Health
+        </div>
+        <span class="card-act">Ver detalhes →</span>
+      </div>
+      <div class="gauge-wrap">
+        <div class="gauge-fig">
+          <canvas id="gaugeCanvas" width="140" height="120"></canvas>
+          <div class="gauge-val">
+            <div class="gauge-num" id="gaugeNum">0</div>
+            <div class="gauge-sub">/100</div>
+          </div>
+        </div>
+        <div style="flex:1">
+          <div class="stat-row">
+            <svg class="stat-ico" fill="none" stroke="var(--muted)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="stat-lbl">Em prospecção</span><span class="stat-val">8 deals</span>
+          </div>
+          <div class="stat-row">
+            <svg class="stat-ico" fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="stat-lbl">Qualificados</span><span class="stat-val" style="color:var(--success)">5 deals</span>
+          </div>
+          <div class="stat-row">
+            <svg class="stat-ico" fill="none" stroke="var(--danger)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span class="stat-lbl">Em risco</span><span class="stat-val" style="color:var(--danger)">2 deals</span>
+          </div>
+          <div class="stat-row">
+            <svg class="stat-ico" fill="none" stroke="var(--warning)" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            <span class="stat-lbl">Health Score</span><span class="stat-val" style="color:var(--warning)">68/100</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JÚLIO AI -->
+    <div class="card" id="c1">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Júlio AI
+        </div>
+        <a href="#" class="card-act">Config →</a>
+      </div>
+      <div id="insWrap">
+        <div class="insight" data-i="0">
+          <div class="ins-ico"><svg width="14" height="14" fill="none" stroke="var(--danger)" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+          <div class="ins-body"><div class="ins-ttl">Alfa Solutions sem contato há 4 dias</div><div class="ins-sub">Proposta enviada · $24k em risco</div></div>
+          <span class="ins-tag tag-r">URGENTE</span>
+        </div>
+        <div class="insight" data-i="1">
+          <div class="ins-ico"><svg width="14" height="14" fill="none" stroke="var(--warning)" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
+          <div class="ins-body"><div class="ins-ttl">Win rate Cold Email caiu para 11%</div><div class="ins-sub">Abaixo da média da equipa · 27% baseline</div></div>
+          <span class="ins-tag tag-y">INSIGHT</span>
+        </div>
+        <div class="insight" data-i="2">
+          <div class="ins-ico"><svg width="14" height="14" fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div class="ins-body"><div class="ins-ttl">Forecast ok — Gap para meta coberto</div><div class="ins-sub">Pipeline cobre 115% do target mensal</div></div>
+          <span class="ins-tag tag-g">OK</span>
+        </div>
+      </div>
+      <a href="#" class="see-all">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 8 16 12 12 16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Ver análise completa
+      </a>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="row">
+    <!-- FOCAR HOJE -->
+    <div class="card" id="c2">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--secondary)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+          Focar Hoje
+        </div>
+        <span style="font-size:11px;color:var(--muted)">Recomendado por IA</span>
+      </div>
+      <div class="deal-row"><span class="deal-num">1</span><span class="deal-name">Alfa Solutions</span><span class="deal-val">$24k</span><button class="deal-btn">Agir <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button></div>
+      <div class="deal-row"><span class="deal-num">2</span><span class="deal-name">CloudBase Inc</span><span class="deal-val">$15k</span><button class="deal-btn">Agir <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button></div>
+      <div class="deal-row"><span class="deal-num">3</span><span class="deal-name">Legacy Corp</span><span class="deal-val">$8k</span><button class="deal-btn">Agir <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button></div>
+      <div class="deal-row"><span class="deal-num">4</span><span class="deal-name">Stale SaaS</span><span class="deal-val">$14k</span><button class="deal-btn">Agir <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></button></div>
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Score IA: 70–79 · todos os itens acima
+      </div>
+    </div>
+
+    <!-- WIN RATE POR FONTE -->
+    <div class="card" id="c3">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+          Win Rate por Fonte
+        </div>
+        <span style="font-size:11px;color:var(--muted)">Últimos 30d</span>
+      </div>
+      <div class="wr-row"><span class="wr-lbl">LinkedIn</span><div class="wr-track"><div class="wr-fill" data-p="42" style="background:var(--primary)"></div></div><span class="wr-pct" style="color:var(--primary)">42%</span></div>
+      <div class="wr-row"><span class="wr-lbl">Indicação</span><div class="wr-track"><div class="wr-fill" data-p="38" style="background:var(--success)"></div></div><span class="wr-pct" style="color:var(--success)">38%</span></div>
+      <div class="wr-row"><span class="wr-lbl">Inbound</span><div class="wr-track"><div class="wr-fill" data-p="27" style="background:var(--warning)"></div></div><span class="wr-pct" style="color:var(--warning)">27%</span></div>
+      <div class="wr-row"><span class="wr-lbl">Cold Email</span><div class="wr-track"><div class="wr-fill" data-p="11" style="background:var(--danger)"></div></div><span class="wr-pct" style="color:var(--danger)">11%</span></div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>
+          Tendência da semana
+        </div>
+        <div class="chart-box" style="height:90px"><canvas id="trendChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="row">
+    <!-- REVENUE FORECAST -->
+    <div class="card" id="c4">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--primary)" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          Revenue Forecast — 90 dias
+        </div>
+        <span class="card-act">Exportar →</span>
+      </div>
+      <div class="chart-box"><canvas id="forecastChart"></canvas></div>
+    </div>
+
+    <!-- AUTOMAÇÕES -->
+    <div class="card" id="c5">
+      <div class="card-hdr">
+        <div class="card-ttl">
+          <svg class="card-ttl-ico" fill="none" stroke="var(--secondary)" stroke-width="2" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Automações Ativas
+        </div>
+        <span class="card-act">Ver todas →</span>
+      </div>
+      <div class="auto-kpis">
+        <div>
+          <div class="auto-big" id="autoN">0</div>
+          <div class="auto-lbl">rodando</div>
+        </div>
+        <canvas id="autoDonut" width="80" height="80"></canvas>
+        <div>
+          <div style="font-size:22px;font-weight:700;color:var(--success)" id="autoRate">0%</div>
+          <div class="auto-lbl">taxa sucesso</div>
+        </div>
+      </div>
+      <div class="auto-row"><div class="a-dot" style="background:var(--success)"></div><span class="a-name">Lead scoring WF04</span><span class="a-time">há 2min</span></div>
+      <div class="auto-row"><div class="a-dot" style="background:var(--danger)"></div><span class="a-name">Enrich WF06</span><span class="a-time" style="color:var(--danger)">FALHOU · 8min</span></div>
+      <div class="auto-row"><div class="a-dot" style="background:var(--success)"></div><span class="a-name">Signal Detector WF08</span><span class="a-time">há 15min</span></div>
+    </div>
+  </div>
+
+  <!-- SIGNAL FEED -->
+  <div class="sig-sec" id="sigSec">
+    <div class="sig-hdr">
+      <div class="sig-ttl">
+        <svg width="15" height="15" fill="none" stroke="var(--warning)" stroke-width="2" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        Signal Feed
+        <span class="live-badge">LIVE</span>
+      </div>
+      <span style="font-size:11px;color:var(--muted);margin-left:auto">4 alertas activos</span>
+    </div>
+    <div class="sig-row"><div class="sig-dot" style="background:var(--danger)"></div><div class="sig-body"><div class="sig-txt">Deal sem atividade — Gemma Finance</div><div class="sig-sub">7 dias sem resposta · Proposta · $18k</div></div><div class="sig-acts"><button class="btn-p"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>Agir agora</button><button class="btn-g">Ignorar</button></div></div>
+    <div class="sig-row"><div class="sig-dot" style="background:var(--danger)"></div><div class="sig-body"><div class="sig-txt">Deal sem atividade — Echo Commerce</div><div class="sig-sub">7 dias sem resposta · Qualificação · $22k</div></div><div class="sig-acts"><button class="btn-p"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>Agir agora</button><button class="btn-g">Ignorar</button></div></div>
+    <div class="sig-row"><div class="sig-dot" style="background:var(--success)"></div><div class="sig-body"><div class="sig-txt">Pipeline em movimento — negociações acima da média</div><div class="sig-sub">Ticket médio $31k vs meta $28k na semana</div></div><div class="sig-acts"><button class="btn-g">Ver detalhes</button></div></div>
+    <div class="sig-row"><div class="sig-dot" style="background:var(--primary)"></div><div class="sig-body"><div class="sig-txt">Leads quentes · 3 com Score > 85</div><div class="sig-sub">Aguardando primeiro contato há mais de 24h</div></div><div class="sig-acts"><button class="btn-p">Ver leads</button></div></div>
+  </div>
+
+</main>
+
+<script>
+// ── Easing ──
+function easeOutExpo(t){return t===1?1:1-Math.pow(2,-10*t)}
+function easeOutCubic(t){return 1-Math.pow(1-t,3)}
+
+// ── Counter-up ──
+function counter(el,target,ms,fmt){
+  var s=null;
+  (function step(ts){
+    if(!s)s=ts;
+    var p=Math.min((ts-s)/ms,1);
+    el.textContent=fmt(easeOutExpo(p)*target);
+    if(p<1)requestAnimationFrame(step);
+    else el.textContent=fmt(target);
+  })(0);
+  requestAnimationFrame(function(ts){
+    s=ts;
+    (function step(ts2){
+      var p=Math.min((ts2-s)/ms,1);
+      el.textContent=fmt(easeOutExpo(p)*target);
+      if(p<1)requestAnimationFrame(step);
+      else el.textContent=fmt(target);
+    })(ts);
+  });
+}
+
+function fmtPipeline(v){
+  var n=Math.round(v);
+  return '$'+n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
+}
+function fmtPct(v){return Math.round(v)+'%'}
+function fmtInt(v){return Math.round(v).toString()}
+function fmtARR(v){return '$'+Math.round(v/1000)+'k'}
+function fmtRate(v){return v.toFixed(1)+'%'}
+
+// ── Sparkline ──
+function spark(id,data,color){
+  var c=document.getElementById(id);if(!c)return;
+  var cx=c.getContext('2d'),w=c.width,h=c.height;
+  var mn=Math.min.apply(null,data),mx=Math.max.apply(null,data),rng=mx-mn||1;
+  cx.clearRect(0,0,w,h);
+  var g=cx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0,color+'55');g.addColorStop(1,color+'00');
+  cx.beginPath();
+  data.forEach(function(d,i){
+    var x=i/(data.length-1)*w,y=h-((d-mn)/rng*h*.75)-h*.1;
+    i?cx.lineTo(x,y):cx.moveTo(x,y);
+  });
+  cx.strokeStyle=color;cx.lineWidth=1.5;cx.stroke();
+  cx.lineTo(w,h);cx.lineTo(0,h);cx.closePath();cx.fillStyle=g;cx.fill();
+}
+
+// ── Gauge ──
+function gauge(score){
+  var c=document.getElementById('gaugeCanvas');if(!c)return;
+  var cx=c.getContext('2d'),W=140,H=120,rx=70,ry=85,r=52;
+  var numEl=document.getElementById('gaugeNum');
+  function getColor(s){return s<50?'#EF4444':s<70?'#F59E0B':'#6C3FC5'}
+  function draw(s){
+    cx.clearRect(0,0,W,H);
+    cx.beginPath();cx.arc(rx,ry,r,Math.PI,2*Math.PI);
+    cx.strokeStyle='rgba(255,255,255,.07)';cx.lineWidth=10;cx.lineCap='round';cx.stroke();
+    if(s>0){
+      var col=getColor(s);
+      var g2=cx.createLinearGradient(rx-r,ry,rx+r,ry);
+      g2.addColorStop(0,col);g2.addColorStop(1,col==='#6C3FC5'?'#F97316':col);
+      cx.beginPath();cx.arc(rx,ry,r,Math.PI,Math.PI+(s/100)*Math.PI);
+      cx.strokeStyle=g2;cx.lineWidth=10;cx.lineCap='round';cx.stroke();
+    }
+    if(numEl)numEl.textContent=Math.round(s);
+  }
+  var s0=null,dur=1500;
+  requestAnimationFrame(function step(ts){
+    if(!s0)s0=ts;
+    var p=Math.min((ts-s0)/dur,1);
+    draw(easeOutCubic(p)*score);
+    if(p<1)requestAnimationFrame(step);else draw(score);
+  });
+}
+
+// ── Forecast Chart ──
+function buildForecast(){
+  var c=document.getElementById('forecastChart');if(!c)return;
+  var labels=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set'];
+  new Chart(c,{
+    type:'line',
+    data:{
+      labels:labels,
+      datasets:[
+        {label:'Committed',data:[185,210,200,245,265,285,315,340,368],borderColor:'#6C3FC5',backgroundColor:'rgba(108,63,197,.07)',fill:true,tension:.4,pointRadius:3,borderWidth:2},
+        {label:'Best Case', data:[205,240,235,285,315,345,385,415,448],borderColor:'#10B981',backgroundColor:'rgba(16,185,129,.04)',fill:true,tension:.4,pointRadius:3,borderWidth:2},
+        {label:'Worst Case',data:[162,182,172,205,222,242,265,282,305],borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,.04)',fill:true,tension:.4,pointRadius:3,borderWidth:2},
+        {label:'Target',    data:[220,220,220,252,252,252,280,280,280],borderColor:'#F97316',backgroundColor:'transparent',fill:false,tension:0,pointRadius:0,borderWidth:2,borderDash:[5,4]},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:1200,easing:'easeInOutQuart'},
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',labels:{color:'#8B8BA7',font:{size:10},boxWidth:10,padding:12}},
+        tooltip:{backgroundColor:'#1A1A2E',borderColor:'#2A2A3E',borderWidth:1,titleColor:'#fff',bodyColor:'#8B8BA7',callbacks:{label:function(c){return ' '+c.dataset.label+': $'+c.parsed.y+'k'}}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8B8BA7',font:{size:10}},border:{display:false}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#8B8BA7',font:{size:10},callback:function(v){return '$'+v+'k'}},border:{display:false}}
+      }
+    }
+  });
+}
+
+// ── Trend mini chart ──
+function buildTrend(){
+  var c=document.getElementById('trendChart');if(!c)return;
+  new Chart(c,{
+    type:'line',
+    data:{
+      labels:['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+      datasets:[
+        {label:'LinkedIn',data:[38,40,41,42,41,43,42],borderColor:'#6C3FC5',backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:1.5},
+        {label:'Cold Email',data:[14,13,12,11,12,11,11],borderColor:'#EF4444',backgroundColor:'transparent',tension:.4,pointRadius:0,borderWidth:1.5},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{display:false},y:{display:false}},
+      animation:{duration:800}
+    }
+  });
+}
+
+// ── Donut ──
+function buildDonut(){
+  var c=document.getElementById('autoDonut');if(!c)return;
+  new Chart(c,{
+    type:'doughnut',
+    data:{datasets:[{data:[98.2,1.8],backgroundColor:['#10B981','rgba(239,68,68,.25)'],borderWidth:0,hoverOffset:0}]},
+    options:{responsive:false,animation:{duration:1200,easing:'easeOutCirc'},cutout:'72%',plugins:{legend:{display:false},tooltip:{enabled:false}}}
+  });
+}
+
+// ── Animate WR bars ──
+function animWR(){
+  document.querySelectorAll('.wr-fill').forEach(function(el){
+    el.style.width=el.dataset.p+'%';
+  });
+}
+
+// ── Reveal card ──
+function revealCard(id,delay){
+  setTimeout(function(){
+    var el=document.getElementById(id);
+    if(el){el.style.animationDelay='0ms';el.classList.add('in');}
+  },delay);
+}
+
+// ── Entry sequence ──
+function init(){
+  // 0ms header
+  document.getElementById('hdr').classList.add('in');
+  // 100ms sidebar
+  setTimeout(function(){document.getElementById('sb').classList.add('in');},100);
+  // 200ms KPI bar + counters
+  setTimeout(function(){
+    document.getElementById('kpiBar').classList.add('in');
+    counter(document.getElementById('kv0'),787600,1500,fmtPipeline);
+    counter(document.getElementById('kv1'),23,1500,fmtInt);
+    counter(document.getElementById('kv2'),63,1500,fmtPct);
+    counter(document.getElementById('kv3'),224000,1500,fmtARR);
+    counter(document.getElementById('kv4'),8,1500,fmtInt);
+    setTimeout(function(){document.getElementById('wrProg').style.width='63%';},300);
+    spark('sp1',[58,62,60,68,70,67,72,76,74,79],'#10B981');
+    spark('sp2',[28,26,24,22,25,23,21,24,23,23],'#F59E0B');
+    spark('sp4',[178,188,194,200,208,212,216,220,222,224],'#10B981');
+    spark('sp5',[5,6,6,7,7,7,8,8,8,8],'#6C3FC5');
+  },200);
+  // 400ms row1
+  setTimeout(function(){
+    revealCard('c0',0);revealCard('c1',80);
+    gauge(68);
+    setTimeout(function(){
+      document.querySelectorAll('.insight').forEach(function(el,i){
+        setTimeout(function(){el.classList.add('in');},i*160);
+      });
+    },200);
+  },400);
+  // 600ms row2
+  setTimeout(function(){
+    revealCard('c2',0);revealCard('c3',80);
+    setTimeout(animWR,400);
+    setTimeout(buildTrend,500);
+  },600);
+  // 800ms row3
+  setTimeout(function(){
+    revealCard('c4',0);revealCard('c5',80);
+    buildForecast();buildDonut();
+    counter(document.getElementById('autoN'),14,1200,fmtInt);
+    counter(document.getElementById('autoRate'),98.2,1200,fmtRate);
+  },800);
+  // 1000ms signal feed
+  setTimeout(function(){document.getElementById('sigSec').classList.add('in');},1000);
+}
+
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init);}else{init();}
+</script>
+</body>
+</html>
