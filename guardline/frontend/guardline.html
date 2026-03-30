@@ -2883,7 +2883,7 @@
             <label for="login-password">Senha</label>
             <input type="password" id="login-password" name="password" placeholder="••••••••" required autocomplete="current-password" />
           </div>
-          <button type="submit" id="login-btn">Entrar no Guardline</button>
+          <button type="submit" id="login-btn" onclick="if(typeof window._guardlineLogin==='function'){window._guardlineLogin(event);}else{alert('Erro: script não carregou. Recarregue a página.');}">Entrar no Guardline</button>
         </form>
         <script>
           (function() {
