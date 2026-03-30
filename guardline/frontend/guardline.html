@@ -3601,6 +3601,74 @@
     // ═══════════════════════════════════════════════════════════════════════════
 
     // ════════════════════════════════════════════
+    // FASE 1 FIXES — UTILITY FUNCTIONS
+    // ════════════════════════════════════════════
+
+    // FIX 2: Normalize scoreBreakdown from string to object
+    function normalizeScoreBreakdown(entity) {
+      if (entity && typeof entity.scoreBreakdown === 'string') {
+        try {
+          entity.scoreBreakdown = JSON.parse(entity.scoreBreakdown);
+        } catch (e) {
+          entity.scoreBreakdown = { fit: 0, intent: 0, engagement: 0 };
+        }
+      }
+      if (entity && !entity.scoreBreakdown) {
+        entity.scoreBreakdown = { fit: 0, intent: 0, engagement: 0 };
+      }
+      return entity;
+    }
+
+    // FIX 3: Calculate days since last contact with null safety
+    var RISK_THRESHOLD_DAYS = 14;
+    function calcDaysSinceContact(lastContact) {
+      if (!lastContact) return null;
+      var ts = new Date(lastContact).getTime();
+      if (isNaN(ts)) return null;
+      return Math.floor((Date.now() - ts) / 86400000);
+    }
+    function getDaysLabel(deal) {
+      var days = calcDaysSinceContact(deal.lastContact || deal.last_contact_at || deal.updatedAt || deal.updated_at);
+      return days !== null ? days + 'd sem contato' : 'sem registro';
+    }
+    function isAtRisk(deal) {
+      var days = calcDaysSinceContact(deal.lastContact || deal.last_contact_at || deal.updatedAt || deal.updated_at);
+      return days !== null ? days > RISK_THRESHOLD_DAYS : false;
+    }
+
+    // FIX 4/7: Render empty state for missing data
+    function renderEmptyState(containerId, message, actionText, actionFn) {
+      var container = document.getElementById(containerId);
+      if (!container) {
+        var area = document.getElementById('content-area');
+        if (area) container = area;
+      }
+      if (!container) return;
+      var html = '<div class="card" style="padding:48px;text-align:center;animation:fade-in 0.3s ease">' +
+        '<div style="font-size:48px;margin-bottom:16px;opacity:0.3">📭</div>' +
+        '<p style="color:var(--text-muted);margin:0 0 16px">' + escapeHtml(message) + '</p>';
+      if (actionText && actionFn) {
+        html += '<button type="button" class="btn-primary" onclick="(' + actionFn.toString() + ')()">' + escapeHtml(actionText) + '</button>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    }
+
+    // FIX 10: Global resource error handler
+    window.addEventListener('error', function(e) {
+      if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+        console.error('[Guardline Resource Error]', e.target.src || e.target.href);
+        if (typeof showToast === 'function') showToast('warning', 'Recurso', 'Erro ao carregar recurso externo');
+      }
+    }, true);
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AVISO: credenciais no HTML ficam visíveis no browser (DevTools / "Ver código").
+    // Não publique este ficheiro em repositório público sem rotacionar as chaves.
+    // Produção: prefira anon key + RLS ou um backend (BFF).
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════
     // GUARDLINE CONFIG
     // ════════════════════════════════════════════
     function guardlineWindowConfig(path, fallback) {
@@ -11266,7 +11334,7 @@
                   '<div class="deal-value">$' +
                   (d.value || 0).toLocaleString('en-US') +
                   '</div><div style="font-size:11px;color:var(--text-muted)">' +
-                  (d.daysSinceContact != null ? d.daysSinceContact + 'd s/ contato' : '—') +
+                  getDaysLabel(d) +
                   '</div></div>'
                 );
               })
@@ -11698,16 +11766,15 @@
             }
           });
         });
+        // FIX 8: Show empty state instead of synthetic data
         if (!meetingRows.length) {
-          deals.slice(0, 8).forEach(function (d) {
-            meetingRows.push({
-              company: d.companyName,
-              title: 'Follow-up',
-              date: d.updatedAt || d.createdAt,
-              dealId: d.id,
-              type: 'touch',
-            });
-          });
+          area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin:0 0 16px">Reuniões</h2>' +
+            '<div class="card" style="padding:48px;text-align:center">' +
+            '<div style="font-size:48px;margin-bottom:16px;opacity:0.3">📅</div>' +
+            '<p style="color:var(--text-muted);margin:0 0 16px">Nenhuma reunião registrada ainda.</p>' +
+            '<p style="font-size:12px;color:var(--text-dim);margin:0">Reuniões aparecerão aqui quando forem criadas via integração de calendário ou manualmente nos deals.</p>' +
+            '</div></div>';
+          return;
         }
         meetingRows.sort(function (a, b) {
           return new Date(b.date) - new Date(a.date);
