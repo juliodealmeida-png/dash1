@@ -3371,7 +3371,29 @@
       var ls = document.getElementById('login-screen');
       if (!ls) return;
       try {
-        if (localStorage.getItem('guardline_token')) return;
+        var token = localStorage.getItem('guardline_token');
+        if (token) {
+          // Validate token is not expired
+          if (token === 'guardline-demo-session') return;
+          try {
+            var parts = token.split('.');
+            if (parts.length === 3) {
+              var payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+              if (payload.exp && (payload.exp * 1000) < Date.now()) {
+                // Token expired - clear it and show login
+                localStorage.removeItem('guardline_token');
+                localStorage.removeItem('guardline_refresh');
+                console.log('[Guardline] Token expirado, mostrando login');
+              } else {
+                return; // Valid token, don't show login yet
+              }
+            } else {
+              return; // Non-JWT token, let app handle it
+            }
+          } catch (e) {
+            return; // Can't parse, let app handle it
+          }
+        }
       } catch (e) {}
       ls.classList.add('visible');
       ls.style.display = 'flex';
@@ -6525,13 +6547,7 @@
     };
 
     function guardlineShowDemoBanner() {
-      if (document.getElementById('guardline-demo-banner')) return;
-      var banner = document.createElement('div');
-      banner.id = 'guardline-demo-banner';
-      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:rgba(251,146,60,0.15);border-bottom:1px solid rgba(251,146,60,0.5);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#fb923c;backdrop-filter:blur(4px)';
-      banner.innerHTML = '<span>⚠️ <strong>Supabase não configurado</strong> — KPIs via API Railway. Configure <code>GUARDLINE_SUPABASE_URL</code> e <code>GUARDLINE_SUPABASE_ANON_KEY</code> para acesso direto ao DB.</span>' +
-        '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#fb923c;cursor:pointer;font-size:16px;padding:0 4px">×</button>';
-      document.body.prepend(banner);
+      // Banner suppressed — KPIs working via Railway API
     }
 
     async function initGuardlineApp() {
@@ -6577,9 +6593,7 @@
         Auth.setUser(res.data.user || res.data);
         showDashboard();
         if (!CONFIG.supabase.url || !CONFIG.supabase.key) {
-          console.warn('[Guardline] Supabase não configurado — modo demonstração');
-          document.body.setAttribute('data-mode', 'demo');
-          guardlineShowDemoBanner();
+          console.info('[Guardline] KPIs via Railway API (Supabase não configurado)');
         }
         var gateOk = typeof guardlineRunOnboardingGate === 'function' ? await guardlineRunOnboardingGate() : true;
         if (!gateOk) return;
