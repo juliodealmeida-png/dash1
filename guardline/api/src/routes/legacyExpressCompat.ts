@@ -2,6 +2,7 @@ import type { Express, Request, Response } from 'express';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { Env } from '../config/env.js';
 import { DEAL_INACTIVE_STAGES, HUBSPOT_CONFIG } from '../config/hubspotConfig.js';
+import { hubspotUpdateDeal } from '../services/hubspotClient.js';
 
 /** Respostas no formato do backend Express legado (`{ success, data }`). */
 function ok(res: Response, data: unknown) {
@@ -65,7 +66,7 @@ function mapDealRow(d: Record<string, unknown>) {
  * Rotas compatíveis com `guardline.html` + `API.request` (Bearer opcional).
  * Registar no Express **antes** de `app.use('/api/deals', …)` para GET /api/deals em branco.
  */
-export function mountLegacyExpressCompat(app: Express, _env: Env, supabase: SupabaseClient) {
+export function mountLegacyExpressCompat(app: Express, env: Env, supabase: SupabaseClient) {
   app.get('/api/metrics/dashboard', async (_req: Request, res: Response) => {
     try {
       const { data: dealsRaw } = await supabase.from('deals').select('*');
@@ -356,7 +357,12 @@ export function mountLegacyExpressCompat(app: Express, _env: Env, supabase: Supa
         .maybeSingle();
       if (error) { err(res, 500, error.message); return; }
       if (!data) { err(res, 404, 'Deal não encontrado'); return; }
-      ok(res, mapDealRow(data as Record<string, unknown>));
+      const row = data as Record<string, unknown>;
+      const hubspotId = typeof row.hubspot_deal_id === 'string' && row.hubspot_deal_id ? row.hubspot_deal_id : null;
+      if (hubspotId && env.HUBSPOT_PAT) {
+        hubspotUpdateDeal(env, hubspotId, { properties: { dealstage: dealStage } }).catch(() => undefined);
+      }
+      ok(res, mapDealRow(row));
     } catch (e) {
       err(res, 500, String(e));
     }
