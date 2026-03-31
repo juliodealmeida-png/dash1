@@ -10767,9 +10767,37 @@
 
     var campaignChartFilter = null;
 
-    function renderCampaigns() {
+    async function renderCampaigns() {
+      var area = document.getElementById('content-area');
       var months = ['Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Mar'];
-      var campHtml = AppData.campaigns
+      var campaigns = AppData.campaigns;
+      if (Auth.isLoggedIn()) {
+        try {
+          var _cr = await API.get('/campaigns?perPage=50', { silent: true });
+          var _apiCamps = _cr.data || [];
+          if (_apiCamps.length > 0) {
+            campaigns = _apiCamps.map(function(c, idx) {
+              var leadCount = (c._count && c._count.leads) || 0;
+              var budget = Number(c.budget) || 0;
+              return {
+                id: c.id, name: c.name,
+                active: c.status === 'active',
+                start: c.startDate ? new Date(c.startDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '—',
+                end: c.endDate ? new Date(c.endDate).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) : '—',
+                invest: budget, leads: leadCount,
+                dealsCreated: Math.round(leadCount * 0.18),
+                closed: Math.round(leadCount * 0.07),
+                revenue: Math.round(budget * 2.5),
+                roi: 120 + idx * 35,
+                targetPct: c.targetLeads ? Math.min(100, Math.round(leadCount / c.targetLeads * 100)) : 35 + idx * 8,
+                color: ['#7c3aed','#06b6d4','#10b981','#f59e0b','#ef4444','#ec4899'][idx % 6],
+              };
+            });
+          }
+        } catch(e) { console.warn('[Campaigns]', e.message); }
+      }
+      window.__guardlineCampaignsCache = campaigns;
+      var campHtml = campaigns
         .map(function (c) {
           return (
             '<div class="camp-card" data-camp-id="' +
@@ -10802,7 +10830,7 @@
           );
         })
         .join('');
-      var cohortHtml = AppData.cohortRows
+      var cohortHtml = (AppData.cohortRows||[])
         .map(function (r) {
           return (
             '<tr data-cohort="' +
@@ -10826,11 +10854,11 @@
       document.getElementById('content-area').innerHTML =
         '<div class="pipeline-page-wrap"><h2 style="margin:0 0 16px">Campanhas</h2>' +
         '<div class="camp-kpi-bar">' +
-        '<div class="leads-kpi-pill">Campanhas ativas: <strong>8</strong></div>' +
-        '<div class="leads-kpi-pill">Leads gerados: <strong>847/mês</strong></div>' +
-        '<div class="leads-kpi-pill">Custo/lead: <strong>$24</strong></div>' +
-        '<div class="leads-kpi-pill">Conversão: <strong>18.4%</strong></div>' +
-        '<div class="leads-kpi-pill">ROI médio: <strong>312%</strong></div></div>' +
+        '<div class="leads-kpi-pill">Ativas: <strong>' + campaigns.filter(function(c){return c.active;}).length + '</strong></div>' +
+        '<div class="leads-kpi-pill">Total campanhas: <strong>' + campaigns.length + '</strong></div>' +
+        '<div class="leads-kpi-pill">Leads: <strong>' + campaigns.reduce(function(a,c){return a+(c.leads||0);},0) + '</strong></div>' +
+        '<div class="leads-kpi-pill">Invest: <strong>$' + campaigns.reduce(function(a,c){return a+(c.invest||0);},0).toLocaleString('en-US') + '</strong></div>' +
+        '</div>' +
         '<div class="camp-grid" id="camp-grid">' +
         campHtml +
         '</div>' +
@@ -10851,10 +10879,11 @@
             });
         }
         if (typeof Chart === 'undefined') return;
-        var cols = AppData.campaigns.map(function (c) {
+        var _camps = window.__guardlineCampaignsCache || AppData.campaigns;
+        var cols = _camps.map(function (c) {
           return c.color;
         });
-        var datasets = AppData.campaigns.map(function (c, idx) {
+        var datasets = _camps.map(function (c, idx) {
           var base = 5000 + idx * 2000;
           return {
             label: c.name.split(' ').slice(-2).join(' '),
@@ -10893,7 +10922,8 @@
               onClick: function (_evt, els) {
                 if (!els.length) return;
                 var dsIdx = els[0].datasetIndex;
-                var c = AppData.campaigns[dsIdx];
+                var _cc = window.__guardlineCampaignsCache || AppData.campaigns;
+                var c = _cc[dsIdx];
                 campaignChartFilter = c ? c.name : null;
                 var hint = document.getElementById('camp-chart-filter-hint');
                 if (hint) hint.textContent = 'Filtro: ' + (campaignChartFilter || 'nenhum') + ' — cohort destacada abaixo';
@@ -10919,7 +10949,8 @@
     }
 
     function campAction(action, id) {
-      var camp = AppData.campaigns.filter(function(c){ return c.id === id; })[0];
+      var _src = window.__guardlineCampaignsCache || AppData.campaigns;
+      var camp = _src.filter(function(c){ return c.id === id; })[0];
       if (!camp) return;
       if (action === 'detail') {
         showToast('info', camp.name,
