@@ -4,20 +4,38 @@ on:
   push:
     branches: [master]
     paths:
+      - 'guardline/frontend-v3/**'
       - 'guardline/frontend/**'
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy frontend to Cloudflare Pages
+    name: Build & Deploy frontend-v3 to Cloudflare Pages
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: guardline/frontend-v3/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: guardline/frontend-v3
+
+      - name: Build
+        run: npm run build
+        working-directory: guardline/frontend-v3
+        env:
+          VITE_API_BASE: https://guardline-engine-production.up.railway.app/api
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CF_API_TOKEN }}
           accountId: 99f04b37de1e8cd3aac9952b74276c44
-          command: pages deploy guardline/frontend --project-name=guardline-dashboard --branch=main --commit-dirty=true
+          command: pages deploy guardline/frontend-v3/dist --project-name=guardline-dashboard --branch=main --commit-dirty=true

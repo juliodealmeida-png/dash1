@@ -1,2 +1,2 @@
 name = "guardline-dashboard"
-pages_build_output_dir = "frontend"
+pages_build_output_dir = "frontend-v3/dist"
