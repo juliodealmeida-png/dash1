@@ -3195,6 +3195,18 @@
               return 'https://guardline-engine-production.up.railway.app/api';
             })();
             window.GUARDLINE_API_BASE = RESOLVED_API_BASE; // Expose globally
+
+            try {
+              var _u = new URL(window.location.href);
+              if (_u.searchParams.get('clear') === '1') {
+                localStorage.removeItem('guardline_token');
+                localStorage.removeItem('guardline_refresh');
+                localStorage.removeItem('guardline_user');
+                _u.searchParams.delete('clear');
+                window.location.replace(_u.toString());
+                return;
+              }
+            } catch (e) {}
             
             // Error display helper
             function setLoginError(msg, isSuccess) {
@@ -3250,21 +3262,30 @@
                   if (token) localStorage.setItem('guardline_token', token);
                   if (refresh) localStorage.setItem('guardline_refresh', refresh);
                   
-                  // Hide login screen
-                  var ls = document.getElementById('login-screen');
-                  if (ls) { ls.style.display = 'none'; ls.classList.remove('visible'); }
-                  
-                  // Try to init app, fallback to reload
+                  // Try to init app, avoid blank screen while main script is loading
                   if (typeof Auth !== 'undefined' && Auth.setToken) {
                     Auth.setToken(token);
                     if (data.data && data.data.user && Auth.setUser) Auth.setUser(data.data.user);
                   }
-                  if (typeof showDashboard === 'function') {
-                    showDashboard();
-                    if (typeof navigateTo === 'function') navigateTo('command', true);
-                  } else {
-                    window.location.reload();
-                  }
+                  setLoginError('Login ok. Carregando dashboard…', true);
+                  var started = false;
+                  var tries = 0;
+                  var t = setInterval(function () {
+                    tries++;
+                    if (!started && typeof showDashboard === 'function') {
+                      started = true;
+                      clearInterval(t);
+                      var ls = document.getElementById('login-screen');
+                      if (ls) { ls.style.display = 'none'; ls.classList.remove('visible'); }
+                      try { showDashboard(); } catch (e) {}
+                      try { if (typeof navigateTo === 'function') navigateTo('command', true); } catch (e) {}
+                      return;
+                    }
+                    if (tries >= 25) {
+                      clearInterval(t);
+                      window.location.reload();
+                    }
+                  }, 200);
                 } else {
                   throw new Error(data.error || data.message || 'Credenciais inválidas. Tente novamente.');
                 }
@@ -16550,10 +16571,10 @@
         }
         if (!jwtToken) {
           removeTyping();
-          setStreaming(false);
-          if (typeof showLoginScreen === 'function') showLoginScreen();
           var errBubble2 = appendMsg('julio', '');
           errBubble2.textContent = '⚠ Faça login para usar o Júlio AI.';
+          setStreaming(false);
+          if (typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
           return;
         }
 
