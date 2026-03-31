@@ -3267,6 +3267,22 @@
                     Auth.setToken(token);
                     if (data.data && data.data.user && Auth.setUser) Auth.setUser(data.data.user);
                   }
+                  try {
+                    var meRes = await fetch(RESOLVED_API_BASE + '/auth/me', {
+                      method: 'GET',
+                      headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+                    });
+                    if (!meRes.ok) {
+                      localStorage.removeItem('guardline_token');
+                      localStorage.removeItem('guardline_refresh');
+                      throw new Error('Falha ao validar sessão (HTTP ' + meRes.status + ').');
+                    }
+                  } catch (meErr) {
+                    throw new Error(
+                      'Login ok, mas a sessão não validou. ' +
+                        ((meErr && meErr.message) || 'Verifique a URL da API e o JWT_SECRET.')
+                    );
+                  }
                   setLoginError('Login ok. Carregando dashboard…', true);
                   var started = false;
                   var tries = 0;
@@ -6870,9 +6886,18 @@
         await refreshCommandBarFromApi();
         if (typeof guardlineBootstrapDataLayer === 'function') await guardlineBootstrapDataLayer();
       } catch (e) {
-        Auth.removeToken();
-        showLoginScreen();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        var msg = (e && e.message) ? String(e.message) : String(e || '');
+        var authFailure = /sessão expirada|token|unauthorized|401/i.test(msg);
+        if (authFailure) {
+          Auth.removeToken();
+          showLoginScreen();
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          return;
+        }
+        showDashboard();
+        if (typeof showToast === 'function') {
+          showToast('warning', 'Modo degradado', 'Entrou no dashboard, mas houve falha ao validar sessão. Tente recarregar.');
+        }
       }
     }
 
@@ -8819,7 +8844,7 @@
           '<label class="pipeline-risk-toggle" style="margin:0"><input type="checkbox" id="hubspot-pipeline-closed"' +
           (includeClosed ? ' checked' : '') +
           ' /> Mostrar fechados</label>' +
-          '<button type="button" class="btn-activate" onclick="navigateTo(\\'pipeline-health\\')">KPI Dashboard →</button>' +
+          '<button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-health\')">KPI Dashboard →</button>' +
           '</div></div><div class="kanban-board">';
 
         stages.forEach(function (s) {

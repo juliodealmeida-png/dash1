@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿﻿﻿﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -9,12 +9,25 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script>
     /* ── Guardline local dev config ── */
-    window.GUARDLINE_API_BASE        = 'https://guardline-engine-production.up.railway.app/api';
-    window.GUARDLINE_DATA_API_BASE   = 'https://guardline-engine-production.up.railway.app/api';
-    window.GUARDLINE_SUPABASE_URL    = 'https://ohwybcisgrmbgqeeulmm.supabase.co';
-    window.GUARDLINE_SUPABASE_ANON_KEY = '';
-    window.GUARDLINE_MAPBOX_TOKEN    = window.__ENV_MAPBOX_TOKEN__ || '';
-    window.GUARDLINE_N8N_WEBHOOK_BASE = 'https://guardline.app.n8n.cloud/webhook';
+    (function () {
+      var host = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+      var isLocal = host === 'localhost' || host === '127.0.0.1';
+      if (isLocal) {
+        var port = (typeof window !== 'undefined' && window.location && window.location.port) ? String(window.location.port) : '';
+        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3001';
+        var apiOrigin = port === '3001' ? window.location.origin : backendOrigin;
+        window.GUARDLINE_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
+        window.GUARDLINE_DATA_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
+      } else {
+        window.GUARDLINE_API_BASE = 'https://guardline-engine-production.up.railway.app/api';
+        window.GUARDLINE_DATA_API_BASE = window.GUARDLINE_API_BASE;
+        window.GUARDLINE_SUPABASE_URL = 'https://ohwybcisgrmbgqeeulmm.supabase.co';
+        window.GUARDLINE_SUPABASE_ANON_KEY =
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9od3liY2lzZ3JtYmdxZWV1bG1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzgwNjMsImV4cCI6MjA4OTkxNDA2M30.l11FoR50cBxYblm22nwaNMVns715QXkgVJBdUSjnQdU';
+        window.GUARDLINE_N8N_WEBHOOK_BASE = 'https://guardline.app.n8n.cloud/webhook';
+      }
+      window.GUARDLINE_MAPBOX_TOKEN = window.__ENV_MAPBOX_TOKEN__ || '';
+    })();
   </script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -3266,6 +3279,22 @@
                   if (typeof Auth !== 'undefined' && Auth.setToken) {
                     Auth.setToken(token);
                     if (data.data && data.data.user && Auth.setUser) Auth.setUser(data.data.user);
+                  }
+                  try {
+                    var meRes = await fetch(RESOLVED_API_BASE + '/auth/me', {
+                      method: 'GET',
+                      headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+                    });
+                    if (!meRes.ok) {
+                      localStorage.removeItem('guardline_token');
+                      localStorage.removeItem('guardline_refresh');
+                      throw new Error('Falha ao validar sessão (HTTP ' + meRes.status + ').');
+                    }
+                  } catch (meErr) {
+                    throw new Error(
+                      'Login ok, mas a sessão não validou. ' +
+                        ((meErr && meErr.message) || 'Verifique a URL da API e o JWT_SECRET.')
+                    );
                   }
                   setLoginError('Login ok. Carregando dashboard…', true);
                   var started = false;
@@ -6870,9 +6899,18 @@
         await refreshCommandBarFromApi();
         if (typeof guardlineBootstrapDataLayer === 'function') await guardlineBootstrapDataLayer();
       } catch (e) {
-        Auth.removeToken();
-        showLoginScreen();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        var msg = (e && e.message) ? String(e.message) : String(e || '');
+        var authFailure = /sessão expirada|token|unauthorized|401/i.test(msg);
+        if (authFailure) {
+          Auth.removeToken();
+          showLoginScreen();
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          return;
+        }
+        showDashboard();
+        if (typeof showToast === 'function') {
+          showToast('warning', 'Modo degradado', 'Entrou no dashboard, mas houve falha ao validar sessão. Tente recarregar.');
+        }
       }
     }
 
@@ -8819,7 +8857,7 @@
           '<label class="pipeline-risk-toggle" style="margin:0"><input type="checkbox" id="hubspot-pipeline-closed"' +
           (includeClosed ? ' checked' : '') +
           ' /> Mostrar fechados</label>' +
-          '<button type="button" class="btn-activate" onclick="navigateTo(\\'pipeline-health\\')">KPI Dashboard →</button>' +
+          '<button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-health\')">KPI Dashboard →</button>' +
           '</div></div><div class="kanban-board">';
 
         stages.forEach(function (s) {
@@ -10957,6 +10995,7 @@
         var dealName = (r.deal && r.deal.title) || '—';
         var dur = r.duration != null ? r.duration + 'ms' : '—';
         var when = r.createdAt ? new Date(r.createdAt).toLocaleString('pt-BR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+        var emSafe = String(r.errorMessage || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n');
         return '<tr class="auto-log-row ' + (err ? 'err' : '') + '">' +
           '<td style="font-size:16px">' + icon + '</td>' +
           '<td>' + escapeHtml(recipeName) + '</td>' +
@@ -10965,11 +11004,13 @@
           '<td>' + escapeHtml(r.result ? String(r.result).slice(0,60) : r.status || '—') + '</td>' +
           '<td>' + escapeHtml(dur) + '</td>' +
           '<td>' + escapeHtml(when) + '</td>' +
-          (err ? '<td><button type="button" class="act-btn" style="font-size:10px;padding:4px 8px" title="' + escapeHtml(r.errorMessage||'') + '">Ver erro</button></td>' : '<td>—</td>') +
+          (err ? '<td><button type="button" class="act-btn" style="font-size:10px;padding:4px 8px" onclick="showAutomationError(\'' + emSafe + '\')" title="' + escapeHtml(r.errorMessage||'') + '">Ver erro</button></td>' : '<td>—</td>') +
           '</tr>';
       }).join('') : '<tr><td colspan="8" style="text-align:center;padding:24px;color:var(--text-muted)">📭 Nenhum log de automação ainda</td></tr>';
 
-      var activeLabel = active > 0 ? active + ' workflows ativos' : (recipes.length > 0 ? recipes.length + ' receitas' : 'Carregando…');
+      var activeLabel = !Auth.isLoggedIn()
+        ? 'Faça login para ver automações'
+        : (active > 0 ? active + ' workflows ativos' : (recipes.length > 0 ? recipes.length + ' receitas' : 'Carregando…'));
       var errorLabel = errLogs.length > 0 ? errLogs.length + ' com erro ⚠' : '';
       var rateLabel = successRate !== null ? 'Taxa sucesso ' + successRate + '%' : 'Taxa sucesso —';
 
@@ -10977,7 +11018,7 @@
         '<div class="pipeline-page-wrap"><div class="auto-page-head"><span style="font-size:1.25rem;font-weight:800">⚡ AUTOMAÇÕES N8N</span>' +
         '<span class="leads-kpi-pill">' + escapeHtml(activeLabel) + '</span>' +
         (errorLabel ? '<span class="leads-kpi-pill" style="border-color:rgba(239,68,68,0.4)">' + escapeHtml(errorLabel) + '</span>' : '') +
-        '<button type="button" class="btn-activate">+ Criar novo</button></div>' +
+        '<button type="button" class="btn-activate" onclick="openN8nDashboard()">+ Criar novo</button></div>' +
         '<div class="card"><div class="leads-table-wrap"><table class="leads-table"><thead><tr><th>STATUS</th><th>WORKFLOW</th><th>TRIGGER</th><th>AFETOU</th><th>RESULTADO</th><th>DURAÇÃO</th><th>QUANDO</th><th></th></tr></thead><tbody id="auto-log-tbody">' +
         rows +
         '</tbody></table></div></div>' +
@@ -11038,6 +11079,31 @@
         }
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }, 0);
+    }
+
+    function showAutomationError(msg) {
+      var m = String(msg || '').trim();
+      if (!m) m = 'Sem detalhes de erro.';
+      if (typeof showToast === 'function') {
+        showToast('error', 'Automação', m.slice(0, 240));
+      } else {
+        alert(m);
+      }
+    }
+
+    function openN8nDashboard() {
+      var base = (typeof CONFIG !== 'undefined' && CONFIG.n8n && CONFIG.n8n.base) ? CONFIG.n8n.base : '';
+      if (!base) base = (typeof window !== 'undefined' && window.GUARDLINE_N8N_WEBHOOK_BASE) ? String(window.GUARDLINE_N8N_WEBHOOK_BASE) : '';
+      base = String(base || '').replace(/\/webhook\/?$/i, '').replace(/\/webhook$/i, '').replace(/\/$/, '');
+      if (!base || !/^https?:\/\//i.test(base)) {
+        if (typeof showToast === 'function') showToast('info', 'n8n', 'Defina N8N_BASE_URL no backend para abrir o n8n.');
+        return;
+      }
+      try {
+        window.open(base, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        if (typeof showToast === 'function') showToast('error', 'n8n', 'Não foi possível abrir o n8n.');
+      }
     }
 
     function closeRecipeModal() {

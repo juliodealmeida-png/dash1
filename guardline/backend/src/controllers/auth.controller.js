@@ -193,21 +193,35 @@ async function forgotPassword(req, res, next) {
       return ok(res, { message: 'Link de redefinição gerado.', devResetUrl: resetUrl, devToken: token });
     }
 
-    // Send email via nodemailer/resend if configured
     try {
-      const nodemailer = require('nodemailer');
-      const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-      });
-      await transporter.sendMail({
-        from: process.env.GMAIL_USER,
-        to: user.email,
-        subject: 'Guardline — Redefinição de Senha',
-        html: `<p>Olá ${user.name},</p><p>Clique no link abaixo para redefinir sua senha (válido por 1 hora):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
-      });
-    } catch (_emailErr) {
-      console.error('[auth] forgotPassword email error:', _emailErr.message);
+      const resendKey = process.env.RESEND_API_KEY;
+      const resendFrom = process.env.RESEND_FROM;
+      if (resendKey && resendFrom) {
+        const { Resend } = require('resend');
+        const resend = new Resend(resendKey);
+        await resend.emails.send({
+          from: resendFrom,
+          to: user.email,
+          subject: 'Guardline — Redefinição de Senha',
+          html: `<p>Olá ${user.name},</p><p>Clique no link abaixo para redefinir sua senha (válido por 1 hora):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+        });
+      } else if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
+        });
+        await transporter.sendMail({
+          from: process.env.GMAIL_USER,
+          to: user.email,
+          subject: 'Guardline — Redefinição de Senha',
+          html: `<p>Olá ${user.name},</p><p>Clique no link abaixo para redefinir sua senha (válido por 1 hora):</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+        });
+      } else {
+        console.error('[auth] forgotPassword: nenhum provedor configurado (RESEND_API_KEY/RESEND_FROM ou GMAIL_USER/GMAIL_APP_PASSWORD).');
+      }
+    } catch (emailErr) {
+      console.error('[auth] forgotPassword email error:', emailErr?.message || emailErr);
     }
 
     return ok(res, { message: 'Se o e-mail existir, um link de redefinição foi enviado.' });

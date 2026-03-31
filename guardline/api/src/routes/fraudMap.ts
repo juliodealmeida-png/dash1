@@ -16,14 +16,34 @@ export function fraudMapRoutes(env: Env, supabase: SupabaseClient) {
   r.get('/layers', async (req: Request, res: Response) => {
     const period = (req.query.period as string) || '24h';
     const layerFilter = (req.query.layer as string) || 'all';
-    const hours = period === '7d' ? 168 : period === '30d' ? 720 : 24;
+    const hours = period === '7d' ? 168 : period === '15d' ? 360 : period === '30d' ? 720 : 24;
     const cutoff = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+    const countryParam = ((req.query.country as string) || '').trim();
+
+    const COUNTRY_PATTERNS: Record<string, string[]> = {
+      BR: ['Brasil', 'Brazil', 'BR'],
+      MX: ['México', 'Mexico', 'MX'],
+      AR: ['Argentina', 'AR'],
+      CO: ['Colombia', 'CO'],
+      CL: ['Chile', 'CL'],
+      PE: ['Perú', 'Peru', 'PE'],
+      US: ['United States', 'USA', 'US', 'EUA'],
+      PT: ['Portugal', 'PT'],
+      ES: ['España', 'Espanha', 'Spain', 'ES'],
+    };
+
+    const countryPatterns =
+      countryParam.length > 0 ? COUNTRY_PATTERNS[countryParam.toUpperCase()] ?? [countryParam] : null;
+
+    const orIlike = (col: string) =>
+      (countryPatterns || []).map((p) => `${col}.ilike.%${p.replace(/%/g, '')}%`).join(',');
 
     const empty = { data: [] as unknown[], error: null };
 
     const [leadsResult, signalsResult, threatResult] = await Promise.all([
       layerFilter === 'all' || layerFilter === 'lead_risk'
-        ? supabase
+        ? (() => {
+            let q = supabase
             .from('leads')
             .select(
               'id, company_name, company_domain, company_country, city, lat, lng, lead_score, account_tier, market_priority, owner_name, company_industry, processed_at'
@@ -31,11 +51,15 @@ export function fraudMapRoutes(env: Env, supabase: SupabaseClient) {
             .not('lat', 'is', null)
             .gte('lead_score', 50)
             .order('lead_score', { ascending: false })
-            .limit(200)
+            .limit(200);
+            if (countryPatterns) q = q.or(orIlike('company_country'));
+            return q;
+          })()
         : Promise.resolve(empty),
 
       layerFilter === 'all' || layerFilter === 'signal'
-        ? supabase
+        ? (() => {
+            let q = supabase
             .from('signals')
             .select(
               'id, type, title, description, severity, lat, lng, city, country, fraud_type, amount, created_at, lead_id, deal_id'
@@ -43,11 +67,15 @@ export function fraudMapRoutes(env: Env, supabase: SupabaseClient) {
             .not('lat', 'is', null)
             .gte('created_at', cutoff)
             .order('created_at', { ascending: false })
-            .limit(100)
+            .limit(100);
+            if (countryPatterns) q = q.or(orIlike('country'));
+            return q;
+          })()
         : Promise.resolve(empty),
 
       layerFilter === 'all' || layerFilter === 'threat_intel'
-        ? supabase
+        ? (() => {
+            let q = supabase
             .from('threat_intel')
             .select(
               'id, title, description, source, country, city, lat, lng, fraud_type, amount, severity, published_at'
@@ -55,7 +83,10 @@ export function fraudMapRoutes(env: Env, supabase: SupabaseClient) {
             .not('lat', 'is', null)
             .gte('published_at', cutoff)
             .order('published_at', { ascending: false })
-            .limit(50)
+            .limit(50);
+            if (countryPatterns) q = q.or(orIlike('country'));
+            return q;
+          })()
         : Promise.resolve(empty),
     ]);
 
