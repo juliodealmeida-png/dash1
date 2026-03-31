@@ -1,6 +1,9 @@
 const https = require('https');
 
+const secret = process.argv[2] || 'gl-boot-2026-abc123';
 const data = JSON.stringify({ password: 'UmaSenhaForteAqui' });
+
+console.log(`Tentando bootstrap com o secret: "${secret}"...`);
 
 const options = {
   hostname: 'guardline-engine-production.up.railway.app',
@@ -10,7 +13,7 @@ const options = {
   headers: {
     'Content-Type': 'application/json',
     'Content-Length': data.length,
-    'x-bootstrap-secret': 'gl-boot-2026-abc123'
+    'x-bootstrap-secret': secret
   }
 };
 
