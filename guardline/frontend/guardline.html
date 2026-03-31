@@ -15327,8 +15327,11 @@
       if (!guardlineSupabaseReady()) return true;
       try {
         var row = await guardlineFetchUserProfileRow();
-        if (!row) return false;
-        return row.onboarding_completed === true;
+        // No row = user authenticated via JWT/Prisma but no Supabase profile yet.
+        // Treat as complete so dashboard loads immediately.
+        if (!row) return true;
+        // Only show onboarding if row exists AND explicitly not completed.
+        return row.onboarding_completed !== false;
       } catch (e2) {
         return true;
       }
@@ -15338,11 +15341,13 @@
       if (!Auth.isLoggedIn()) return true;
       if (Auth.getToken() === 'guardline-demo-session') return true;
       try {
-        var done = await checkOnboardingComplete();
+        var _gateTimeout = new Promise(function(res) { setTimeout(function(){ res(true); }, 5000); });
+        var done = await Promise.race([checkOnboardingComplete(), _gateTimeout]);
         if (done) {
-          var r = await guardlineFetchUserProfileRow();
-          window.__guardlineCachedProfileRow = r;
-          guardlineRefreshAvatarChip();
+          try {
+            var r = await guardlineFetchUserProfileRow();
+            if (r) { window.__guardlineCachedProfileRow = r; guardlineRefreshAvatarChip(); }
+          } catch(_){}
           return true;
         }
         showOnboardingWizard();
