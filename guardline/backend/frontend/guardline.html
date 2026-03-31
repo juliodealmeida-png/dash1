@@ -16287,32 +16287,47 @@
       }
     })();
 
-    applyRoleVisibility();
-    initSparklines();
-    if (!kpiRefreshInterval) kpiRefreshInterval = setInterval(refreshCommandBarFromMetrics, 30000);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    try { applyRoleVisibility(); } catch (e) {}
+    try { initSparklines(); } catch (e) {}
+    try {
+      if (!kpiRefreshInterval) kpiRefreshInterval = setInterval(refreshCommandBarFromMetrics, 30000);
+    } catch (e) {}
+    try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
 
-    document.getElementById('modal-backdrop').addEventListener('click', function () {
-      closeInvestorModal();
-      if (typeof meetingsCloseDayModal === 'function') meetingsCloseDayModal();
-    });
+    try {
+      var mb = document.getElementById('modal-backdrop');
+      if (mb) {
+        mb.addEventListener('click', function () {
+          closeInvestorModal();
+          if (typeof meetingsCloseDayModal === 'function') meetingsCloseDayModal();
+        });
+      }
+    } catch (e) {}
 
-    initGuardlineApp()
-      .then(function () {
-        if (Auth.isLoggedIn() && Auth.getToken() !== 'guardline-demo-session') {
-          showToast('success', 'Guardline', 'Conectado à API em tempo real.', 3500);
-        }
-        if (typeof guardlineMaybeOpenSignQuery === 'function') guardlineMaybeOpenSignQuery();
-      })
-      .catch(function (err) {
-        console.error('initGuardlineApp', err);
-        try {
-          showLoginScreen();
-        } catch (e2) {}
-        if (typeof showToast === 'function') {
-          showToast('error', 'Arranque', (err && err.message) || 'Erro ao iniciar — tente ?demo=1');
-        }
-      });
+    try {
+      initGuardlineApp()
+        .then(function () {
+          if (Auth.isLoggedIn() && Auth.getToken() !== 'guardline-demo-session') {
+            showToast('success', 'Guardline', 'Conectado à API em tempo real.', 3500);
+          }
+          if (typeof guardlineMaybeOpenSignQuery === 'function') guardlineMaybeOpenSignQuery();
+        })
+        .catch(function (err) {
+          console.error('initGuardlineApp', err);
+          try {
+            showLoginScreen();
+          } catch (e2) {}
+          if (typeof showToast === 'function') {
+            showToast('error', 'Arranque', (err && err.message) || 'Erro ao iniciar — tente ?demo=1');
+          }
+        });
+    } catch (err) {
+      console.error('initGuardlineApp', err);
+      try { showLoginScreen(); } catch (e2) {}
+      if (typeof showToast === 'function') {
+        showToast('error', 'Arranque', (err && err.message) || 'Erro ao iniciar — tente ?demo=1');
+      }
+    }
 
     (function () {
       var demoBtn = document.getElementById('login-demo-btn');
@@ -16531,6 +16546,14 @@
           var errBubble = appendMsg('julio', '');
           errBubble.textContent = '⚠ API não configurada. Defina NVIDIA_API_KEY no servidor.';
           setStreaming(false);
+          return;
+        }
+        if (!jwtToken) {
+          removeTyping();
+          setStreaming(false);
+          if (typeof showLoginScreen === 'function') showLoginScreen();
+          var errBubble2 = appendMsg('julio', '');
+          errBubble2.textContent = '⚠ Faça login para usar o Júlio AI.';
           return;
         }
 
