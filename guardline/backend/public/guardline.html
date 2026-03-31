@@ -3428,6 +3428,20 @@
       ls.classList.add('visible');
       ls.style.display = 'flex';
     })();
+
+    setTimeout(function () {
+      try {
+        var ls = document.getElementById('login-screen');
+        var app = document.getElementById('app');
+        if (!ls || !app) return;
+        var loginVisible = ls.classList.contains('visible') || ls.style.display === 'flex';
+        var appHidden = app.classList.contains('app-hidden');
+        if (appHidden && !loginVisible) {
+          ls.classList.add('visible');
+          ls.style.display = 'flex';
+        }
+      } catch (e) {}
+    }, 2500);
   </script>
   <div id="app" class="app-hidden">
     <nav id="sidebar" aria-label="Navegação principal">
