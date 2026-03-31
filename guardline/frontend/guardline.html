@@ -3403,6 +3403,67 @@
             }
             
             console.log('[Guardline] Login handlers bound. API:', RESOLVED_API_BASE);
+
+            // ── RESET PASSWORD FROM EMAIL LINK ────────────────────────────
+            (function () {
+              try {
+                var _rp = new URL(window.location.href);
+                var _tok = _rp.searchParams.get('token');
+                if (!_tok) return;
+                function showResetCard() {
+                  var loginCard = document.querySelector('#login-screen .login-wrapper .login-card:first-of-type');
+                  var resetCard = document.getElementById('reset-password-card');
+                  var ls = document.getElementById('login-screen');
+                  if (loginCard) loginCard.style.display = 'none';
+                  if (resetCard) { resetCard.style.display = 'block'; }
+                  if (ls) { ls.classList.add('visible'); ls.style.display = 'flex'; }
+                }
+                function setResetMsg(msg, ok) {
+                  var el = document.getElementById('reset-msg');
+                  if (!el) return;
+                  if (!msg) { el.hidden = true; el.textContent = ''; return; }
+                  el.hidden = false; el.textContent = msg;
+                  var bg = ok ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)';
+                  var bd = ok ? 'rgba(34,197,94,0.4)' : 'rgba(239,68,68,0.4)';
+                  el.style.cssText = 'display:block!important;padding:10px 14px;margin:12px 0;background:'+bg+';border:1px solid '+bd+';border-radius:8px;color:'+(ok?'#22c55e':'#f87171')+';font-size:13px';
+                }
+                if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', showResetCard); } else { showResetCard(); }
+                function bindResetForm() {
+                  var form = document.getElementById('reset-form');
+                  if (!form || form._bound) return;
+                  form._bound = true;
+                  form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    var pass = (document.getElementById('reset-new-pass')||{}).value||'';
+                    var conf = (document.getElementById('reset-confirm-pass')||{}).value||'';
+                    var btn = document.getElementById('reset-submit-btn');
+                    if (pass.length < 8) { setResetMsg('Senha deve ter pelo menos 8 caracteres.'); return; }
+                    if (pass !== conf) { setResetMsg('As senhas não coincidem.'); return; }
+                    setResetMsg('');
+                    if (btn) { btn.textContent = 'Salvando…'; btn.disabled = true; }
+                    try {
+                      var res = await fetch(RESOLVED_API_BASE + '/auth/reset-password', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: _tok, password: pass })
+                      });
+                      var data; try { data = await res.json(); } catch(_){data={};}
+                      if (res.ok) {
+                        setResetMsg((data.data && data.data.message)||'Senha redefinida! Faça login.', true);
+                        if (btn) { btn.textContent = 'Salvar nova senha'; btn.disabled = false; }
+                        setTimeout(function(){ var u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.toString());location.reload(); }, 2200);
+                      } else {
+                        setResetMsg((data&&(data.error||data.message))||'Token inválido ou expirado.');
+                        if (btn) { btn.textContent = 'Salvar nova senha'; btn.disabled = false; }
+                      }
+                    } catch(err) {
+                      setResetMsg('Erro de conexão.');
+                      if (btn) { btn.textContent = 'Salvar nova senha'; btn.disabled = false; }
+                    }
+                  });
+                }
+                if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', bindResetForm); } else { bindResetForm(); }
+              } catch(e) {}
+            })();
           })();
         </script>
         <div class="login-links">
@@ -3420,6 +3481,35 @@
             <path d="m9 12 2 2 4-4"/>
           </svg>
           <span>Acesso seguro e criptografado</span>
+        </div>
+      </div>
+      <div id="reset-password-card" class="login-card" style="display:none">
+        <div class="login-logo">
+          <div class="login-logo-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L4 6v6c0 5.5 3.5 10 8 11 4.5-1 8-5.5 8-11V6l-8-4z"/></svg></div>
+          <span class="login-logo-text">Guardline<sup>®</sup></span>
+        </div>
+        <h3 style="text-align:center;margin:0 0 4px;font-size:17px;font-weight:800">Criar nova senha</h3>
+        <p style="text-align:center;font-size:13px;color:var(--text-muted);margin:0 0 20px">Digite e confirme sua nova senha.</p>
+        <p id="reset-msg" class="login-error" hidden></p>
+        <form id="reset-form" method="post" action="javascript:void(0)">
+          <div class="form-group">
+            <label for="reset-new-pass">Nova senha</label>
+            <div class="input-wrapper">
+              <input type="password" id="reset-new-pass" placeholder="Mínimo 8 caracteres" required autocomplete="new-password" />
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="reset-confirm-pass">Confirmar senha</label>
+            <div class="input-wrapper">
+              <input type="password" id="reset-confirm-pass" placeholder="Repita a nova senha" required autocomplete="new-password" />
+              <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+          </div>
+          <button type="submit" id="reset-submit-btn">Salvar nova senha</button>
+        </form>
+        <div class="login-links" style="margin-top:12px">
+          <button type="button" class="link-btn" onclick="var u=new URL(location.href);u.searchParams.delete('token');history.replaceState(null,'',u.toString());location.reload();">← Voltar ao login</button>
         </div>
       </div>
     </div>
@@ -14967,16 +15057,46 @@
 
     async function renderAdminScreen() {
       var area = document.getElementById('content-area');
-      area.innerHTML = guardlineV2Page(
-        'Admin',
-        'Sem expor chaves',
-        '<div class="card" style="padding:16px;font-size:13px"><p>' +
-          escapeHtml(CONFIG.supabase.url) +
-          '</p><p>n8n: ' +
-          escapeHtml(CONFIG.n8n.base) +
-          '</p><button type="button" class="btn-full" style="margin-top:12px" onclick="syncCRM()">Sync HubSpot</button></div>'
-      );
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Admin', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      try {
+        var results = await Promise.all([
+          API.get('/admin/users').catch(function() { return { data: [] }; }),
+          API.get('/admin/approvals').catch(function() { return { data: [] }; }),
+        ]);
+        var users = (results[0].data || []);
+        var approvals = (results[1].data || []).filter(function(a) { return a.status === 'pending'; });
+        var approvalHtml = approvals.length ? approvals.map(function(a) {
+          return '<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border-subtle)">' +
+            '<div style="flex:1"><div style="font-weight:700;font-size:13px">' + escapeHtml(a.type || 'Solicitação') + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted)">' + escapeHtml((a.user && a.user.name) || a.userId || '—') + ' · ' + (a.createdAt ? new Date(a.createdAt).toLocaleDateString('pt-BR') : '—') + '</div></div>' +
+            '<button type="button" onclick="guardlineAdminApprove(' + JSON.stringify(a.id) + ')" style="background:var(--accent-green-dim);color:var(--accent-green);border:1px solid var(--accent-green);padding:4px 10px;font-size:12px;border-radius:6px;cursor:pointer">✓ Aprovar</button>' +
+            '<button type="button" onclick="guardlineAdminReject(' + JSON.stringify(a.id) + ')" style="background:var(--accent-red-dim);color:var(--accent-red);border:1px solid var(--accent-red);padding:4px 10px;font-size:12px;border-radius:6px;cursor:pointer;margin-left:6px">✕ Rejeitar</button></div>';
+        }).join('') : '<p class="placeholder-note" style="padding:14px">Nenhuma solicitação pendente.</p>';
+        var userHtml = users.length ? users.map(function(u) {
+          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border-subtle)">' +
+            '<div style="width:34px;height:34px;border-radius:50%;background:var(--accent-purple-dim);display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--accent-purple)">' + escapeHtml((u.name||'U').charAt(0).toUpperCase()) + '</div>' +
+            '<div style="flex:1"><div style="font-weight:600;font-size:13px">' + escapeHtml(u.name||'—') + '</div><div style="font-size:11px;color:var(--text-muted)">' + escapeHtml(u.email||'—') + '</div></div>' +
+            '<span style="font-size:11px;padding:2px 8px;background:var(--bg-elevated);border:1px solid var(--border-default);border-radius:12px;color:var(--text-secondary)">' + escapeHtml(u.role||'—') + '</span></div>';
+        }).join('') : '<p class="placeholder-note" style="padding:14px">Nenhum usuário.</p>';
+        area.innerHTML = '<div class="pipeline-page-wrap">' +
+          '<h2 style="margin:0 0 16px;font-size:18px;font-weight:800">⚙ Admin Panel</h2>' +
+          (approvals.length ? '<div class="card" style="margin-bottom:16px;animation:slide-up .3s ease"><div style="padding:12px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px"><span style="background:var(--accent-amber-dim);color:var(--accent-amber);border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800">' + approvals.length + '</span><span style="font-weight:700">Solicitações Pendentes</span></div>' + approvalHtml + '</div>' : '') +
+          '<div class="card" style="animation:slide-up .4s ease"><div style="padding:12px 16px;border-bottom:1px solid var(--border-subtle);font-weight:700">👥 Usuários (' + users.length + ')</div>' + userHtml + '</div>' +
+          '<div class="card" style="margin-top:16px;padding:14px 16px;animation:slide-up .5s ease"><div style="font-weight:700;margin-bottom:10px">🔧 Config</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);line-height:1.8">API: <code style="color:var(--accent-cyan)">' + escapeHtml(API_BASE) + '</code><br>n8n: <code style="color:var(--accent-cyan)">' + escapeHtml(CONFIG.n8n.base) + '</code><br>Supabase: <code style="color:var(--accent-cyan)">' + escapeHtml(CONFIG.supabase.url||'não configurado') + '</code></div>' +
+          '<button type="button" class="btn-full" style="margin-top:12px" onclick="syncCRM()">Sync HubSpot</button></div></div>';
+      } catch (e) {
+        showToast('error', 'Admin', (e && e.message) || String(e));
+        area.innerHTML = guardlineV2Page('Admin', null, '<div class="kpi-card warning" style="padding:16px"><b>⚠ Erro ao carregar</b><div style="font-size:13px;margin-top:6px">' + escapeHtml((e&&e.message)||String(e)) + '</div></div>');
+      }
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+    async function guardlineAdminApprove(id) {
+      try { await API.post('/admin/approvals/' + id + '/approve', {}); showToast('success', 'Admin', 'Aprovado.'); navigateTo('admin', true); } catch(e) { showToast('error', 'Admin', (e&&e.message)||String(e)); }
+    }
+    async function guardlineAdminReject(id) {
+      try { await API.post('/admin/approvals/' + id + '/reject', {}); showToast('warning', 'Admin', 'Rejeitado.'); navigateTo('admin', true); } catch(e) { showToast('error', 'Admin', (e&&e.message)||String(e)); }
     }
 
     async function syncCRM() {
