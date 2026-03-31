@@ -227,10 +227,14 @@ app.get('/health/data', (req, res) => {
 });
 
 const embeddedFrontendDir = path.join(__dirname, '..', 'public');
+const localFrontendDir = path.join(__dirname, '..', 'frontend');
 const siblingFrontendDir = path.join(__dirname, '..', '..', 'frontend');
-const frontendDir = require('fs').existsSync(path.join(embeddedFrontendDir, 'guardline.html'))
+const _fs = require('fs');
+const frontendDir = _fs.existsSync(path.join(embeddedFrontendDir, 'guardline.html'))
   ? embeddedFrontendDir
-  : siblingFrontendDir;
+  : _fs.existsSync(path.join(localFrontendDir, 'guardline.html'))
+    ? localFrontendDir
+    : siblingFrontendDir;
 app.use(express.static(frontendDir));
 
 // Serve uploaded documents
