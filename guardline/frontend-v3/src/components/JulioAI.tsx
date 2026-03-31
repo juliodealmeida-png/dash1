@@ -26,6 +26,7 @@ export default function JulioAI() {
       ts: Date.now(),
     },
   ])
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -48,15 +49,14 @@ export default function JulioAI() {
     setLoading(true)
 
     try {
-      const res = await api.post<{ data?: { reply?: string; response?: string; message?: string } }>('/julio/chat', {
+      const res = await api.post<{ message: string; conversationId: string }>('/julio/chat/sync', {
         message: msg,
-        history: messages.slice(-6).map((m) => ({ role: m.role, content: m.content })),
+        conversationId: conversationId,
       })
-      const reply =
-        res.data?.reply ??
-        res.data?.response ??
-        res.data?.message ??
-        'Entendido. Deixa eu verificar o pipeline...'
+      
+      if (res.conversationId) setConversationId(res.conversationId)
+      
+      const reply = res.message || 'Entendido. Deixa eu verificar o pipeline...'
 
       setMessages((prev) => [...prev, { role: 'assistant', content: reply, ts: Date.now() }])
     } catch {

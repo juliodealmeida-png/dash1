@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { api, fmtCurrency, daysSince } from '../lib/api'
 import Topbar from '../components/Topbar'
+import { useSocket } from '../context/SocketContext'
 
 // ── Types ────────────────────────────────────────────────
 interface DashboardData {
@@ -102,6 +103,7 @@ function KpiCardItem({ label, value, icon, color }: KpiCard) {
 }
 
 export default function CommandCenter() {
+  const { socket } = useSocket()
   const [dashboard, setDashboard] = useState<DashboardData | null>(null)
   const [deals, setDeals] = useState<Deal[]>([])
   const [funnelData, setFunnelData] = useState<{ name: string; value: number; fill: string }[]>([])
@@ -136,6 +138,22 @@ export default function CommandCenter() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!socket) return
+
+    socket.on('deal:updated', () => load())
+    socket.on('deal:created', () => load())
+    socket.on('signal:new', () => load())
+    socket.on('metrics:refresh', () => load())
+
+    return () => {
+      socket.off('deal:updated')
+      socket.off('deal:created')
+      socket.off('signal:new')
+      socket.off('metrics:refresh')
+    }
+  }, [socket, load])
 
   // Derived data
   const staleDeals = deals.filter((d) => d.stage !== 'won' && d.stage !== 'lost' && daysSince(d.stageChangedAt ?? d.updatedAt) > 14)

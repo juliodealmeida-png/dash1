@@ -7,6 +7,7 @@ interface User {
   email: string
   role: string
   company?: string
+  modules?: string | null
 }
 
 interface AuthContextValue {
@@ -40,11 +41,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (email: string, password: string) => {
-    const res = await api.post<{ token: string; user: User }>('/auth/login', { email, password })
-    localStorage.setItem('guardline_token', res.token)
-    localStorage.setItem('guardline_user', JSON.stringify(res.user))
-    setToken(res.token)
-    setUser(res.user)
+    const res = await api.post<any>('/auth/login', { email, password })
+    const accessToken =
+      res?.accessToken ||
+      res?.token ||
+      res?.data?.accessToken ||
+      res?.data?.token ||
+      null
+    const userObj = res?.user || res?.data?.user || null
+
+    if (!accessToken || !userObj) throw new Error('Resposta de login inválida')
+
+    localStorage.setItem('guardline_token', accessToken)
+    localStorage.setItem('guardline_user', JSON.stringify(userObj))
+    setToken(accessToken)
+    setUser(userObj)
   }, [])
 
   const logout = useCallback(() => {

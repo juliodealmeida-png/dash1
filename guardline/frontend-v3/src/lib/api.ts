@@ -1,4 +1,11 @@
-const BASE = '/api'
+const BASE = (() => {
+  const w = typeof window !== 'undefined' ? (window as any) : {}
+  const raw =
+    (import.meta as any)?.env?.VITE_API_BASE ||
+    w.__GUARDLINE_API_BASE__ ||
+    '/api'
+  return String(raw || '/api').replace(/\/$/, '')
+})()
 
 function getToken(): string | null {
   return localStorage.getItem('guardline_token')
@@ -39,8 +46,9 @@ async function request<T>(
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
-  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   delete: <T>(path: string) => request<T>('DELETE', path),
 }
 
@@ -54,6 +62,14 @@ export function fmtCurrency(value: number, locale = 'en-US'): string {
     currency: 'USD',
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+export function fmtDate(date: string | Date): string {
+  return new Date(date).toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  })
 }
 
 export function daysSince(date: string | Date): number {
