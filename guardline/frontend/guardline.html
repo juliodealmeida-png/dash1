@@ -10,9 +10,9 @@
   <script>
     /* ── Guardline local dev config ── */
     window.GUARDLINE_API_BASE        = 'https://guardline-engine-production.up.railway.app/api';
-    window.GUARDLINE_DATA_API_BASE   = 'https://guardline-engine-production.up.railway.app/api';
+    window.GUARDLINE_DATA_API_BASE   = 'https://guardline-api-production.up.railway.app';
     window.GUARDLINE_SUPABASE_URL    = 'https://ohwybcisgrmbgqeeulmm.supabase.co';
-    window.GUARDLINE_SUPABASE_ANON_KEY = '';
+    window.GUARDLINE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9od3liY2lzZ3JtYmdxZWV1bG1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzgwNjMsImV4cCI6MjA4OTkxNDA2M30.l11FoR50cBxYblm22nwaNMVns715QXkgVJBdUSjnQdU';
     window.GUARDLINE_MAPBOX_TOKEN    = window.__ENV_MAPBOX_TOKEN__ || '';
     window.GUARDLINE_N8N_WEBHOOK_BASE = 'https://guardline.app.n8n.cloud/webhook';
   </script>
@@ -280,6 +280,10 @@
       border-color: var(--border-strong);
     }
     .icon-btn.settings:hover svg { animation: spin 0.5s ease; }
+    .lang-switcher { display:flex;gap:2px;background:var(--bg-card);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:3px; }
+    .lang-btn { padding:3px 8px;border:none;border-radius:5px;background:transparent;color:var(--text-muted);font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.5px; }
+    .lang-btn:hover { color:var(--text-primary); }
+    .lang-btn.active { background:var(--accent-purple,#7c3aed);color:#fff; }
     .notif-badge {
       position: absolute;
       top: 4px;
@@ -3267,6 +3271,22 @@
                     Auth.setToken(token);
                     if (data.data && data.data.user && Auth.setUser) Auth.setUser(data.data.user);
                   }
+                  try {
+                    var meRes = await fetch(RESOLVED_API_BASE + '/auth/me', {
+                      method: 'GET',
+                      headers: { Accept: 'application/json', Authorization: 'Bearer ' + token },
+                    });
+                    if (!meRes.ok) {
+                      localStorage.removeItem('guardline_token');
+                      localStorage.removeItem('guardline_refresh');
+                      throw new Error('Falha ao validar sessão (HTTP ' + meRes.status + ').');
+                    }
+                  } catch (meErr) {
+                    throw new Error(
+                      'Login ok, mas a sessão não validou. ' +
+                        ((meErr && meErr.message) || 'Verifique a URL da API e o JWT_SECRET.')
+                    );
+                  }
                   setLoginError('Login ok. Carregando dashboard…', true);
                   var started = false;
                   var tries = 0;
@@ -3578,6 +3598,11 @@
           <i data-lucide="bell" style="width:20px;height:20px"></i>
           <span class="notif-badge" id="notif-count" style="display:none">0</span>
         </button>
+        <div class="lang-switcher" id="lang-switcher" title="Idioma / Language / Idioma">
+          <button type="button" class="lang-btn active" data-lang="pt" onclick="setLanguage('pt')">PT</button>
+          <button type="button" class="lang-btn" data-lang="en" onclick="setLanguage('en')">EN</button>
+          <button type="button" class="lang-btn" data-lang="es" onclick="setLanguage('es')">ES</button>
+        </div>
         <button type="button" class="icon-btn settings" aria-label="Configurações"><i data-lucide="settings" style="width:20px;height:20px"></i></button>
         <div class="avatar-wrap">
           <button type="button" class="avatar-btn" id="avatar-btn" aria-haspopup="true">JA</button>
@@ -6870,9 +6895,18 @@
         await refreshCommandBarFromApi();
         if (typeof guardlineBootstrapDataLayer === 'function') await guardlineBootstrapDataLayer();
       } catch (e) {
-        Auth.removeToken();
-        showLoginScreen();
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+        var msg = (e && e.message) ? String(e.message) : String(e || '');
+        var authFailure = /sessão expirada|token|unauthorized|401/i.test(msg);
+        if (authFailure) {
+          Auth.removeToken();
+          showLoginScreen();
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          return;
+        }
+        showDashboard();
+        if (typeof showToast === 'function') {
+          showToast('warning', 'Modo degradado', 'Entrou no dashboard, mas houve falha ao validar sessão. Tente recarregar.');
+        }
       }
     }
 
@@ -8819,7 +8853,7 @@
           '<label class="pipeline-risk-toggle" style="margin:0"><input type="checkbox" id="hubspot-pipeline-closed"' +
           (includeClosed ? ' checked' : '') +
           ' /> Mostrar fechados</label>' +
-          '<button type="button" class="btn-activate" onclick="navigateTo(\\'pipeline-health\\')">KPI Dashboard →</button>' +
+          '<button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-health\')">KPI Dashboard →</button>' +
           '</div></div><div class="kanban-board">';
 
         stages.forEach(function (s) {
@@ -9178,18 +9212,19 @@
         var s = document.createElement('style');
         s.id = 'lf-css';
         s.textContent = [
-          '.lf-wrap{display:flex;flex-direction:column;gap:16px;width:100%}',
-          '.lf-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}',
-          '.lf-funnel{width:100%;display:grid;grid-template-columns:repeat(7,1fr) repeat(6,20px);gap:3px;border-radius:14px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.25)}',
-          '.lf-stage{padding:22px 10px 16px;background:var(--card);text-align:center;cursor:pointer;transition:all .2s;user-select:none;border-top:3px solid transparent;position:relative}',
-          '.lf-stage:hover{background:rgba(255,255,255,.07);transform:translateY(-1px)}',
-          '.lf-stage.lf-stage--active{border-top-color:#7c3aed;background:rgba(124,58,237,.18)}',
-          '.lf-stage-icon{font-size:20px;line-height:1;margin-bottom:6px}',
-          '.lf-stage-count{font-size:30px;font-weight:800;color:var(--text-primary);line-height:1}',
-          '.lf-stage-label{font-size:10px;color:var(--text-muted);margin-top:5px;text-transform:uppercase;letter-spacing:.8px;font-weight:600}',
-          '.lf-stage-pct{font-size:11px;color:var(--text-dim,#64748b);margin-top:4px;font-weight:500}',
-          '.lf-stage-bar{height:4px;border-radius:2px;margin-top:10px;opacity:.7}',
-          '.lf-arrow{display:flex;align-items:center;justify-content:center;color:var(--text-dim,#64748b);font-size:14px;background:var(--bg,#0f172a)}',
+          '.lf-wrap{display:flex;flex-direction:column;gap:24px;width:100%}',
+          '.lf-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px}',
+          '.lf-funnel{width:100%;display:flex;gap:0;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.3)}',
+          '.lf-stage{flex:1;min-width:0;padding:28px 14px 20px;background:var(--card);text-align:center;cursor:pointer;transition:all .25s;user-select:none;border-top:3px solid transparent;position:relative;border-right:1px solid rgba(255,255,255,.05)}',
+          '.lf-stage:last-of-type{border-right:none}',
+          '.lf-stage:hover{background:rgba(255,255,255,.07);transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.2)}',
+          '.lf-stage.lf-stage--active{border-top-color:#7c3aed;background:rgba(124,58,237,.2)}',
+          '.lf-stage-icon{font-size:24px;line-height:1;margin-bottom:8px}',
+          '.lf-stage-count{font-size:38px;font-weight:800;color:var(--text-primary);line-height:1}',
+          '.lf-stage-label{font-size:11px;color:var(--text-muted);margin-top:7px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}',
+          '.lf-stage-pct{font-size:12px;color:var(--text-dim,#64748b);margin-top:6px;font-weight:500}',
+          '.lf-stage-bar{height:5px;border-radius:3px;margin-top:12px;opacity:.8}',
+          '.lf-arrow{display:none}',
           '.lf-controls{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap}',
           '.lf-sources-bar{display:flex;gap:6px;align-items:center;flex-wrap:wrap}',
           '.lf-src-badge{padding:3px 9px;border-radius:12px;font-size:12px;background:var(--card);border:1px solid var(--border);color:var(--text-secondary)}',
@@ -10660,7 +10695,7 @@
             c.targetPct +
             '%"></div></div><div style="font-size:11px;color:var(--text-muted)">' +
             c.targetPct +
-            '% do target</div><div class="camp-actions"><button type="button" class="act-btn">Ver detalhes</button><button type="button" class="act-btn">Pausar</button><button type="button" class="act-btn">Editar</button></div></div>'
+            '% do target</div><div class="camp-actions"><button type="button" class="act-btn" data-action="detail" onclick="campAction(\'detail\',\''+c.id+'\')">Ver detalhes</button><button type="button" class="act-btn" data-action="toggle" onclick="campAction(\'toggle\',\''+c.id+'\')" id="camp-toggle-'+c.id+'">'+(c.active?'Pausar':'Ativar')+'</button><button type="button" class="act-btn" data-action="edit" onclick="campAction(\'edit\',\''+c.id+'\')">Editar</button></div></div>'
           );
         })
         .join('');
@@ -10778,6 +10813,28 @@
         }
         if (typeof lucide !== 'undefined') lucide.createIcons();
       }, 0);
+    }
+
+    function campAction(action, id) {
+      var camp = AppData.campaigns.filter(function(c){ return c.id === id; })[0];
+      if (!camp) return;
+      if (action === 'detail') {
+        showToast('info', camp.name,
+          'Leads: ' + camp.leads + ' · Deals: ' + camp.dealsCreated + ' · Fechados: ' + camp.closed +
+          ' · Receita: $' + camp.revenue.toLocaleString('en-US') + ' · ROI: ' + camp.roi + '%');
+      } else if (action === 'toggle') {
+        camp.active = !camp.active;
+        var btn = document.getElementById('camp-toggle-' + id);
+        if (btn) btn.textContent = camp.active ? 'Pausar' : 'Ativar';
+        var dot = btn && btn.closest('.camp-card') && btn.closest('.camp-card').querySelector('.camp-status');
+        if (dot) dot.innerHTML = '<span class="dot"></span>' + (camp.active ? 'Ativa' : 'Pausada');
+        showToast(camp.active ? 'success' : 'warning', 'Campanha', camp.name + (camp.active ? ' ativada.' : ' pausada.'));
+        if (Auth.isLoggedIn()) {
+          API.post('/campaigns/' + id + '/toggle', { active: camp.active }, { silent: true }).catch(function(){});
+        }
+      } else if (action === 'edit') {
+        showToast('info', 'Editar', 'Edição de campanha: ' + camp.name + ' — em breve via painel dedicado.');
+      }
     }
 
     function renderAttribution() {
@@ -10935,12 +10992,18 @@
       var logs = [];
       try {
         if (Auth.isLoggedIn()) {
-          var results = await Promise.allSettled([
-            API.get('/automations/recipes', { silent: true }),
-            API.get('/automations/logs?take=50', { silent: true }),
+          var _autoTimeout = new Promise(function(_, rej) { setTimeout(function(){ rej(new Error('timeout')); }, 8000); });
+          var results = await Promise.race([
+            Promise.allSettled([
+              API.get('/automations/recipes', { silent: true }),
+              API.get('/automations/logs?take=50', { silent: true }),
+            ]),
+            _autoTimeout.then(function() { return [{status:'rejected'},{status:'rejected'}]; }).catch(function() { return [{status:'rejected'},{status:'rejected'}]; })
           ]);
-          if (results[0].status === 'fulfilled') recipes = results[0].value.data || [];
-          if (results[1].status === 'fulfilled') logs = results[1].value.data || [];
+          if (Array.isArray(results)) {
+            if (results[0] && results[0].status === 'fulfilled') recipes = results[0].value.data || [];
+            if (results[1] && results[1].status === 'fulfilled') logs = results[1].value.data || [];
+          }
         }
       } catch(e) { console.warn('[Automations]', e.message); }
 
@@ -11088,7 +11151,25 @@
 
     function submitRecipeActivate(id) {
       closeRecipeModal();
-      showToast('success', 'Recipe', 'Recipe ' + id + ' ativado (simulação).');
+      var r = AppData.recipes.filter(function(x){ return x.id === id; })[0];
+      var name = r ? r.title : id;
+      showToast('info', 'Recipe', 'Ativando ' + name + '…');
+      var payload = { recipeId: id, triggeredBy: 'dashboard', source: 'revenue_recipes' };
+      var wfBase = (typeof CONFIG !== 'undefined' && CONFIG.n8n && CONFIG.n8n.base) || window.GUARDLINE_N8N_WEBHOOK_BASE || '';
+      var promises = [];
+      if (wfBase) {
+        promises.push(fetch(wfBase + '/recipe-activate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(function(){}));
+      }
+      if (Auth.isLoggedIn()) {
+        promises.push(API.post('/automations/trigger', payload, { silent: true }).catch(function(){}));
+      }
+      Promise.allSettled(promises).then(function(results) {
+        var ok = results.some(function(r){ return r.status === 'fulfilled'; });
+        showToast(ok ? 'success' : 'warning', 'Recipe', ok ? name + ' ativado com sucesso.' : name + ' ativado (verifique n8n).');
+      });
     }
 
     function renderRecipes() {
@@ -11749,7 +11830,9 @@
         '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)"><input type="checkbox" id="fraud-layer-signal" checked /> Sinais</label>' +
         '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)"><input type="checkbox" id="fraud-layer-threat" checked /> Threat intel</label>' +
         '<select id="fraud-period-select" style="padding:8px;border-radius:6px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary)">' +
-        '<option value="24h">24h</option><option value="7d">7 dias</option><option value="30d">30 dias</option></select>' +
+        '<option value="24h">24h</option><option value="7d">7 dias</option><option value="15d" selected>15 dias</option></select>' +
+        '<select id="fraud-country-select" style="padding:8px;border-radius:6px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary)">'+
+        '<option value="">🌎 Todos países</option><option value="BR">🇧🇷 Brasil</option><option value="MX">🇲🇽 México</option><option value="AR">🇦🇷 Argentina</option><option value="CO">🇨🇴 Colombia</option><option value="CL">🇨🇱 Chile</option><option value="PE">🇵🇪 Perú</option></select>' +
         '<button type="button" class="act-btn" id="fraud-refresh-btn">Atualizar</button>' +
         '<button type="button" class="act-btn" id="fraud-fs-btn">Fullscreen</button></div></div>' +
         '<div class="fraud-map-split">' +
@@ -11765,7 +11848,7 @@
         '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-countries">—</div><div class="fk-l">Países afetados</div></div></div>' +
         '<div class="fraud-bottom-charts">' +
         '<div class="card"><div class="card-header"><span class="card-title">Fraudes por tipo</span></div><div class="fraud-chart-h"><canvas id="fraud-donut"></canvas></div></div>' +
-        '<div class="card"><div class="card-header"><span class="card-title">Tendência 30 dias</span></div><div class="fraud-chart-h"><canvas id="fraud-trend"></canvas></div></div></div></div>';
+        '<div class="card"><div class="card-header"><span class="card-title">Tendência 15 dias</span></div><div class="fraud-chart-h"><canvas id="fraud-trend"></canvas></div></div></div></div>';
 
       setTimeout(function () {
         var mapEl = document.getElementById('fraud-map');
@@ -11803,7 +11886,7 @@
           if (live) live.textContent = 'Dados · ' + (guardlineDataApiRoot() || '—');
         }
 
-        function rebuildFeedFromPayload(data) {
+        function rebuildFeedFromPayload(data, countryFilter) {
           var list = document.getElementById('fraud-feed-list');
           if (!list || !data || !data.layers) return;
           list.innerHTML = '';
@@ -11811,6 +11894,15 @@
             .concat((data.layers.signal && data.layers.signal.features) || [])
             .concat((data.layers.threat_intel && data.layers.threat_intel.features) || [])
             .concat((data.layers.lead_risk && data.layers.lead_risk.features) || []);
+          if (countryFilter) {
+            var CC_MAP = { BR:'Brazil|Brasil|BR', MX:'Mexico|MX|México', AR:'Argentina|AR', CO:'Colombia|CO', CL:'Chile|CL', PE:'Peru|Perú|PE' };
+            var pat = CC_MAP[countryFilter] || countryFilter;
+            var re = new RegExp(pat, 'i');
+            combined = combined.filter(function(f) {
+              var p = f.properties || {};
+              return re.test(p.country || '') || re.test(p.city || '') || re.test(p.country_code || '');
+            });
+          }
           combined.sort(function (a, b) {
             var ta = (a.properties && (a.properties.created_at || a.properties.published_at || '')) || '';
             var tb = (b.properties && (b.properties.created_at || b.properties.published_at || '')) || '';
@@ -11897,11 +11989,15 @@
             return;
           }
           var per = document.getElementById('fraud-period-select');
-          var period = per && per.value ? per.value : '24h';
+          var period = per && per.value ? per.value : '15d';
+          var ctry = document.getElementById('fraud-country-select');
+          var countryFilter = ctry && ctry.value ? ctry.value : '';
           var hdrs = { Accept: 'application/json' };
           var tok = typeof Auth !== 'undefined' && Auth.getToken ? Auth.getToken() : null;
           if (tok) hdrs.Authorization = 'Bearer ' + tok;
-          fetch(root + '/fraud-map/layers?period=' + encodeURIComponent(period) + '&layer=all', { headers: hdrs })
+          var qurl = root + '/fraud-map/layers?period=' + encodeURIComponent(period) + '&layer=all';
+          if (countryFilter) qurl += '&country=' + encodeURIComponent(countryFilter);
+          fetch(qurl, { headers: hdrs })
             .then(function (r) {
               return r.json();
             })
@@ -11912,7 +12008,7 @@
                 setSourceData(map, 'fraud-signal-src', data.layers.signal || { type: 'FeatureCollection', features: [] });
                 setSourceData(map, 'fraud-threat-src', data.layers.threat_intel || { type: 'FeatureCollection', features: [] });
               }
-              rebuildFeedFromPayload(data);
+              rebuildFeedFromPayload(data, countryFilter);
               updateDonut(data);
             })
             .catch(function () {
@@ -11994,6 +12090,8 @@
             });
             var perSel = document.getElementById('fraud-period-select');
             if (perSel) perSel.addEventListener('change', function () { loadLayersFromApi(fraudMapbox); });
+            var ctrySel = document.getElementById('fraud-country-select');
+            if (ctrySel) ctrySel.addEventListener('change', function () { loadLayersFromApi(fraudMapbox); });
             var refBtn = document.getElementById('fraud-refresh-btn');
             if (refBtn) refBtn.onclick = function () { loadLayersFromApi(fraudMapbox); };
 
@@ -12015,6 +12113,8 @@
           loadLayersFromApi(null);
           var perSel2 = document.getElementById('fraud-period-select');
           if (perSel2) perSel2.addEventListener('change', function () { loadLayersFromApi(null); });
+          var ctry2 = document.getElementById('fraud-country-select');
+          if (ctry2) ctry2.addEventListener('change', function () { loadLayersFromApi(null); });
           var refBtn2 = document.getElementById('fraud-refresh-btn');
           if (refBtn2) refBtn2.onclick = function () { loadLayersFromApi(null); };
           if (guardlineDataApiRoot()) pollId = setInterval(function () { loadLayersFromApi(null); }, 90000);
@@ -12027,7 +12127,7 @@
         if (typeof Chart !== 'undefined') {
           var ft = document.getElementById('fraud-trend');
           if (ft) {
-            var days = Array.from({ length: 30 }, function (_, i) {
+            var days = Array.from({ length: 15 }, function (_, i) {
               return i + 1;
             });
             screenCharts.push(
@@ -14150,10 +14250,38 @@
           c.name+'</button>';
       }).join('');
 
+      var BC_COUNTRIES = {
+        BR: { flag:'🇧🇷', name:'Brasil', notes:'Mercado regulado por LGPD. Alta demanda Fintechs/Bancos. Ciclo médio 45–90 dias. Decisor: CISO + CFO.', wins:['LGPD compliance nativa','Preço em BRL sem conversão','Suporte PT-BR 24/7','Parceiros locais SI'] },
+        MX: { flag:'🇲🇽', name:'México', notes:'Crescimento acelerado Fintech CDMX. Lei Federal Protección Datos. Ciclo 60–120 dias. Decisor: CTO + Jurídico.', wins:['Conformidade Ley Fintech','Suporte ES-MX nativo','Presença LatAm','ROI em MXN calculável'] },
+        AR: { flag:'🇦🇷', name:'Argentina', notes:'Mercado volátil, pagamentos alternativos. Foco em resiliência e auditoria. Ciclo 30–60 dias.', wins:['Deploy rápido < 30 dias','Sem exposição cambial USD','Auditoria contínua','Alertas regulatórios BCR'] },
+        CO: { flag:'🇨🇴', name:'Colombia', notes:'Ecosistema Fintech Bogotá em expansão. SFC exige controles. Ciclo 45–75 dias.', wins:['Compliance SFC integrado','Onboarding rápido','Dashboard em ES','Casos Rappi/Nequi'] },
+        CL: { flag:'🇨🇱', name:'Chile', notes:'Mercado maduro, regulação CMF. Alta exigência técnica. Ciclo 60–90 dias.', wins:['Ley Marco Ciberseguridad ready','Relatório CMF exportável','Deploy SaaS sem infra local','Suporte gerencial'] },
+        PE: { flag:'🇵🇪', name:'Perú', notes:'Crescimento Fintech Lima. SBS exige auditoria. Ciclo 45–60 dias.', wins:['Conformidade SBS nativa','Preço competitivo LATAM','Deploy cloud AWS SA','Parceiros locais'] },
+      };
+      var bcCountry = window.__bcCountry || 'BR';
+      var countryBar = '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:16px">'+
+        '<span style="font-size:11px;color:var(--text-muted);font-weight:600;margin-right:4px">📍 Mercado:</span>'+
+        Object.keys(BC_COUNTRIES).map(function(k){
+          var cc = BC_COUNTRIES[k];
+          return '<button type="button" onclick="window.__bcCountry=\''+k+'\';renderBattlecard()" style="'+
+            'padding:5px 10px;border-radius:8px;border:1px solid '+(k===bcCountry?'var(--accent-cyan)':'rgba(255,255,255,.1)')+';'+
+            'background:'+(k===bcCountry?'rgba(6,182,212,.15)':'transparent')+';color:'+(k===bcCountry?'#22d3ee':'var(--text-muted)')+';'+
+            'font-size:12px;font-weight:600;cursor:pointer;transition:all .2s">'+cc.flag+' '+cc.name+'</button>';
+        }).join('')+'</div>';
+      var cc = BC_COUNTRIES[bcCountry];
+      var countryContext = '<div class="card" style="margin-bottom:16px;background:rgba(6,182,212,.04);border-color:rgba(6,182,212,.2)">'+
+        '<div style="padding:14px">'+
+        '<div style="font-size:12px;font-weight:700;color:#22d3ee;margin-bottom:8px">'+cc.flag+' Contexto: '+cc.name+'</div>'+
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;line-height:1.6">'+cc.notes+'</p>'+
+        '<div style="display:flex;flex-wrap:wrap;gap:6px">'+cc.wins.map(function(w){ return '<span style="padding:3px 8px;border-radius:12px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.2);font-size:11px;color:#22d3ee">✓ '+w+'</span>'; }).join('')+'</div>'+
+        '</div></div>';
+
       area.innerHTML = '<div class="pipeline-page-wrap">'+
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'+
         '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Competitors Battlecard</h2>'+
         '<p style="font-size:13px;color:var(--text-muted);margin:0">Argumentos de vendas vs principais concorrentes · integrado ao Julio AI</p></div></div>'+
+        countryBar+
+        countryContext+
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px" id="bc-tabs">'+tabs+'</div>'+
         '<div class="command-grid" style="align-items:start">'+
         '<div class="card" id="bc-card" style="grid-column:1/2">'+renderCard(0)+'</div>'+
@@ -16085,6 +16213,47 @@
         if (first) navigateTo(first.getAttribute('data-screen'), true);
       }
     }
+
+    var GL_LANG = localStorage.getItem('gl_lang') || 'pt';
+    var GL_I18N = {
+      pt: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Sinais', forecast:'Forecast', campaigns:'Campanhas',
+            automations:'Automações', recipes:'Revenue Recipes', integrations:'Integrações', reports:'Relatórios',
+            contacts:'Contatos', accounts:'Contas', meetings:'Reuniões', inbox:'Inbox', 'lead-flow':'Fluxo de Leads',
+            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Sair',
+            profile:'Meu Perfil', settings:'Configurações', live:'Live Intelligence' },
+      en: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Signals', forecast:'Forecast', campaigns:'Campaigns',
+            automations:'Automations', recipes:'Revenue Recipes', integrations:'Integrations', reports:'Reports',
+            contacts:'Contacts', accounts:'Accounts', meetings:'Meetings', inbox:'Inbox', 'lead-flow':'Lead Flow',
+            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Logout',
+            profile:'My Profile', settings:'Settings', live:'Live Intelligence' },
+      es: { dashboard:'Panel', pipeline:'Pipeline', leads:'Leads', signals:'Señales', forecast:'Pronóstico', campaigns:'Campañas',
+            automations:'Automatizaciones', recipes:'Revenue Recipes', integrations:'Integraciones', reports:'Reportes',
+            contacts:'Contactos', accounts:'Cuentas', meetings:'Reuniones', inbox:'Buzón', 'lead-flow':'Flujo de Leads',
+            battlecard:'Battlecard', fraudmap:'Mapa Fraude', investor:'Pipeline Inversor', logout:'Salir',
+            profile:'Mi Perfil', settings:'Configuración', live:'Inteligencia en Vivo' }
+    };
+    function setLanguage(lang) {
+      if (!GL_I18N[lang]) return;
+      GL_LANG = lang;
+      localStorage.setItem('gl_lang', lang);
+      document.querySelectorAll('.lang-btn').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-lang') === lang);
+      });
+      var dict = GL_I18N[lang];
+      document.querySelectorAll('.nav-item[data-screen]').forEach(function(el) {
+        var sc = el.getAttribute('data-screen');
+        var lbl = el.querySelector('.nav-label');
+        if (lbl && dict[sc]) lbl.textContent = dict[sc];
+      });
+      var liveEl = document.querySelector('.live-text');
+      if (liveEl && dict.live) liveEl.textContent = dict.live;
+      document.querySelectorAll('[data-i18n]').forEach(function(el) {
+        var k = el.getAttribute('data-i18n');
+        if (dict[k]) el.textContent = dict[k];
+      });
+      if (typeof showToast === 'function') showToast('info', lang.toUpperCase(), { pt:'Idioma: Português', en:'Language: English', es:'Idioma: Español' }[lang]);
+    }
+    (function(){ try { if (GL_LANG !== 'pt') setLanguage(GL_LANG); } catch(e){} })();
 
     function navigateTo(screen, skipAnim) {
       var area = document.getElementById('content-area');
