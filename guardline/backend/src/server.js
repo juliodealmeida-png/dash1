@@ -258,6 +258,8 @@ app.post('/api/upload/document', require('./middleware/auth').authMiddleware, do
   res.json({ success: true, data: { fileUrl, filename: req.file.originalname, size: req.file.size, fileHash } });
 });
 
+app.use('/webhooks/hubspot', require('./routes/hubspot.routes'));
+
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/deals', require('./routes/deals.routes'));
 app.use('/api/leads', require('./routes/leads.routes'));
@@ -277,6 +279,7 @@ app.use('/api/integrations', require('./routes/integrations.routes'));
 app.use('/api/connectors', require('./routes/connectors.routes'));
 app.use('/api/investor', require('./routes/investor.routes'));
 app.use('/api/documents', require('./routes/documents.routes'));
+app.use('/api/tools', require('./routes/tools.routes'));
 app.use('/api/forum', require('./routes/forum.routes'));
 app.use('/api/profile', require('./routes/profile.routes'));
 

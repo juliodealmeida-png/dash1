@@ -17,6 +17,7 @@ const schema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(32).optional(),
     DASHBOARD_WEBHOOK_SECRET: z.string().optional(),
     HUBSPOT_PAT: z.string().optional(),
+    HUBSPOT_APP_SECRET: z.string().optional(),
     N8N_WEBHOOK_SECRET: z.string().optional(),
     N8N_BASE_URL: z.string().url().optional(),
     N8N_API_KEY: z.string().optional(),

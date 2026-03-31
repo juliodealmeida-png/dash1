@@ -8,6 +8,7 @@ import { sseClientCount } from './lib/sseHub.js';
 import { sseRoutes } from './routes/sse.js';
 import { webhooksN8nRoutes } from './routes/webhooksN8n.js';
 import { webhooksDashboardRoutes } from './routes/webhooksDashboard.js';
+import { webhooksHubspotRoutes } from './routes/webhooksHubspot.js';
 import { syncOutRoutes } from './routes/syncOut.js';
 import { dashboardRoutes } from './routes/dashboard.js';
 import { leadsRoutes } from './routes/leads.js';
@@ -65,7 +66,14 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(express.json({ limit: '10mb' }));
+  app.use(
+    express.json({
+      limit: '10mb',
+      verify: (req, _res, buf) => {
+        (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8');
+      },
+    })
+  );
 
   mountLegacyExpressCompat(app, env, supabase);
   app.use('/api/ai', aiProxyRoutes(env));
@@ -95,8 +103,11 @@ export function createApp() {
   app.use('/api/hubspot-sync', hubspotSyncRoutes(env));
 
   app.use('/api/webhooks/n8n', webhooksN8nRoutes(env, supabase));
+  app.use('/api/webhooks/hubspot', webhooksHubspotRoutes(env, supabase));
   app.use('/api/webhooks', webhooksDashboardRoutes(env, supabase));
   app.use('/api/sync/n8n', syncOutRoutes(env));
+
+  app.use('/webhooks/hubspot', webhooksHubspotRoutes(env, supabase));
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found' });
