@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -3435,6 +3435,9 @@
         <button type="button" class="nav-item" data-screen="loss" data-roles="founder">
           <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span>
         </button>
+        <button type="button" class="nav-item" data-screen="hubspot-pipeline" data-roles="founder,sdr">
+          <i data-lucide="git-merge" class="nav-icon"></i><span class="nav-label">HubSpot Pipeline</span>
+        </button>
         <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder">
           <i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span>
         </button>
@@ -4558,12 +4561,30 @@
       '1123039270': true,
     };
 
+    var GUARDLINE_HUBSPOT_STAGE_MAP = {
+      '1031112078': { label: 'New Lead', group: 'prospecting', order: 0 },
+      '1031112079': { label: 'Intro Call', group: 'qualification', order: 1 },
+      '1031112080': { label: 'Discovery & Demo', group: 'qualification', order: 2 },
+      '1031146375': { label: 'NDA', group: 'qualification', order: 3 },
+      '1035269698': { label: 'POC Planning', group: 'qualification', order: 4 },
+      '1031127597': { label: 'POC', group: 'proposal', order: 5 },
+      '1160559924': { label: 'Proposal Sent', group: 'proposal', order: 6 },
+      '1311981861': { label: 'Contract Negotiation', group: 'negotiation', order: 7 },
+      '1031112081': { label: 'Proposal Accepted', group: 'negotiation', order: 8 },
+      '1031112082': { label: 'Contract Sent', group: 'negotiation', order: 9 },
+      '1031112083': { label: 'Closed Won', group: 'won', order: 10 },
+      '1123039270': { label: 'Freezer', group: 'lost', order: 11 },
+      '1031127595': { label: 'Unqualified Lead', group: 'lost', order: 12 },
+      '1031112084': { label: 'Closed Lost', group: 'lost', order: 13 },
+    };
+
     function guardlineDealStageIsClosed(stage) {
       return !!(stage != null && GUARDLINE_DEAL_INACTIVE_STAGES[String(stage)]);
     }
 
     function hubspotStageIdToLabel(stage) {
       var sid = String(stage || '');
+      if (GUARDLINE_HUBSPOT_STAGE_MAP[sid] && GUARDLINE_HUBSPOT_STAGE_MAP[sid].label) return GUARDLINE_HUBSPOT_STAGE_MAP[sid].label;
       var m = CONFIG.hubspot && CONFIG.hubspot.stages;
       if (m) {
         for (var k in m) {
@@ -4627,6 +4648,7 @@
       var amt = Number(row.deal_amount || 0);
       var prob = Number(row.deal_probability || 0);
       var risk = !prob ? 50 : prob >= 25 && prob <= 50 ? 62 : prob > 0 && prob < 25 ? 78 : Math.max(0, Math.min(100, 100 - prob));
+      var ownerName = row.owner_name || (row.metadata && row.metadata.owner_name) || '\u2014';
       return {
         id: 'deal:' + row.id,
         company: row.deal_name || 'Deal',
@@ -4639,8 +4661,8 @@
         risk: Math.round(risk),
         daysNoContact: 0,
         nextAction: row.metadata && row.metadata.next_action ? String(row.metadata.next_action).slice(0, 96) : '\u2014',
-        owner: '\u2014',
-        ownerInitials: '\u2014',
+        owner: ownerName,
+        ownerInitials: initials(ownerName),
         entry: supaFormatShortDate(row.created_at),
         timeline: [],
         emails: [],
@@ -8718,6 +8740,85 @@
       } else {
         loadPipelineFallback();
       }
+    }
+
+    function renderHubspotPipeline() {
+      var area = document.getElementById('content-area');
+      area.innerHTML = '<div class="pipeline-page-wrap"><p style="padding:24px;color:var(--text-muted)">Carregando HubSpot pipeline…</p></div>';
+
+      if (!guardlineSupabaseReady()) {
+        area.innerHTML = guardlineV2Page(
+          'HubSpot Pipeline',
+          'Conecte Supabase',
+          '<div class="card" style="padding:18px"><p class="placeholder-note">Supabase não está configurado no dashboard.</p></div>'
+        );
+        return;
+      }
+
+      function stageList(includeClosed) {
+        var arr = [];
+        for (var sid in GUARDLINE_HUBSPOT_STAGE_MAP) {
+          if (!Object.prototype.hasOwnProperty.call(GUARDLINE_HUBSPOT_STAGE_MAP, sid)) continue;
+          if (!includeClosed && guardlineDealStageIsClosed(sid)) continue;
+          arr.push({ id: sid, label: GUARDLINE_HUBSPOT_STAGE_MAP[sid].label, order: GUARDLINE_HUBSPOT_STAGE_MAP[sid].order });
+        }
+        arr.sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+        return arr;
+      }
+
+      function paint(deals) {
+        var includeClosed = window.__hubspotPipelineIncludeClosed != null ? !!window.__hubspotPipelineIncludeClosed : true;
+        var stages = stageList(includeClosed);
+        var html =
+          '<div class="pipeline-page-wrap"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+          '<div><h2 style="margin:0 0 4px;font-size:1.35rem">HubSpot Pipeline — Funnel_Guardline</h2>' +
+          '<p style="font-size:13px;color:var(--text-muted);margin:0">Deals: <strong>' + deals.length + '</strong></p></div>' +
+          '<div style="display:flex;gap:10px;align-items:center">' +
+          '<label class="pipeline-risk-toggle" style="margin:0"><input type="checkbox" id="hubspot-pipeline-closed"' +
+          (includeClosed ? ' checked' : '') +
+          ' /> Mostrar fechados</label>' +
+          '<button type="button" class="btn-activate" onclick="navigateTo(\\'pipeline-health\\')">KPI Dashboard →</button>' +
+          '</div></div><div class="kanban-board">';
+
+        stages.forEach(function (s) {
+          var colDeals = deals.filter(function (d) { return String(d.apiStage || '') === String(s.id); });
+          colDeals.sort(function (a, b) { return (b.value || 0) - (a.value || 0); });
+          var sum = colDeals.reduce(function (a, d) { return a + (d.value || 0); }, 0);
+          html +=
+            '<div class="kanban-col"><div class="kanban-col-header"><span class="stage-name">' +
+            escapeHtml(s.label) +
+            '</span><span class="stage-value">$' +
+            (sum / 1000).toFixed(1) +
+            'k · ' +
+            colDeals.length +
+            '</span></div><div class="kanban-cards">';
+          colDeals.forEach(function (d) {
+            html += renderDealCardHtml(d);
+          });
+          html += '</div></div>';
+        });
+
+        html += '</div></div>';
+        area.innerHTML = html;
+
+        var cb = document.getElementById('hubspot-pipeline-closed');
+        if (cb) {
+          cb.onchange = function () {
+            window.__hubspotPipelineIncludeClosed = !!cb.checked;
+            paint(deals);
+          };
+        }
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+      }
+
+      DB.query('deals', { order: 'deal_amount.desc', limit: 250 })
+        .then(function (rows) {
+          var mapped = (rows || []).map(function (r) { return mapSupabaseDealToUiDeal(r); });
+          paint(mapped);
+        })
+        .catch(function (e) {
+          area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">' + escapeHtml((e && e.message) || String(e)) + '</p></div></div>';
+        });
     }
 
     function buildLeadsSeed() {
@@ -15882,6 +15983,7 @@
       meddpicc: renderMeddpiccScreen,
       'pipeline-health': renderPipelineHealth,
       'pipeline-funnel': renderPipelineFunnel,
+      'hubspot-pipeline': renderHubspotPipeline,
       'buyer-persona': renderBuyerPersona,
       'tco-calculator': renderTcoCalculator,
       'battlecard': renderBattlecard,
@@ -15905,6 +16007,7 @@
       meddpicc: 'MEDDPICC',
       'pipeline-health': 'Pipeline Health — KPI Dashboard',
       'pipeline-funnel': 'Pipeline Funnel View',
+      'hubspot-pipeline': 'HubSpot Pipeline — Funnel_Guardline',
       'buyer-persona': 'Buyer Persona Coverage',
       'tco-calculator': 'TCO Calculator',
       'battlecard': 'Competitors Battlecard',
