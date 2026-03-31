@@ -6,6 +6,8 @@ on:
     paths:
       - 'guardline/frontend-v3/**'
       - 'guardline/wrangler.toml'
+      - '.github/workflows/deploy-frontend-v3.yml'
+  workflow_dispatch:
 
 jobs:
   deploy:
