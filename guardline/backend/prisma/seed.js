@@ -128,6 +128,19 @@ async function main() {
 
   console.log(`✓ Usuário demo: ${user.email} / guardline123`);
 
+  const julio = await prisma.user.create({
+    data: {
+      email: 'julio.dealmeida@guardline.io',
+      password: hashedPassword,
+      name: 'Julio Almeida',
+      company: 'Guardline',
+      role: 'admin',
+      avatar: 'JA',
+    },
+  });
+
+  console.log(`✓ Usuário: ${julio.email} / guardline123`);
+
   const createdDeals = [];
   for (const t of ACTIVE_DEAL_TEMPLATES) {
     const entryDate = daysAgo(t.daysAgoEntry);

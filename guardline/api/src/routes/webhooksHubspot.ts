@@ -45,10 +45,9 @@ export function webhooksHubspotRoutes(env: Env, supabase: SupabaseClient) {
   });
 
   r.post('/', async (req, res) => {
-    const hasAppSecret = Boolean(env.HUBSPOT_APP_SECRET);
-    const authorized = hasAppSecret
-      ? verifyHubspotSignatureV3(req, env.HUBSPOT_APP_SECRET || '')
-      : verifyAnySecret(req, env.DASHBOARD_WEBHOOK_SECRET, env.N8N_WEBHOOK_SECRET);
+    const sigOk = env.HUBSPOT_APP_SECRET ? verifyHubspotSignatureV3(req, env.HUBSPOT_APP_SECRET) : false;
+    const secretOk = verifyAnySecret(req, env.DASHBOARD_WEBHOOK_SECRET, env.N8N_WEBHOOK_SECRET);
+    const authorized = sigOk || secretOk;
 
     if (!authorized) {
       res.status(401).json({ error: 'unauthorized' });
