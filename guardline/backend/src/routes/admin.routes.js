@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware } = require('../middleware/auth');
 const { apiLimiter } = require('../middleware/rateLimiter');
-const requireRole = require('../middleware/requireRole');
+const { requireRole } = require('../middleware/requireRole');
 const admin = require('../controllers/admin.controller');
 
 router.use(authMiddleware, apiLimiter, requireRole('admin'));
