@@ -1,6 +1,7 @@
 const { prisma } = require('../config/database');
 const { ok, fail } = require('../utils/response');
 const crypto = require('crypto');
+const { encryptJson } = require('../utils/cryptoConfig');
 
 function encryptionKey() {
   const raw = process.env.ENCRYPTION_KEY;
@@ -67,6 +68,50 @@ async function saveCredentials(req, res, next) {
     }
 
     const config = encryptConfigObject(credentials);
+
+    const requiresApproval = (type === 'linkedin' || type === 'calendar') && req.user.role !== 'admin';
+    if (requiresApproval) {
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const payload = encryptJson({ config, requestedAt: new Date().toISOString() });
+      const request = await prisma.adminApprovalRequest.create({
+        data: {
+          type: 'connector',
+          targetType: type,
+          status: 'pending',
+          code,
+          payload,
+          userId: req.user.id,
+        },
+      });
+
+      try {
+        const { sendSlackMessage } = require('../services/slack.service');
+        await sendSlackMessage({
+          channel: process.env.SLACK_CHANNEL_ALERTS,
+          text: `🔐 Aprovação necessária: ${type.toUpperCase()} — usuário ${req.user.email}`,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `🔐 *Aprovação de Integração*\\n*Usuário:* ${req.user.name} (${req.user.email})\\n*Integração:* ${type}\\n*Código:* *${code}*\\n\\nAprovar: Admin → Approvals (cole o código).`,
+              },
+            },
+          ],
+        });
+      } catch (_) {}
+
+      return ok(
+        res,
+        {
+          pending: true,
+          requestId: request.id,
+          message: 'Integração enviada para aprovação do admin. Um código foi enviado aos administradores.',
+        },
+        null,
+        202
+      );
+    }
 
     const existing = await prisma.integration.findFirst({
       where: { type, userId: req.user.id }

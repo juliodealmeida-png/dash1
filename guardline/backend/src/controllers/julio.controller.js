@@ -199,6 +199,35 @@ async function postDocumentGenerate(req, res, next) {
   }
 }
 
+async function postMeetingTranscript(req, res, next) {
+  try {
+    if (!requireJulio(res)) return;
+    const { dealId } = req.params;
+    const { transcript } = req.body;
+    if (!dealId || !transcript) return fail(res, 400, 'dealId e transcript são obrigatórios', 'VALIDATION_ERROR');
+    const meetingIntel = require('../services/meetingIntel.service');
+    const result = await meetingIntel.processTranscript(req.user.id, dealId, transcript);
+    julio.logUsage(req.user.id, 'meeting_intel', { dealId });
+    return ok(res, result);
+  } catch (e) {
+    next(e);
+  }
+}
+
+async function postIcebreaker(req, res, next) {
+  try {
+    if (!requireJulio(res)) return;
+    const { leadId, dealId } = req.body;
+    if (!leadId && !dealId) return fail(res, 400, 'leadId ou dealId é obrigatório', 'VALIDATION_ERROR');
+    const socialIntel = require('../services/socialIntel.service');
+    const result = await socialIntel.generateIcebreaker(leadId, dealId);
+    julio.logUsage(req.user.id, 'social_intel', { leadId, dealId });
+    return ok(res, result);
+  } catch (e) {
+    next(e);
+  }
+}
+
 module.exports = {
   postBrief,
   getBriefLatest,
@@ -213,4 +242,6 @@ module.exports = {
   getMeddpiccDashboard,
   postDocumentAnalyze,
   postDocumentGenerate,
+  postMeetingTranscript,
+  postIcebreaker,
 };

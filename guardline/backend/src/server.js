@@ -286,6 +286,7 @@ app.use('/api/documents', require('./routes/documents.routes'));
 app.use('/api/tools', require('./routes/tools.routes'));
 app.use('/api/forum', require('./routes/forum.routes'));
 app.use('/api/profile', require('./routes/profile.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
 
 app.get('/api/config/public', (req, res) => {
   res.json({

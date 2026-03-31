@@ -19,11 +19,13 @@ model User {
   company       String?
   role          String         @default("founder") // founder | sdr | admin
   avatar        String?
+  modules       String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   deals         Deal[]
   leads         Lead[]
   automations   AutomationLog[]
+  automationRecipes AutomationRecipe[]
   refreshTokens RefreshToken[]
   julioConversations JulioConversation[]
   campaigns       Campaign[]
@@ -32,6 +34,8 @@ model User {
   documents       Document[]
   forumMessages    ForumMessage[]
   sellerProfile    SellerProfile?
+  approvalRequests AdminApprovalRequest[]
+  approvalDecisions AdminApprovalRequest[] @relation("ApprovalDecision")
 
   @@map("users")
 }
@@ -248,12 +252,15 @@ model AutomationRecipe {
   config          String?
   active          Boolean  @default(false)
   n8nWorkflowId   String?
+  ownerId         String?
+  owner           User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   timesActivated  Int      @default(0)
   lastActivated   DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   logs            AutomationLog[]
 
+  @@index([ownerId, active])
   @@map("automation_recipes")
 }
 
@@ -273,6 +280,26 @@ model AutomationLog {
   user         User?            @relation(fields: [userId], references: [id])
 
   @@map("automation_logs")
+}
+
+model AdminApprovalRequest {
+  id           String   @id @default(cuid())
+  type         String
+  targetType   String?
+  status       String   @default("pending") // pending | approved | rejected
+  code         String
+  payload      String
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decidedById  String?
+  decidedBy    User?    @relation("ApprovalDecision", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, status])
+  @@map("admin_approval_requests")
 }
 
 // ──────────────────────────────────

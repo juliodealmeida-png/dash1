@@ -65,4 +65,18 @@ router.post(
   julio.postDocumentGenerate
 );
 
+router.post(
+  '/meeting-intel/:dealId',
+  [param('dealId').notEmpty(), body('transcript').notEmpty()],
+  validateRequest,
+  julio.postMeetingTranscript
+);
+
+router.post(
+  '/social-intel/icebreaker',
+  [body('leadId').optional().trim(), body('dealId').optional().trim()],
+  validateRequest,
+  julio.postIcebreaker
+);
+
 module.exports = router;

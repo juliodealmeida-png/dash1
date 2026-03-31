@@ -429,7 +429,7 @@ async function main() {
   ];
 
   for (const r of recipes) {
-    await prisma.automationRecipe.create({ data: r });
+    await prisma.automationRecipe.create({ data: { ...r, ownerId: user.id } });
   }
   console.log(`✓ ${recipes.length} automation recipes`);
 

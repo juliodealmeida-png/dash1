@@ -30,6 +30,13 @@ router.post(
 
 router.get('/:id', [param('id').notEmpty()], validateRequest, campaigns.getOne);
 
+router.post(
+  '/:id/toggle',
+  [param('id').notEmpty(), body('active').optional().isBoolean()],
+  validateRequest,
+  campaigns.toggle
+);
+
 router.put(
   '/:id',
   [param('id').notEmpty()],

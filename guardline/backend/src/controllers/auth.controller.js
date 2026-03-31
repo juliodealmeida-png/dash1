@@ -9,6 +9,51 @@ const SALT_ROUNDS = 12;
 // In-memory store for password reset tokens { token -> { userId, email, expiresAt } }
 const resetTokenStore = new Map();
 
+const DEFAULT_AUTOMATION_RECIPES = [
+  {
+    name: 'Follow-up após mudança de estágio',
+    description: 'Cria uma task automática após mudança de estágio no pipeline.',
+    trigger: 'stage_changed',
+    actions: JSON.stringify([
+      { type: 'create_task', title: 'Follow-up: {company}', note: 'Verificar próximos passos e agendar call.', daysFromNow: 2 },
+    ]),
+    active: true,
+  },
+  {
+    name: 'Celebração no Slack (ganho)',
+    description: 'Dispara em stage_changed; combine com filtro no n8n para won apenas.',
+    trigger: 'stage_changed',
+    actions: JSON.stringify([{ type: 'send_slack', message: '🎉 Deal avançou: {company} — bom trabalho, time!' }]),
+    config: JSON.stringify({ targetStage: 'won' }),
+    active: true,
+  },
+  {
+    name: 'Webhook n8n — pipeline',
+    trigger: 'stage_changed',
+    actions: JSON.stringify([{ type: 'n8n_webhook', webhookPath: 'guardline-stage-changed' }]),
+    config: JSON.stringify({}),
+    active: true,
+  },
+  {
+    name: 'Novo lead → Slack',
+    trigger: 'new_lead',
+    actions: JSON.stringify([{ type: 'send_slack', message: '✨ Novo lead na fila: {company} — qualificar nas próximas 2h.' }]),
+    active: true,
+  },
+  {
+    name: 'Novo lead → n8n',
+    trigger: 'new_lead',
+    actions: JSON.stringify([{ type: 'n8n_webhook', webhookPath: 'guardline-new-lead' }]),
+    active: true,
+  },
+  {
+    name: 'Boas-vindas lead (Slack)',
+    trigger: 'new_lead',
+    actions: JSON.stringify([{ type: 'send_slack', message: '📥 Lead capturado — origem registrada no CRM (Guardline).' }]),
+    active: true,
+  },
+];
+
 function generateResetToken() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -48,6 +93,12 @@ async function register(req, res, next) {
         role: ['founder', 'sdr', 'admin'].includes(role) ? role : 'founder',
       },
     });
+
+    try {
+      await prisma.automationRecipe.createMany({
+        data: DEFAULT_AUTOMATION_RECIPES.map((r) => ({ ...r, ownerId: user.id })),
+      });
+    } catch (_) {}
 
     const { password: _pw, ...safe } = user;
     const refreshToken = signRefreshToken(user.id);

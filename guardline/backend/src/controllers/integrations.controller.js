@@ -78,10 +78,19 @@ function maskIntegrationRow(row) {
   if (row.config) {
     try {
       const c = parseIntegrationConfig(row.config) || {};
-      configPublic = {
-        email: c.email || null,
-        hasTokens: !!(c.tokens && (c.tokens.access_token || c.tokens.refresh_token)),
-      };
+      if (row.type === 'gmail') {
+        configPublic = {
+          email: c.email || null,
+          hasTokens: !!(c.tokens && (c.tokens.access_token || c.tokens.refresh_token)),
+        };
+      } else if (row.type === 'slack') {
+        configPublic = {
+          channelAlerts: c.channelAlerts || null,
+          channelDaily: c.channelDaily || null,
+        };
+      } else {
+        configPublic = {};
+      }
     } catch {
       configPublic = {};
     }
@@ -294,13 +303,60 @@ async function syncGmail(req, res, next) {
   }
 }
 
+async function connectSlack(req, res, next) {
+  try {
+    if (!process.env.SLACK_BOT_TOKEN) {
+      return fail(res, 503, 'SLACK_BOT_TOKEN não configurado', 'SLACK_NOT_CONFIGURED');
+    }
+
+    const channelAlerts = req.body?.channelAlerts ? String(req.body.channelAlerts).trim() : null;
+    const channelDaily = req.body?.channelDaily ? String(req.body.channelDaily).trim() : null;
+
+    const config = encryptConfigObject({
+      channelAlerts: channelAlerts || null,
+      channelDaily: channelDaily || null,
+    });
+
+    const existing = await prisma.integration.findFirst({
+      where: { type: 'slack', userId: req.user.id },
+    });
+
+    if (existing) {
+      await prisma.integration.update({
+        where: { id: existing.id },
+        data: {
+          status: 'connected',
+          config,
+          errorMessage: null,
+          metadata: existing.metadata || JSON.stringify({ workspace: 'Slack' }),
+        },
+      });
+    } else {
+      await prisma.integration.create({
+        data: {
+          type: 'slack',
+          status: 'connected',
+          config,
+          userId: req.user.id,
+          metadata: JSON.stringify({ workspace: 'Slack' }),
+        },
+      });
+    }
+
+    return ok(res, { connected: true, channelAlerts: channelAlerts || null, channelDaily: channelDaily || null });
+  } catch (e) {
+    next(e);
+  }
+}
+
 async function testSlack(req, res, next) {
   try {
     if (!process.env.SLACK_BOT_TOKEN) {
       return fail(res, 503, 'SLACK_BOT_TOKEN não configurado', 'SLACK_NOT_CONFIGURED');
     }
     const r = await sendSlackMessage({
-      channel: process.env.SLACK_CHANNEL_ALERTS,
+      userId: req.user.id,
+      kind: 'alerts',
       text: '✅ Teste Guardline — integração Slack OK',
     });
     if (r.skipped) {
@@ -322,13 +378,8 @@ async function disconnect(req, res, next) {
       return fail(res, 400, 'Tipo de integração inválido', 'INVALID_TYPE');
     }
 
-    if (type === 'slack' || type === 'n8n') {
-      return fail(
-        res,
-        400,
-        'Slack e n8n são configurados via variáveis de ambiente; remova SLACK_BOT_TOKEN / N8N_* no servidor para desligar.',
-        'ENV_MANAGED'
-      );
+    if (type === 'n8n') {
+      return fail(res, 400, 'n8n é configurado via variáveis de ambiente; remova N8N_* no servidor para desligar.', 'ENV_MANAGED');
     }
 
     if (type === 'hubspot' && !await prisma.integration.findFirst({ where: { type: 'hubspot', userId: req.user.id } })) {
@@ -350,6 +401,7 @@ module.exports = {
   gmailAuth,
   gmailCallback,
   syncGmail,
+  connectSlack,
   testSlack,
   connectHubspot,
   syncHubspot,

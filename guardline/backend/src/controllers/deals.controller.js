@@ -97,6 +97,7 @@ async function getOne(req, res, next) {
       include: {
         activities: { orderBy: { date: 'desc' } },
         emails: { orderBy: { receivedAt: 'desc' } },
+        meddpiccScore: true,
         _count: { select: { activities: true, emails: true } },
       },
     });
@@ -258,7 +259,7 @@ async function updateStage(req, res, next) {
     });
 
     if (stage === 'won') {
-      await sendDealClosedNotification(updated, req.user.name);
+      await sendDealClosedNotification(updated, req.user.name, updated.ownerId);
     }
 
     return ok(res, enrichDeal(updated));

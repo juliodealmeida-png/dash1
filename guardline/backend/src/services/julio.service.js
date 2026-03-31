@@ -357,6 +357,116 @@ async function maybeHandleFastTool(userMessage) {
   return null;
 }
 
+/**
+ * Detect and execute CRM actions (The "Hands" of Julio).
+ */
+async function maybeHandleCrmAction(userId, userMessage) {
+  const m = String(userMessage || '').trim();
+  const lower = m.toLowerCase();
+
+  // Simple heuristics for common actions to avoid LLM call if not needed
+  const isUpdateStage = /\b(mova|mudar|alterar|atualizar)\b.*\b(est[aá]gio|etapa|fase)\b/i.test(lower);
+  const isSendEmail = /\b(envi[ea]|mandar)\b.*\b(email|e-mail)\b/i.test(lower);
+  const isCreateActivity = /\b(anote|registrar|criar)\b.*\b(atividade|reuni[aã]o|nota)\b/i.test(lower);
+
+  if (!isUpdateStage && !isSendEmail && !isCreateActivity) return null;
+
+  // Use LLM to extract parameters
+  const context = await buildPipelineContext(userId);
+  const prompt = `Analise a intenção do usuário e extraia os parâmetros para uma ação no CRM.
+Contexto do Pipeline:
+${context}
+
+Mensagem do usuário: "${m}"
+
+Se o usuário quer realizar uma ação, retorne SOMENTE este JSON:
+{
+  "action": "update_deal_stage" | "send_email" | "create_activity" | "none",
+  "params": {
+    "dealId": "id do deal se mencionado ou inferido",
+    "dealName": "nome da empresa se mencionado",
+    "stage": "novo estágio (prospecting, discovery, qualification, proposal, negotiation, won, lost)",
+    "emailTo": "email do destinatário",
+    "emailSubject": "assunto",
+    "emailBody": "corpo do email",
+    "activityTitle": "título da atividade",
+    "activityType": "call | meeting | email | task",
+    "activityNote": "nota adicional"
+  }
+}
+
+Se não for uma ação clara, retorne {"action": "none"}.`;
+
+  try {
+    const raw = await nvidiaChat([{ role: 'system', content: 'Você é um assistente de extração de intenções CRM.' }, { role: 'user', content: prompt }], 400);
+    const intent = extractJsonObject(raw);
+    if (!intent || intent.action === 'none') return null;
+
+    // Resolve dealId if only name was provided
+    if (!intent.params.dealId && intent.params.dealName) {
+      const deal = await prisma.deal.findFirst({
+        where: {
+          ownerId: userId,
+          companyName: { contains: intent.params.dealName, mode: 'insensitive' },
+          deletedAt: null
+        }
+      });
+      if (deal) intent.params.dealId = deal.id;
+    }
+
+    // Execute based on action
+    switch (intent.action) {
+      case 'update_deal_stage': {
+        if (!intent.params.dealId || !intent.params.stage) return null;
+        await prisma.deal.update({
+          where: { id: intent.params.dealId },
+          data: { 
+            stage: intent.params.stage,
+            stageChangedAt: new Date()
+          }
+        });
+        const deal = await prisma.deal.findUnique({ where: { id: intent.params.dealId } });
+        return `✅ Com certeza! Acabei de mover o deal da **${deal.companyName}** para o estágio de **${intent.params.stage}**. Próxima ação: quer que eu agende um follow-up para daqui a 3 dias?`;
+      }
+
+      case 'send_email': {
+        if (!intent.params.emailTo) return null;
+        const gmailService = require('./gmail.service');
+        try {
+          await gmailService.sendEmail({
+            userId,
+            to: intent.params.emailTo,
+            subject: intent.params.emailSubject || 'Follow-up Guardline',
+            body: intent.params.emailBody || 'Olá, estou entrando em contato conforme conversamos.'
+          });
+          return `📧 Feito! Enviei o e-mail para **${intent.params.emailTo}** com o assunto "${intent.params.emailSubject}". Próxima ação: deseja que eu anote isso como uma atividade no deal?`;
+        } catch (e) {
+          return `❌ Tentei enviar o e-mail, mas parece que sua integração com o Gmail não está ativa ou deu erro: ${e.message}. Próxima ação: conecte o Gmail nas configurações.`;
+        }
+      }
+
+      case 'create_activity': {
+        if (!intent.params.dealId) return null;
+        await prisma.activity.create({
+          data: {
+            dealId: intent.params.dealId,
+            title: intent.params.activityTitle || 'Nova Atividade',
+            type: intent.params.activityType || 'task',
+            note: intent.params.activityNote || '',
+            date: new Date()
+          }
+        });
+        const deal = await prisma.deal.findUnique({ where: { id: intent.params.dealId } });
+        return `📝 Anotado! Registrei a atividade "${intent.params.activityTitle}" no deal da **${deal.companyName}**. Próxima ação: algo mais que eu possa fazer agora?`;
+      }
+    }
+  } catch (e) {
+    console.error('[JULIO ACTION ERROR]', e);
+  }
+
+  return null;
+}
+
 async function generateDailyBrief(userId) {
   if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
@@ -453,14 +563,18 @@ async function chatWithJulio(userId, conversationId, userMessage) {
   if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const fast = await maybeHandleFastTool(userMessage);
+  const crmAction = await maybeHandleCrmAction(userId, userMessage);
+  
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
 
-  if (fast) {
+  const reply = crmAction || fast;
+
+  if (reply) {
     messages.push({ role: 'user', content: userMessage });
-    messages.push({ role: 'assistant', content: fast });
+    messages.push({ role: 'assistant', content: reply });
     const id = await persistConversation(userId, conversationId, messages);
-    return { message: fast, conversationId: id };
+    return { message: reply, conversationId: id };
   }
 
   const context = await buildPipelineContext(userId);
@@ -487,15 +601,19 @@ async function streamJulioChat(userId, conversationId, userMessage, onChunk) {
   if (!isConfigured()) throw new Error('NVIDIA_API_KEY não configurada');
 
   const fast = await maybeHandleFastTool(userMessage);
+  const crmAction = await maybeHandleCrmAction(userId, userMessage);
+
   let messages = await loadConversationMessages(userId, conversationId);
   messages = sanitizeApiMessages(messages);
 
-  if (fast) {
-    if (onChunk) onChunk(fast);
+  const reply = crmAction || fast;
+
+  if (reply) {
+    if (onChunk) onChunk(reply);
     messages.push({ role: 'user', content: userMessage });
-    messages.push({ role: 'assistant', content: fast });
+    messages.push({ role: 'assistant', content: reply });
     const id = await persistConversation(userId, conversationId, messages);
-    return { fullText: fast, conversationId: id };
+    return { fullText: reply, conversationId: id };
   }
 
   const context = await buildPipelineContext(userId);

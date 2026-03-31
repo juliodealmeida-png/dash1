@@ -1,5 +1,6 @@
 const { prisma } = require('../config/database');
 const { ok, fail } = require('../utils/response');
+const { encryptJson } = require('../utils/cryptoConfig');
 
 async function getProfile(req, res, next) {
   try {
@@ -19,6 +20,59 @@ async function getProfile(req, res, next) {
 async function upsertProfile(req, res, next) {
   try {
     const { emailOutreach, linkedinUrl, calendarUrl, phone, bio, timezone, n8nWebhookPath, metadata } = req.body;
+
+    const wantsApproval =
+      req.user.role !== 'admin' &&
+      (linkedinUrl !== undefined || calendarUrl !== undefined || n8nWebhookPath !== undefined);
+
+    if (wantsApproval) {
+      const update = {
+        ...(linkedinUrl !== undefined && { linkedinUrl }),
+        ...(calendarUrl !== undefined && { calendarUrl }),
+        ...(n8nWebhookPath !== undefined && { n8nWebhookPath }),
+      };
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      const payload = encryptJson({ update, requestedAt: new Date().toISOString() });
+      const request = await prisma.adminApprovalRequest.create({
+        data: {
+          type: 'profile_change',
+          targetType: 'seller_profile',
+          status: 'pending',
+          code,
+          payload,
+          userId: req.user.id,
+        },
+      });
+
+      try {
+        const { sendSlackMessage } = require('../services/slack.service');
+        await sendSlackMessage({
+          channel: process.env.SLACK_CHANNEL_ALERTS,
+          text: `🔐 Aprovação necessária: atualização de perfil — usuário ${req.user.email}`,
+          blocks: [
+            {
+              type: 'section',
+              text: {
+                type: 'mrkdwn',
+                text: `🔐 *Aprovação de Alteração de Perfil*\\n*Usuário:* ${req.user.name} (${req.user.email})\\n*Código:* *${code}*\\n\\nAprovar: Admin → Approvals (cole o código).`,
+              },
+            },
+          ],
+        });
+      } catch (_) {}
+
+      return ok(
+        res,
+        {
+          pending: true,
+          requestId: request.id,
+          message: 'Atualização enviada para aprovação do admin. Um código foi enviado aos administradores.',
+        },
+        null,
+        202
+      );
+    }
+
     const profile = await prisma.sellerProfile.upsert({
       where: { userId: req.user.id },
       update: {

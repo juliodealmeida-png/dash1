@@ -156,4 +156,30 @@ async function stats(req, res, next) {
   }
 }
 
-module.exports = { list, getOne, create, updateFull, remove, stats };
+async function toggle(req, res, next) {
+  try {
+    const existing = await prisma.campaign.findFirst({
+      where: { id: req.params.id, ownerId: req.user.id },
+      include: { _count: { select: { leads: true } } },
+    });
+    if (!existing) return fail(res, 404, 'Campanha não encontrada ou sem permissão', 'NOT_FOUND');
+
+    const active = !!(req.body && req.body.active);
+    const nextStatus = active ? 'active' : 'paused';
+
+    const campaign = await prisma.campaign.update({
+      where: { id: existing.id },
+      data: { status: nextStatus },
+      include: { _count: { select: { leads: true } } },
+    });
+
+    const io = req.app.get('io');
+    if (io) emitToUser(io, req.user.id, 'campaign:updated', campaign);
+
+    return ok(res, campaign);
+  } catch (e) {
+    next(e);
+  }
+}
+
+module.exports = { list, getOne, create, updateFull, remove, stats, toggle };

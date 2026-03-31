@@ -112,6 +112,33 @@ async function recalculateAllRiskScores(io) {
       },
     });
     if (io) emitToUser(io, deal.ownerId, 'signal:new', signal);
+
+    // Enviar alerta para o Slack
+    const slack = require('./slack.service');
+    slack.sendSlackMessage({
+      userId: deal.ownerId,
+      kind: 'alerts',
+      text: `🚨 *ALERTA DE RISCO CRÍTICO*`,
+      blocks: [
+        {
+          type: 'section',
+          text: {
+            type: 'mrkdwn',
+            text: `🚨 *Risco Crítico Detectado*\n*Deal:* ${deal.companyName}\n*Risk Score:* ${score}/100\n*Status:* ${deal.stage}\n\nJulio recomenda uma ação imediata para salvar este deal.`
+          }
+        },
+        {
+          type: 'actions',
+          elements: [
+            {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Ver Deal no Dashboard' },
+              url: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/deals/${deal.id}`
+            }
+          ]
+        }
+      ]
+    }).catch(e => console.error('[riskScore] Slack error:', e.message));
   }
 
   return { updated: updates.length, newCritical: newCriticalDeals.length };

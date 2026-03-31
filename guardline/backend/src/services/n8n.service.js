@@ -51,6 +51,7 @@ async function executeAction(action, context) {
     case 'send_slack': {
       const { sendSlackMessage } = require('./slack.service');
       return sendSlackMessage({
+        userId,
         channel: action.channel || process.env.SLACK_CHANNEL_ALERTS,
         text: (action.message || '').replace(/\{company\}/g, deal?.companyName || lead?.name || ''),
       });
@@ -81,12 +82,14 @@ async function executeAction(action, context) {
 async function triggerAutomations(eventType, ctx) {
   const { deal, lead, io, userId } = ctx;
 
+  const ownerId = deal?.ownerId || lead?.ownerId || userId;
+  if (!ownerId) return;
+
   const recipes = await prisma.automationRecipe.findMany({
-    where: { active: true },
+    where: { active: true, ownerId },
   });
 
   const matched = recipes.filter((r) => r.trigger === eventType || r.trigger === '*' || r.trigger === 'all');
-  const ownerId = deal?.ownerId || lead?.ownerId || userId;
 
   for (const recipe of matched) {
     const log = await prisma.automationLog.create({
