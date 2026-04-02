@@ -8618,6 +8618,94 @@
       }
     }
 
+    // ─── MEDDPICC gate thresholds per Playbook stage ──────────────────────────
+    var MEDDPICC_GATE = {
+      'Proposal':         { minPct: 30, requiredKeys: ['metrics', 'economic_buyer', 'implicate_pain'] },
+      'Negotiate':        { minPct: 50, requiredKeys: ['metrics', 'economic_buyer', 'decision_criteria', 'decision_process', 'champion'] },
+      'Commit & Signing': { minPct: 75, requiredKeys: ['metrics', 'economic_buyer', 'decision_criteria', 'decision_process', 'paper_process', 'implicate_pain', 'champion'] },
+    };
+
+    function _meddpiccCompletionOf(deal) {
+      if (deal.meddpiccCompletion != null) return Number(deal.meddpiccCompletion);
+      if (deal._ui && deal._ui.meddpicc && deal._ui.meddpicc.completion != null) return Number(deal._ui.meddpicc.completion);
+      if (deal.meddpiccScore != null) return Number(deal.meddpiccScore);
+      return 0;
+    }
+
+    function _meddpiccMissingFor(deal, requiredKeys) {
+      var meddpicc = (deal._raw && deal._raw.meddpicc) || (deal._ui && deal._ui.meddpicc && deal._ui.meddpicc._raw) || {};
+      return requiredKeys.filter(function(k) {
+        var el = meddpicc[k];
+        return !el || (el.status !== 'confirmed' && el.status !== 'inferred');
+      });
+    }
+
+    function showMeddpiccGate(deal, targetStage, onApprove, onCancel) {
+      var gate = MEDDPICC_GATE[targetStage];
+      if (!gate) { onApprove(); return; }
+      var completion = _meddpiccCompletionOf(deal);
+      if (completion >= gate.minPct) { onApprove(); return; }
+
+      // Build missing elements list
+      var missingKeys = _meddpiccMissingFor(deal, gate.requiredKeys);
+      var keyLabels = { metrics: 'Metrics', economic_buyer: 'Economic Buyer', decision_criteria: 'Decision Criteria', decision_process: 'Decision Process', paper_process: 'Paper Process', implicate_pain: 'Implicate Pain', champion: 'Champion', competition: 'Competition' };
+      var missingHtml = missingKeys.length
+        ? '<ul style="margin:8px 0 0 0;padding-left:18px;font-size:13px;color:var(--accent-red,#ef4444)">' +
+          missingKeys.map(function(k){ return '<li>' + (keyLabels[k]||k) + '</li>'; }).join('') + '</ul>'
+        : '';
+
+      // Modal
+      var modalId = 'meddpicc-gate-modal';
+      var existing = document.getElementById(modalId);
+      if (existing) existing.remove();
+
+      var modal = document.createElement('div');
+      modal.id = modalId;
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.6);animation:fadeIn .15s ease';
+      modal.innerHTML =
+        '<div style="background:var(--card,#1e293b);border:1px solid var(--border);border-radius:16px;padding:28px 32px;max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.5)">' +
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">' +
+        '<span style="font-size:22px">🔒</span>' +
+        '<h3 style="margin:0;font-size:1rem;font-weight:700;color:var(--text-primary)">MEDDPICC Gate — ' + escapeHtml(targetStage) + '</h3>' +
+        '</div>' +
+        '<p style="font-size:13px;color:var(--text-muted);margin:0 0 8px">' +
+        'Este deal tem <strong style="color:var(--accent-red)">' + Math.round(completion) + '%</strong> de MEDDPICC preenchido. ' +
+        'O mínimo para avançar para <strong>' + escapeHtml(targetStage) + '</strong> é <strong>' + gate.minPct + '%</strong>.' +
+        '</p>' +
+        (missingHtml
+          ? '<div style="background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px 12px;margin-bottom:14px">' +
+            '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);margin-bottom:4px">Elementos faltantes:</div>' +
+            missingHtml + '</div>'
+          : '<div style="margin-bottom:14px"></div>') +
+        '<div style="display:flex;gap:10px;justify-content:flex-end">' +
+        '<button id="meddpicc-gate-cancel" style="padding:8px 18px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-size:13px;cursor:pointer">Cancelar</button>' +
+        '<button id="meddpicc-gate-signal" style="padding:8px 18px;border-radius:8px;border:1px solid var(--accent-amber,#f59e0b);background:rgba(245,158,11,.1);color:var(--accent-amber,#f59e0b);font-size:13px;cursor:pointer">⚡ Auto-sinalizar</button>' +
+        '<button id="meddpicc-gate-approve" style="padding:8px 18px;border-radius:8px;border:none;background:var(--accent-purple,#7c3aed);color:#fff;font-size:13px;font-weight:600;cursor:pointer">Mover mesmo assim</button>' +
+        '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+
+      function closeModal() { modal.remove(); }
+
+      document.getElementById('meddpicc-gate-cancel').onclick = function() {
+        closeModal();
+        onCancel();
+      };
+      document.getElementById('meddpicc-gate-signal').onclick = function() {
+        closeModal();
+        showToast('info', 'Julio', 'Action criada: preencher MEDDPICC de ' + escapeHtml(deal.company || deal.id) + ' antes de avançar para ' + escapeHtml(targetStage), 6000);
+        onCancel(); // revert move but keep alert
+      };
+      document.getElementById('meddpicc-gate-approve').onclick = function() {
+        closeModal();
+        showToast('warning', 'MEDDPICC', 'Movido com MEDDPICC incompleto (' + Math.round(completion) + '%). Preencha o mais rápido possível.', 5000);
+        onApprove();
+      };
+      modal.addEventListener('click', function(ev) {
+        if (ev.target === modal) { closeModal(); onCancel(); }
+      });
+    }
+
     function initPipelineDnD() {
       var dragged = null;
       document.querySelectorAll('.deal-card').forEach(function (card) {
@@ -8648,53 +8736,73 @@
           if (!id || !dragged) return;
           var stage = col.getAttribute('data-stage');
           var deal = dealById(id);
+          var capturedDragged = dragged;
+          dragged = null;
+
           if (deal && String(id).indexOf('lead:') === 0) {
             var uuid = String(id).slice(6);
-            col.appendChild(dragged);
-            dragged = null;
-            onLeadStageChange(uuid, stage).catch(function (err) {
-              console.error(err);
-              showToast('error', 'Pipeline', (err && err.message) || 'Falha ao salvar lead');
-              navigateTo('pipeline', true);
-            });
-            if (stage === 'Proposta') {
-              showToast(
-                'info',
-                'Julio',
-                'Mover para Proposta? Sugiro enviar este case study antes. [Gerar email]',
-                7000
+            var prevColLeads = capturedDragged.parentElement;
+            col.appendChild(capturedDragged);
+
+            function doLeadStageChange() {
+              onLeadStageChange(uuid, stage).catch(function (err) {
+                console.error(err);
+                showToast('error', 'Pipeline', (err && err.message) || 'Falha ao salvar lead');
+                navigateTo('pipeline', true);
+              });
+              if (stage === 'Proposal') {
+                showToast('info', 'Julio', 'Mover para Proposta? Sugiro enviar este case study antes. [Gerar email]', 7000);
+              }
+            }
+
+            // Gate check for leads (use meddpiccCompletion from mapped UI)
+            if (MEDDPICC_GATE[stage]) {
+              showMeddpiccGate(deal, stage,
+                function() { doLeadStageChange(); },
+                function() { if (prevColLeads) prevColLeads.appendChild(capturedDragged); }
               );
+            } else {
+              doLeadStageChange();
             }
             return;
           }
+
           if (deal) {
             var prevStage = deal.stage;
-            deal.stage = stage;
-            deal.apiStage = stagePtToApi(stage);
-            col.appendChild(dragged);
-            if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
-              API.patch('/deals/' + id + '/stage', { stage: deal.apiStage })
-                .then(function () {
-                  showToast('success', 'Pipeline', 'Deal movido para ' + stage);
-                })
-                .catch(function () {
-                  deal.stage = prevStage;
-                  showToast('error', 'Pipeline', 'Não foi possível salvar. Recarregando…');
-                  navigateTo('pipeline', true);
-                });
-            } else {
-              showToast('success', 'Pipeline', 'Deal movido para ' + stage);
+            var prevCol = capturedDragged.parentElement;
+
+            function commitDealStageChange() {
+              deal.stage = stage;
+              deal.apiStage = stagePtToApi(stage);
+              col.appendChild(capturedDragged);
+              if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
+                API.patch('/deals/' + id + '/stage', { stage: deal.apiStage })
+                  .then(function () {
+                    showToast('success', 'Pipeline', 'Deal movido para ' + stage);
+                  })
+                  .catch(function () {
+                    deal.stage = prevStage;
+                    showToast('error', 'Pipeline', 'Não foi possível salvar. Recarregando…');
+                    navigateTo('pipeline', true);
+                  });
+              } else {
+                showToast('success', 'Pipeline', 'Deal movido para ' + stage + ' (demo)');
+              }
+              if (stage === 'Proposal') {
+                showToast('info', 'Julio', 'Mover para Proposta? Sugiro enviar este case study antes. [Gerar email]', 7000);
+              }
             }
-            if (stage === 'Proposta') {
-              showToast(
-                'info',
-                'Julio',
-                'Mover para Proposta? Sugiro enviar este case study antes. [Gerar email]',
-                7000
+
+            // MEDDPICC enforcement gate
+            if (MEDDPICC_GATE[stage]) {
+              showMeddpiccGate(deal, stage,
+                function() { commitDealStageChange(); },
+                function() { /* deal.stage stays prevStage; card stays in prevCol — already there */ }
               );
+            } else {
+              commitDealStageChange();
             }
           }
-          dragged = null;
         });
       });
     }
