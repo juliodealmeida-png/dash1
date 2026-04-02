@@ -1,8 +1,0 @@
-{
-  "name": "guardline-dashboard",
-  "private": true,
-  "description": "Dashboard estático (guardline.html). Ver script serve para preview local.",
-  "scripts": {
-    "serve": "npx --yes serve@14 . -l 4000"
-  }
-}
