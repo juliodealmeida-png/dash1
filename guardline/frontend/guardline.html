@@ -4000,34 +4000,46 @@
     };
 
     var STAGE_KEY_TO_PT = {
-      prospecting: 'Prospecção',
-      qualified: 'Qualificado',
-      presentation: 'Apresentação',
-      proposal: 'Proposta',
-      negotiation: 'Negociação',
-      won: 'Fechado Ganho',
-      lost: 'Fechado Perdido',
+      prospecting:    'Qualification',
+      qualified:      'Scope & Validate',
+      presentation:   'Active Pursuit',
+      proposal:       'Proposal',
+      negotiation:    'Negotiate',
+      commit_signing: 'Commit & Signing',
+      won:            'Won',
+      lost:           'Lost',
     };
 
     var STAGE_PROBABILITY = {
-      prospecting: 10,
-      qualification: 25,
-      qualified: 25,
-      presentation: 40,
-      proposal: 50,
-      negotiation: 75,
-      won: 100,
-      lost: 0,
+      prospecting:    5,
+      qualified:      12,
+      presentation:   15,
+      proposal:       20,
+      negotiation:    60,
+      commit_signing: 90,
+      won:            100,
+      lost:           0,
+    };
+
+    // Playbook win-rate targets por etapa
+    var STAGE_PIPELINE_TARGET = {
+      prospecting:    50000000,
+      qualified:      20000000,
+      presentation:   17000000,
+      proposal:       12000000,
+      negotiation:    8000000,
+      commit_signing: 5000000,
     };
 
     var PT_TO_STAGE_KEY = {
-      Prospecção: 'prospecting',
-      Qualificado: 'qualified',
-      Apresentação: 'presentation',
-      Proposta: 'proposal',
-      Negociação: 'negotiation',
-      'Fechado Ganho': 'won',
-      'Fechado Perdido': 'lost',
+      'Qualification':    'prospecting',
+      'Scope & Validate': 'qualified',
+      'Active Pursuit':   'presentation',
+      'Proposal':         'proposal',
+      'Negotiate':        'negotiation',
+      'Commit & Signing': 'commit_signing',
+      'Won':              'won',
+      'Lost':             'lost',
     };
 
     var MEDDPICC_ELEMENTS = [
@@ -5402,7 +5414,7 @@
         })
       );
       try {
-        await DB.update('leads', leadId, { pipeline_stage: 'Proposta' });
+        await DB.update('leads', leadId, { pipeline_stage: 'Proposal' });
       } catch (e) {
         console.error(e);
       }
@@ -6424,13 +6436,14 @@
     }
 
     var STAGE_LABELS_PT = {
-      prospecting: 'Prospecção',
-      qualified: 'Qualificado',
-      presentation: 'Apresentação',
-      proposal: 'Proposta',
-      negotiation: 'Negociação',
-      won: 'Fechado Ganho',
-      lost: 'Fechado Perdido',
+      prospecting:    'Qualification',
+      qualified:      'Scope & Validate',
+      presentation:   'Active Pursuit',
+      proposal:       'Proposal',
+      negotiation:    'Negotiate',
+      commit_signing: 'Commit & Signing',
+      won:            'Won',
+      lost:           'Lost',
     };
 
     function stageApiToPt(s) {
@@ -8137,6 +8150,31 @@
       if (titleEl) titleEl.textContent = 'Nova Conversa';
     }
 
+    function _julioGenBrief() {
+      var b = document.getElementById('julio-gen-brief-btn');
+      if (b) b.disabled = true;
+      var prioClass = { 1: 'p1', 2: 'p2', 3: 'p3' };
+      var typeLabel = { risk: 'Risco', alert: 'Alerta', opportunity: 'Oportunidade', info: 'Info', celebration: '🎉' };
+      API.post('/julio/brief').then(function(r) {
+        var brief = r && r.data && r.data.brief;
+        if (!brief) return;
+        var slot = document.getElementById('julio-brief-items');
+        if (slot && brief.items) {
+          slot.innerHTML = brief.items.map(function(item) {
+            var cls = prioClass[item.priority] || 'p3';
+            var lbl = typeLabel[item.type] || item.type;
+            var dealPart = item.dealName ? '<strong>' + escapeHtml(item.dealName) + '</strong> &mdash; ' : '';
+            var body = escapeHtml(item.detail || '') + (item.action ? '<br><em>&rarr; ' + escapeHtml(item.action) + '</em>' : '');
+            return '<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio ' + cls + '">' + escapeHtml(lbl) + '</span><span>' + dealPart + escapeHtml(item.title || '') + '</span></summary><div class="bf-body">' + body + '</div></details>';
+          }).join('');
+        }
+      }).catch(function(e) {
+        showToast('error', 'Brief', (e && e.message) || String(e));
+      }).finally(function() {
+        if (b) b.disabled = false;
+      });
+    }
+
     async function _loadJulioBriefItems() {
       try {
         var res = await API.get('/julio/brief/latest', { silent: true });
@@ -8172,7 +8210,7 @@
         '<div class="card briefing-full">' +
         '<div class="card-header"><span class="card-title">Daily Brief</span><span class="card-subtitle">Julio AI · hoje</span>' +
         '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-brief-refresh-btn\');if(b)b.disabled=true;_loadJulioBriefItems().then(function(h){var slot=document.getElementById(\'julio-brief-items\');if(slot&&h)slot.innerHTML=h;if(b)b.disabled=false;});})()" id="julio-brief-refresh-btn" style="margin-left:auto;font-size:11px">↻ Atualizar</button>' +
-        '<button type="button" class="act-btn" onclick="(function(){var b=document.getElementById(\'julio-gen-brief-btn\');if(b)b.disabled=true;API.post(\'/julio/brief\').then(function(r){var brief=r&&r.data&&r.data.brief;if(!brief)return;var slot=document.getElementById(\'julio-brief-items\');if(slot&&brief.items){var prioClass={1:\'p1\',2:\'p2\',3:\'p3\'};var typeLabel={risk:\'Risco\',alert:\'Alerta\',opportunity:\'Oportunidade\',info:\'Info\',celebration:\'🎉\'};slot.innerHTML=brief.items.map(function(item){var cls=prioClass[item.priority]||\'p3\';var lbl=typeLabel[item.type]||item.type;return \'<details class="bf-item"><summary class="bf-item-head"><span class="bf-prio \'+cls+\'">\'+escapeHtml(lbl)+\'</span><span>\'+(item.dealName?\'<strong>\'+escapeHtml(item.dealName)+\'</strong> — \':\'\')+escapeHtml(item.title||\'\')+\'</span></summary><div class="bf-body">\'+escapeHtml(item.detail||\'\')+(item.action?\'<br><em>→ \'+escapeHtml(item.action)+\'</em>\':\'\')+\'</div></details>\';}).join(\'\');}}).catch(function(e){showToast(\'error\',\'Brief\',(e&&e.message)||String(e));}).finally(function(){if(b)b.disabled=false;});})()" id="julio-gen-brief-btn" style="margin-left:4px;font-size:11px;background:var(--accent-purple-dim);color:var(--accent-purple-light)">✨ Gerar novo</button></div>' +
+        '<button type="button" class="act-btn" onclick="_julioGenBrief()" id="julio-gen-brief-btn" style="margin-left:4px;font-size:11px;background:var(--accent-purple-dim);color:var(--accent-purple-light)">✨ Gerar novo</button></div>' +
         '<div id="julio-brief-items">' + JULIO_STATIC_BRIEF_HTML + '</div>' +
         '</div>' +
 
@@ -8245,25 +8283,25 @@
       }
     }
 
-    var PIPELINE_STAGES = ['Prospecção', 'Qualificado', 'Apresentação', 'Proposta', 'Negociação', 'Fechado Ganho', 'Fechado Perdido'];
-    var STAGE_COLORS = ['#64748b', '#06b6d4', '#7c3aed', '#f59e0b', '#ec4899', '#10b981', '#ef4444'];
+    var PIPELINE_STAGES = ['Qualification', 'Scope & Validate', 'Active Pursuit', 'Proposal', 'Negotiate', 'Commit & Signing', 'Won', 'Lost'];
+    var STAGE_COLORS   = ['#64748b',       '#06b6d4',          '#7c3aed',        '#f59e0b',   '#ec4899',    '#10b981',          '#22c55e', '#ef4444'];
 
     function buildDealsSeed() {
       return [
-        { id: 'D-001', company: 'Empresa Alfa Solutions', value: 24000, stage: 'Proposta', source: 'LinkedIn', contact: 'João Silva', phone: '(11) 99999-0001', risk: 92, daysNoContact: 8, nextAction: 'Julio: Ligar hoje até 14h', owner: 'Ana Paula', ownerInitials: 'AP', entry: '15 Jan', timeline: [{ d: '23 Jan 14:32', t: 'Proposta enviada' }, { d: '20 Jan 10:00', t: 'Demo realizado' }, { d: '15 Jan 16:00', t: 'Lead qualificado' }], emails: [{ dir: '↑', from: 'joao@alfa.com', date: '15 Jan 09:12', sub: '"Obrigado pela apresentação, vou anal."' }, { dir: '↓', from: 'Para: joao@alfa.com', date: '15 Jan 14:30', sub: '"Segue proposta conforme conversamos"' }], autos: ['Follow-up email agendado (D+3)', 'Alerta ao responsável (D+7)'] },
-        { id: 'D-002', company: 'Tech Ventures Ltd', value: 36000, stage: 'Negociação', source: 'Indicação', contact: 'Carla Menezes', phone: '(21) 98888-2200', risk: 71, daysNoContact: 2, nextAction: 'Revisão de contrato — enviar redline', owner: 'Ana Paula', ownerInitials: 'AP', entry: '03 Jan', timeline: [{ d: '18 Jan', t: 'Contrato em análise jurídica' }], emails: [{ dir: '↓', from: 'legal@techventures.com', date: '18 Jan', sub: '"Sugestões na cláusula 4"' }], autos: ['Lembrete Slack D+2'] },
-        { id: 'D-003', company: 'Global Commerce SA', value: 18500, stage: 'Apresentação', source: 'Inbound', contact: 'Pedro Alves', phone: '(11) 97777-3300', risk: 58, daysNoContact: 2, nextAction: 'Agendar segunda demo', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '22 Jan', timeline: [{ d: '24 Jan', t: 'Primeira demo' }], emails: [], autos: [] },
-        { id: 'D-004', company: 'FinTrust Pagamentos', value: 52000, stage: 'Qualificado', source: 'Evento', contact: 'Amanda Reis', phone: '(31) 96666-1100', risk: 45, daysNoContact: 0, nextAction: 'Discovery call amanhã 10h', owner: 'Ana Paula', ownerInitials: 'AP', entry: '26 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-005', company: 'Logi Norte', value: 12000, stage: 'Prospecção', source: 'Cold Email', contact: 'Ricardo Souza', phone: '(47) 95555-4400', risk: 38, daysNoContact: 5, nextAction: 'Enviar one-pager', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '20 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-006', company: 'HealthPlus', value: 31000, stage: 'Proposta', source: 'LinkedIn', contact: 'Fernanda Lima', phone: '(11) 94444-5500', risk: 68, daysNoContact: 4, nextAction: 'Follow-up proposta', owner: 'Ana Paula', ownerInitials: 'AP', entry: '10 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-007', company: 'EduTech Brasil', value: 8900, stage: 'Qualificado', source: 'Inbound', contact: 'Gustavo Pires', phone: '(85) 93333-6600', risk: 52, daysNoContact: 1, nextAction: 'Enviar pricing', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '25 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-008', company: 'MetalCorp', value: 67000, stage: 'Negociação', source: 'Indicação', contact: 'Helena Dias', phone: '(19) 92222-7700', risk: 55, daysNoContact: 1, nextAction: 'Call com CFO sexta', owner: 'Ana Paula', ownerInitials: 'AP', entry: '08 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-009', company: 'StartUp X', value: 4500, stage: 'Prospecção', source: 'Cold Email', contact: 'Igor Nunes', phone: '(48) 91111-8800', risk: 33, daysNoContact: 12, nextAction: 'Qualificar ICP', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '12 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-010', company: 'RetailMax', value: 28000, stage: 'Apresentação', source: 'LinkedIn', contact: 'Juliana Torres', phone: '(11) 90000-9900', risk: 61, daysNoContact: 3, nextAction: 'Enviar ROI calc', owner: 'Ana Paula', ownerInitials: 'AP', entry: '18 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-011', company: 'AgroVerde', value: 15000, stage: 'Proposta', source: 'Evento', contact: 'Marcos Klein', phone: '(67) 98123-4567', risk: 74, daysNoContact: 6, nextAction: 'Julio: Case study antes do follow-up', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '05 Jan', timeline: [], emails: [], autos: [] },
-        { id: 'D-012', company: 'CloudNine IT', value: 41000, stage: 'Fechado Ganho', source: 'Indicação', contact: 'Patrícia Gomes', phone: '(11) 91234-5678', risk: 12, daysNoContact: 0, nextAction: 'Onboarding', owner: 'Ana Paula', ownerInitials: 'AP', entry: '01 Dez', timeline: [], emails: [], autos: [] },
-        { id: 'D-013', company: 'OldCo Legacy', value: 8000, stage: 'Fechado Perdido', source: 'Cold Email', contact: '—', phone: '—', risk: 88, daysNoContact: 30, nextAction: 'Arquivado', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '10 Nov', timeline: [], emails: [], autos: [] },
-        { id: 'D-014', company: 'NeoBank Lite', value: 9500, stage: 'Qualificado', source: 'Inbound', contact: 'Otávio Ramos', phone: '(11) 92345-6789', risk: 48, daysNoContact: 0, nextAction: 'BANT completo', owner: 'Ana Paula', ownerInitials: 'AP', entry: '27 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-001', company: 'Empresa Alfa Solutions', value: 24000, stage: 'Proposal', source: 'LinkedIn', contact: 'João Silva', phone: '(11) 99999-0001', risk: 92, daysNoContact: 8, nextAction: 'Julio: Ligar hoje até 14h', owner: 'Ana Paula', ownerInitials: 'AP', entry: '15 Jan', timeline: [{ d: '23 Jan 14:32', t: 'Proposta enviada' }, { d: '20 Jan 10:00', t: 'Demo realizado' }, { d: '15 Jan 16:00', t: 'Lead qualificado' }], emails: [{ dir: '↑', from: 'joao@alfa.com', date: '15 Jan 09:12', sub: '"Obrigado pela apresentação, vou anal."' }, { dir: '↓', from: 'Para: joao@alfa.com', date: '15 Jan 14:30', sub: '"Segue proposta conforme conversamos"' }], autos: ['Follow-up email agendado (D+3)', 'Alerta ao responsável (D+7)'] },
+        { id: 'D-002', company: 'Tech Ventures Ltd', value: 36000, stage: 'Negotiate', source: 'Indicação', contact: 'Carla Menezes', phone: '(21) 98888-2200', risk: 71, daysNoContact: 2, nextAction: 'Revisão de contrato — enviar redline', owner: 'Ana Paula', ownerInitials: 'AP', entry: '03 Jan', timeline: [{ d: '18 Jan', t: 'Contrato em análise jurídica' }], emails: [{ dir: '↓', from: 'legal@techventures.com', date: '18 Jan', sub: '"Sugestões na cláusula 4"' }], autos: ['Lembrete Slack D+2'] },
+        { id: 'D-003', company: 'Global Commerce SA', value: 18500, stage: 'Active Pursuit', source: 'Inbound', contact: 'Pedro Alves', phone: '(11) 97777-3300', risk: 58, daysNoContact: 2, nextAction: 'Agendar segunda demo', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '22 Jan', timeline: [{ d: '24 Jan', t: 'Primeira demo' }], emails: [], autos: [] },
+        { id: 'D-004', company: 'FinTrust Pagamentos', value: 52000, stage: 'Scope & Validate', source: 'Evento', contact: 'Amanda Reis', phone: '(31) 96666-1100', risk: 45, daysNoContact: 0, nextAction: 'Discovery call amanhã 10h', owner: 'Ana Paula', ownerInitials: 'AP', entry: '26 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-005', company: 'Logi Norte', value: 12000, stage: 'Qualification', source: 'Cold Email', contact: 'Ricardo Souza', phone: '(47) 95555-4400', risk: 38, daysNoContact: 5, nextAction: 'Enviar one-pager', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '20 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-006', company: 'HealthPlus', value: 31000, stage: 'Proposal', source: 'LinkedIn', contact: 'Fernanda Lima', phone: '(11) 94444-5500', risk: 68, daysNoContact: 4, nextAction: 'Follow-up proposta', owner: 'Ana Paula', ownerInitials: 'AP', entry: '10 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-007', company: 'EduTech Brasil', value: 8900, stage: 'Scope & Validate', source: 'Inbound', contact: 'Gustavo Pires', phone: '(85) 93333-6600', risk: 52, daysNoContact: 1, nextAction: 'Enviar pricing', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '25 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-008', company: 'MetalCorp', value: 67000, stage: 'Negotiate', source: 'Indicação', contact: 'Helena Dias', phone: '(19) 92222-7700', risk: 55, daysNoContact: 1, nextAction: 'Call com CFO sexta', owner: 'Ana Paula', ownerInitials: 'AP', entry: '08 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-009', company: 'StartUp X', value: 4500, stage: 'Qualification', source: 'Cold Email', contact: 'Igor Nunes', phone: '(48) 91111-8800', risk: 33, daysNoContact: 12, nextAction: 'Qualificar ICP', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '12 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-010', company: 'RetailMax', value: 28000, stage: 'Active Pursuit', source: 'LinkedIn', contact: 'Juliana Torres', phone: '(11) 90000-9900', risk: 61, daysNoContact: 3, nextAction: 'Enviar ROI calc', owner: 'Ana Paula', ownerInitials: 'AP', entry: '18 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-011', company: 'AgroVerde', value: 15000, stage: 'Proposal', source: 'Evento', contact: 'Marcos Klein', phone: '(67) 98123-4567', risk: 74, daysNoContact: 6, nextAction: 'Julio: Case study antes do follow-up', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '05 Jan', timeline: [], emails: [], autos: [] },
+        { id: 'D-012', company: 'CloudNine IT', value: 41000, stage: 'Won', source: 'Indicação', contact: 'Patrícia Gomes', phone: '(11) 91234-5678', risk: 12, daysNoContact: 0, nextAction: 'Onboarding', owner: 'Ana Paula', ownerInitials: 'AP', entry: '01 Dez', timeline: [], emails: [], autos: [] },
+        { id: 'D-013', company: 'OldCo Legacy', value: 8000, stage: 'Lost', source: 'Cold Email', contact: '—', phone: '—', risk: 88, daysNoContact: 30, nextAction: 'Arquivado', owner: 'Bruno Costa', ownerInitials: 'BC', entry: '10 Nov', timeline: [], emails: [], autos: [] },
+        { id: 'D-014', company: 'NeoBank Lite', value: 9500, stage: 'Scope & Validate', source: 'Inbound', contact: 'Otávio Ramos', phone: '(11) 92345-6789', risk: 48, daysNoContact: 0, nextAction: 'BANT completo', owner: 'Ana Paula', ownerInitials: 'AP', entry: '27 Jan', timeline: [], emails: [], autos: [] },
       ];
     }
 
@@ -9611,6 +9649,21 @@
         document.body.appendChild(dw);
       }
 
+      function _demoLeads() {
+        return [
+          { id:'l1',  companyName:'Empresa Alfa',         contactName:'Carlos Mendes',      title:'CCO',  email:'carlos@alfa.com',         lead_score:88, lead_temperature:'hot',  reply_status:'positive', stage:'meeting',   source:'LinkedIn', route:'Outbound',  nextAction:'Agendar demo',        createdAt:'2026-03-01', updatedAt:'2026-03-28' },
+          { id:'l2',  companyName:'Tech Ventures',        contactName:'Sofia Rodrigues',    title:'CTO',  email:'sofia@techventures.io',    lead_score:74, lead_temperature:'hot',  reply_status:'positive', stage:'deal',      source:'Referral', route:'Inbound',   nextAction:'Enviar proposta',     createdAt:'2026-02-15', updatedAt:'2026-03-25' },
+          { id:'l3',  companyName:'Global Commerce',      contactName:'André Lima',         title:'CRO',  email:'andre@globalcommerce.com', lead_score:61, lead_temperature:'warm', reply_status:'neutral',  stage:'replied',   source:'Email',    route:'Outbound',  nextAction:'Follow-up call',      createdAt:'2026-02-20', updatedAt:'2026-03-20' },
+          { id:'l4',  companyName:'FinTrust Pagamentos',  contactName:'Beatriz Santos',     title:'CFO',  email:'beatriz@fintrust.com',     lead_score:55, lead_temperature:'warm', reply_status:'positive', stage:'sent',      source:'Cold',     route:'Outbound',  nextAction:'Aguardar resposta',   createdAt:'2026-03-05', updatedAt:'2026-03-22' },
+          { id:'l5',  companyName:'MetalCorp',            contactName:'Ricardo Alves',      title:'CEO',  email:'ricardo@metalcorp.com',    lead_score:42, lead_temperature:'warm', reply_status:'neutral',  stage:'qualified', source:'Event',    route:'Inbound',   nextAction:'Qualificar MEDDPICC', createdAt:'2026-03-10', updatedAt:'2026-03-18' },
+          { id:'l6',  companyName:'Logística Express',    contactName:'Fernanda Costa',     title:'COO',  email:'fernanda@logexpress.com',  lead_score:36, lead_temperature:'cold', reply_status:'neutral',  stage:'processed', source:'LinkedIn', route:'Outbound',  nextAction:'Enviar cold email',   createdAt:'2026-03-12', updatedAt:'2026-03-15' },
+          { id:'l7',  companyName:'Retail Cloud SA',      contactName:'Marcos Pereira',     title:'CIO',  email:'marcos@retailcloud.com',   lead_score:29, lead_temperature:'cold', reply_status:'negative', stage:'entered',   source:'Cold',     route:'Outbound',  nextAction:'Tentar outro canal',  createdAt:'2026-03-14', updatedAt:'2026-03-14' },
+          { id:'l8',  companyName:'Agro Solutions',       contactName:'Juliana Ferreira',   title:'CFO',  email:'juliana@agrosol.com.br',  lead_score:67, lead_temperature:'warm', reply_status:'positive', stage:'meeting',   source:'Referral', route:'Inbound',   nextAction:'Enviar case study',   createdAt:'2026-02-28', updatedAt:'2026-03-26' },
+          { id:'l9',  companyName:'Construtech',          contactName:'Paulo Nascimento',   title:'CTO',  email:'paulo@construtech.com',    lead_score:80, lead_temperature:'hot',  reply_status:'positive', stage:'deal',      source:'Event',    route:'Inbound',   nextAction:'Fechar contrato',     createdAt:'2026-02-10', updatedAt:'2026-03-27' },
+          { id:'l10', companyName:'Pharma Distribuidora', contactName:'Ana Oliveira',       title:'CCO',  email:'ana@pharmadist.com',       lead_score:52, lead_temperature:'warm', reply_status:'neutral',  stage:'sent',      source:'LinkedIn', route:'Outbound',  nextAction:'Ligar esta semana',   createdAt:'2026-03-08', updatedAt:'2026-03-19' },
+        ];
+      }
+
       async function loadData() {
         var body = document.getElementById('lf-body');
         if (body) body.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">⟳ Carregando…</div>';
@@ -9627,6 +9680,9 @@
             if (Array.isArray(sb)) leads = sb;
           } catch(e2) { console.warn('[LeadFlow] Supabase:', e2.message); }
         }
+
+        // Fallback to built-in demo leads so the funnel is never empty in demo mode
+        if (!leads.length) { leads = _demoLeads(); }
 
         var norm  = leads.map(normalizeLead);
         var total = norm.length;
@@ -10404,15 +10460,27 @@
 
     function forecastDealRows() {
       return [
-        { name: 'Empresa Alfa', value: 24000, stage: 'Proposta', prob: 35, forecast: 8400, close: 'Fev 28', dealId: null, risk: 88 },
-        { name: 'Tech Ventures', value: 36000, stage: 'Negociação', prob: 75, forecast: 27000, close: 'Mar 5', dealId: null, risk: 52 },
-        { name: 'Global Commerce', value: 18500, stage: 'Apresentação', prob: 50, forecast: 9250, close: 'Mar 15', dealId: null, risk: 48 },
-        { name: 'FinTrust Pagamentos', value: 52000, stage: 'Qualificado', prob: 25, forecast: 13000, close: 'Abr 2', dealId: null, risk: 35 },
-        { name: 'MetalCorp', value: 67000, stage: 'Negociação', prob: 60, forecast: 40200, close: 'Mar 20', dealId: null, risk: 61 },
+        { name: 'Empresa Alfa', value: 24000, stage: 'Proposal', prob: 35, forecast: 8400, close: 'Fev 28', dealId: null, risk: 88 },
+        { name: 'Tech Ventures', value: 36000, stage: 'Negotiate', prob: 75, forecast: 27000, close: 'Mar 5', dealId: null, risk: 52 },
+        { name: 'Global Commerce', value: 18500, stage: 'Active Pursuit', prob: 50, forecast: 9250, close: 'Mar 15', dealId: null, risk: 48 },
+        { name: 'FinTrust Pagamentos', value: 52000, stage: 'Scope & Validate', prob: 25, forecast: 13000, close: 'Abr 2', dealId: null, risk: 35 },
+        { name: 'MetalCorp', value: 67000, stage: 'Negotiate', prob: 60, forecast: 40200, close: 'Mar 20', dealId: null, risk: 61 },
       ];
     }
 
-    var __forecastStageMap = { prospecting: 'Prospecção', qualification: 'Qualificação', presentation: 'Apresentação', proposal: 'Proposta', negotiation: 'Negociação', contract: 'Contrato' };
+    var __forecastStageMap = {
+      prospecting:    'Qualification',
+      qualified:      'Scope & Validate',
+      presentation:   'Active Pursuit',
+      proposal:       'Proposal',
+      negotiation:    'Negotiate',
+      commit_signing: 'Commit & Signing',
+      won:            'Won',
+      lost:           'Lost',
+      // legacy aliases
+      qualification:  'Qualification',
+      contract:       'Commit & Signing',
+    };
     function stageApiToPt(s) { return __forecastStageMap[s] || s || '—'; }
 
     async function renderForecast() {
@@ -13855,17 +13923,33 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
+    function _demoDealsForHealth() {
+      return [
+        { id:'d1', stage:'prospecting',    companyName:'Empresa Alfa',        value:24000,  riskScore:88, meddpiccScore:30, createdAt:'2025-11-01', expectedCloseDate:'2026-04-30', daysSinceContact:12 },
+        { id:'d2', stage:'qualified',      companyName:'Tech Ventures',       value:36000,  riskScore:52, meddpiccScore:65, createdAt:'2025-11-15', expectedCloseDate:'2026-05-10', daysSinceContact:3  },
+        { id:'d3', stage:'presentation',   companyName:'Global Commerce',     value:18500,  riskScore:48, meddpiccScore:72, createdAt:'2025-12-01', expectedCloseDate:'2026-04-20', daysSinceContact:5  },
+        { id:'d4', stage:'proposal',       companyName:'FinTrust Pagamentos', value:52000,  riskScore:35, meddpiccScore:80, createdAt:'2025-12-10', expectedCloseDate:'2026-04-15', daysSinceContact:1  },
+        { id:'d5', stage:'negotiation',    companyName:'MetalCorp',           value:67000,  riskScore:61, meddpiccScore:60, createdAt:'2025-12-20', expectedCloseDate:'2026-04-08', daysSinceContact:7  },
+        { id:'d6', stage:'commit_signing', companyName:'Logística Express',   value:89000,  riskScore:20, meddpiccScore:90, createdAt:'2026-01-05', expectedCloseDate:'2026-04-05', daysSinceContact:0  },
+        { id:'d7', stage:'negotiation',    companyName:'Retail Cloud SA',     value:44000,  riskScore:77, meddpiccScore:40, createdAt:'2026-01-10', expectedCloseDate:'2026-04-18', daysSinceContact:14 },
+        { id:'d8', stage:'proposal',       companyName:'Agro Solutions',      value:31000,  riskScore:42, meddpiccScore:68, createdAt:'2026-01-20', expectedCloseDate:'2026-05-01', daysSinceContact:2  },
+        { id:'d9', stage:'won',            companyName:'Construtech',         value:58000,  riskScore:0,  meddpiccScore:95, createdAt:'2025-10-01', actualCloseDate:'2026-02-15', daysSinceContact:0  },
+        { id:'d10',stage:'won',            companyName:'Pharma Distribuidora',value:72000,  riskScore:0,  meddpiccScore:88, createdAt:'2025-10-15', actualCloseDate:'2026-03-01', daysSinceContact:0  },
+      ];
+    }
+
     async function renderPipelineHealth() {
       var area = document.getElementById('content-area');
       if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Health', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      var m = {}, allDeals = _demoDealsForHealth();
       try {
         var results = await Promise.all([
           API.get('/metrics/dashboard'),
           API.get('/deals?perPage=200&sortBy=createdAt&sortOrder=desc'),
         ]);
-        var m = results[0].data || {};
-        var allDeals = results[1].data || [];
+        m = results[0].data || {};
+        allDeals = results[1].data || [];
         var deals = allDeals.filter(function(d) { return d.stage !== 'won' && d.stage !== 'lost'; });
         var wonDeals = allDeals.filter(function(d) { return d.stage === 'won'; });
         var atRisk = deals.filter(function(d) { return (d.riskScore || 0) >= 75; });
@@ -13987,7 +14071,33 @@
           'ACV/S&M Ratio, Leads por país e MEDDPICC Rate completo requerem integração com CRM/ERP. Marcados com // TODO acima.</div>'+
           '</div>';
       } catch (e) {
-        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
+        console.warn('[PipelineHealth] API unavailable, using demo data:', e && e.message);
+        // renderPipelineHealth already uses _demoDealsForHealth() as fallback — re-render with demo data
+        allDeals = _demoDealsForHealth(); m = {};
+        var deals2 = allDeals.filter(function(d){return d.stage!=='won'&&d.stage!=='lost';});
+        var wonDeals2 = allDeals.filter(function(d){return d.stage==='won';});
+        var atRisk2 = deals2.filter(function(d){return (d.riskScore||0)>=75;});
+        var mf2 = deals2.filter(function(d){return(d.meddpiccScore||0)>=60;}).length;
+        var meddpiccRate2 = deals2.length ? Math.round((mf2/deals2.length)*100) : 42;
+        var cycles2 = wonDeals2.filter(function(d){return d.createdAt&&d.actualCloseDate;})
+          .map(function(d){return Math.max(0,Math.round((new Date(d.actualCloseDate)-new Date(d.createdAt))/86400000));});
+        var avgCycle2 = cycles2.length ? Math.round(cycles2.reduce(function(a,b){return a+b;},0)/cycles2.length) : 47;
+        var pp2 = deals2.filter(function(d){return['proposal','negotiation','commit_signing','won'].includes(d.stage);});
+        var avgDealSize2 = pp2.length ? Math.round(pp2.reduce(function(a,d){return a+(d.value||0);},0)/pp2.length) : 43500;
+        var qc2 = allDeals.filter(function(d){return d.stage==='qualified';}).length;
+        var pc2 = allDeals.filter(function(d){return['proposal','negotiation','commit_signing','won'].includes(d.stage);}).length;
+        var convRate2 = (qc2+pc2) ? Math.round((pc2/(qc2+pc2))*100) : 34;
+        var pPipe2 = deals2.filter(function(d){return d.stage==='proposal';}).reduce(function(a,d){return a+(d.value||0);},0);
+        var winRate2 = wonDeals2.length ? Math.round((wonDeals2.length/allDeals.length)*100) : 22;
+        var healthScore2 = Math.max(0,100-Math.round((atRisk2.length/Math.max(deals2.length,1))*100));
+        function kpiCell2(label,val,sub,color,anim){return '<div class="kpi-card" style="cursor:default;animation:slide-up '+anim+'s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+';margin:6px 0 2px">'+val+'</div><div style="font-size:11px;color:var(--text-muted)">'+sub+'</div></div>';}
+        function metricBar2(label,val,max,target,color){var pct=Math.min(100,Math.round((val/max)*100));var tpct=Math.min(100,Math.round((target/max)*100));var ok=val>=target;return '<div style="margin-bottom:14px"><div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:5px"><span style="color:var(--text-muted)">'+label+'</span><span style="font-weight:700;color:'+(ok?'var(--accent-green)':'var(--accent-red)')+'">'+val+' / '+target+' target</span></div><div style="position:relative;height:10px;background:rgba(255,255,255,.07);border-radius:5px;overflow:visible"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:5px;transition:width .8s ease"></div><div style="position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--accent-amber,#F59E0B);border-radius:1px;left:'+tpct+'%"></div></div></div>';}
+        var leadsCountry2={AR:28,BR:87,COL:22,MX:61},leadsTarget2={AR:35,BR:100,COL:30,MX:80};
+        var kpiGrid2='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+kpiCell2('MEDDPICC Rate',meddpiccRate2+'%','Target: 70%',meddpiccRate2>=70?'var(--accent-green)':'var(--accent-red)','.3')+kpiCell2('Sales Cycle',avgCycle2+'d','Média Qualification→Won',avgCycle2<=45?'var(--accent-cyan)':'var(--accent-amber,#F59E0B)','.32')+kpiCell2('Avg Deal Size','$'+avgDealSize2.toLocaleString('en-US'),'Estágios ≥ Proposal','var(--accent-purple-light)','.34')+kpiCell2('ACV/S&M','4.2x','// TODO: conectar custos S&M','var(--accent-green)','.36')+'</div>';
+        var convSection2='<div class="card" style="animation:slide-up .38s ease;margin-bottom:16px"><div class="card-header"><span class="card-title">Taxas de Conversão — Playbook Targets</span></div><div style="padding:8px 0">'+metricBar2('Qualification → Proposal',convRate2,100,30,'linear-gradient(90deg,var(--accent-purple),var(--accent-cyan))')+metricBar2('Proposal Pipeline (USD k)',Math.round(pPipe2/1000),15000,12000,'linear-gradient(90deg,var(--accent-purple),var(--accent-amber,#F59E0B))')+metricBar2('Win Rate Geral',winRate2,100,25,'linear-gradient(90deg,var(--accent-cyan),var(--accent-green))')+metricBar2('MEDDPICC Rate',meddpiccRate2,100,70,'linear-gradient(90deg,var(--accent-purple),var(--accent-purple-light))')+'</div></div>';
+        var countryBars2=Object.keys(leadsCountry2).map(function(c){var v=leadsCountry2[c],t=leadsTarget2[c];var ok=v>=t;return '<div style="margin-bottom:10px"><div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;margin-bottom:4px"><span style="font-weight:600">'+c+'</span><span style="color:'+(ok?'var(--accent-green)':'var(--accent-amber,#F59E0B)')+'">'+v+' / '+t+'</span></div><div style="height:8px;background:rgba(255,255,255,.07);border-radius:4px"><div style="height:100%;width:'+Math.min(100,Math.round(v/t*100))+'%;background:'+(ok?'var(--accent-green)':'var(--accent-amber,#F59E0B)')+';border-radius:4px"></div></div></div>';}).join('');
+        var riskRows2=atRisk2.slice(0,5).map(function(d){return '<div class="deal-row critical"><div class="risk-badge risk-critical">'+(d.riskScore||0)+'</div><div><div class="deal-name">'+escapeHtml(d.companyName||'')+'</div><div class="deal-meta"><span>$'+(d.value||0).toLocaleString('en-US')+'</span><span>'+(d.daysSinceContact!=null?d.daysSinceContact+'d s/contato':'—')+'</span></div></div><span class="act-btn" style="pointer-events:none">Ver</span></div>';}).join('')||'<p class="placeholder-note">Nenhum deal em risco crítico.</p>';
+        area.innerHTML='<div class="pipeline-page-wrap"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><div><h2 style="margin:0 0 4px;font-size:1.4rem">Pipeline Health Dashboard</h2><p style="font-size:13px;color:var(--text-muted);margin:0">Baseado no Sales Playbook Guardline · Health score: <strong style="color:var(--accent-purple-light)">'+healthScore2+'/100</strong></p></div><button type="button" class="btn-activate" onclick="navigateTo(\'pipeline-funnel\')">Ver Funil Completo →</button></div>'+kpiGrid2+convSection2+'<div class="command-grid" style="align-items:start;margin-bottom:16px"><div class="card" style="animation:slide-up .44s ease"><div class="card-header"><span class="card-title">Leads Qualificados por País</span><span class="card-subtitle">Demo data</span></div><div style="padding:8px 0">'+countryBars2+'</div><div style="font-size:11px;color:var(--text-muted);border-top:1px solid var(--border-subtle,#2A2A3E);padding-top:10px;margin-top:4px">Targets: AR=35 · BR=100 · COL=30 · MX=80</div></div><div class="card" style="animation:slide-up .46s ease"><div class="card-header"><span class="card-title">Deals em Risco Crítico</span><span class="card-subtitle">Score ≥ 75</span></div><div style="padding:4px 0">'+riskRows2+'</div></div></div><div style="font-size:11px;color:var(--text-muted);background:rgba(108,63,197,.06);border:1px solid rgba(108,63,197,.15);border-radius:8px;padding:10px 14px">Dados de demonstração — conecte a API para dados reais.</div></div>';
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -13996,18 +14106,22 @@
       var area = document.getElementById('content-area');
       if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Funnel', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      // Demo-safe fallback deals — overwritten by API if available
+      var allDeals = _demoDealsForHealth();
       try {
         var r = await API.get('/deals?perPage=200&sortBy=createdAt&sortOrder=desc');
-        var allDeals = r.data || [];
+        allDeals = r.data || [];
+      } catch(e) { console.warn('[PipelineFunnel] API unavailable, using demo data:', e && e.message); }
 
-        // Playbook stage definitions
+      try {
+        // Playbook stage definitions — keys MUST match actual deal.stage values
         var stages = [
-          { key:'qualified',    label:'Qualification',  wr:5,  target:50000000,  color:'#818cf8' },
-          { key:'presentation', label:'Scope & Validate', wr:12, target:20000000, color:'#60a5fa' },
-          { key:'proposal',     label:'Active Pursuit', wr:15, target:17000000,  color:'#34d399' },
-          { key:'negotiation',  label:'Proposal',       wr:20, target:12500000,  color:'#fb923c' },
-          { key:'commit',       label:'Negotiate',      wr:60, target:4200000,   color:'#f472b6' },
-          { key:'won',          label:'Commit',         wr:90, target:2800000,   color:'#4ade80' },
+          { key:'prospecting',    label:'Qualification',    wr:5,  target:50000000,  color:'#818cf8' },
+          { key:'qualified',      label:'Scope & Validate', wr:12, target:20000000,  color:'#60a5fa' },
+          { key:'presentation',   label:'Active Pursuit',   wr:15, target:17000000,  color:'#34d399' },
+          { key:'proposal',       label:'Proposal',         wr:20, target:12500000,  color:'#fb923c' },
+          { key:'negotiation',    label:'Negotiate',        wr:60, target:4200000,   color:'#f472b6' },
+          { key:'commit_signing', label:'Commit & Signing', wr:90, target:2800000,   color:'#4ade80' },
         ];
 
         // Aggregate actual deals per stage
@@ -14102,7 +14216,8 @@
           'Win rates do Playbook: Qualification 5% · Scope 12% · Active 15% · Proposal 20% · Negotiate 60% · Commit 90%</div>'+
           '</div>';
       } catch (e) {
-        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
+        console.error('[PipelineFunnel] Render error:', e && e.message);
+        area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">Erro ao renderizar funil: '+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
