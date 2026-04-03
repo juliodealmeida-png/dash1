@@ -14,7 +14,7 @@ export function meetingsRoutes(_env: unknown, supabase: SupabaseClient) {
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ meetings: data ?? [] });
+    res.json({ success: true, data: { meetings: data ?? [] } });
   });
 
   r.post('/', async (req, res) => {

@@ -1,0 +1,414 @@
+{
+  "name": "WF10 — Virtual Assistant / Follow-up Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wf10-guardline-virtual-assistant-v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "wf10-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 400],
+      "webhookId": "wf10-guardline-virtual-assistant-v1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "team_members",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=id=eq.{{ $json.assigned_member_id }}",
+        "options": {}
+      },
+      "id": "wf10-get-member",
+      "name": "Get Assigned Member",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "team_member_config",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=member_id=eq.{{ $json.assigned_member_id }}",
+        "options": {}
+      },
+      "id": "wf10-get-config",
+      "name": "Get Member Config",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 500],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "assistant_interactions",
+        "returnAll": false,
+        "limit": 10,
+        "filterType": "string",
+        "filterString": "=lead_id=eq.{{ $('Webhook').first().json.lead_id }}&order=sent_at.desc",
+        "options": {}
+      },
+      "id": "wf10-get-history",
+      "name": "Get Interaction History",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 700],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "meetings",
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "string",
+        "filterString": "=lead_id=eq.{{ $('Webhook').first().json.lead_id }}&order=meeting_date.desc",
+        "options": {}
+      },
+      "id": "wf10-get-meeting",
+      "name": "Get Latest Meeting",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [500, 900],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const trigger = $('Webhook').first().json.trigger;\nconst member = $('Get Assigned Member').first().json;\nconst lead = $('Webhook').first().json;\nconst history = $('Get Interaction History').all().map(h => h.json);\nconst meeting = $('Get Latest Meeting').first()?.json || {};\n\nconst triggerContext = {\n  meeting_done: `A reunião com ${lead.contact_name} acabou de acontecer.\\nResumo: ${lead.meeting_summary || meeting.transcript_summary || 'N/A'}\\nPróximos passos acordados: ${JSON.stringify(lead.next_steps || meeting.next_steps || [])}`,\n  no_reply_3d: `Enviamos uma mensagem há 3 dias e não houve resposta.\\nÚltima mensagem: ${history[0]?.message_preview || 'N/A'}`,\n  no_reply_7d: `Já se passaram 7 dias sem resposta.\\nContexto: ${history.slice(0,3).map(h => h.message_preview).join(' | ')}`,\n  deal_risk: `O sistema detectou sinais de risco neste deal.\\nContexto: ${lead.context || 'N/A'}`,\n  manual: `O vendedor pediu para enviar uma mensagem personalizada.\\nContexto: ${lead.context || 'N/A'}`\n};\n\nconst prompt = `Você é ${member.name}, ${member.role} da Guardline.\nNUNCA revele que é uma IA. Você É ${member.name}.\nEscreva como ${member.name} escreveria — use primeira pessoa, tom profissional mas humano.\n\nCONTEXTO DA SITUAÇÃO:\n${triggerContext[trigger] || triggerContext.manual}\n\nHISTÓRICO DE INTERAÇÕES COM ${lead.contact_name}:\n${history.slice(0, 5).map(h =>\n  \\`[\\${h.sent_at}] \\${h.direction === 'outbound' ? 'Você enviou' : \\`\\${lead.contact_name} respondeu\\`}: \\${h.message_preview}\\`\n).join('\\n')}\n\nINSTRUÇÕES:\n- Canal: ${lead.channel_preference || 'email'}\n- Se email: incluir assunto e corpo separados\n- Se WhatsApp: mensagem curta, conversacional, máx 3 parágrafos\n- Se LinkedIn: formal mas direto, máx 2 parágrafos\n- Mencione algo específico da reunião ou do contexto para parecer genuíno\n- Se relevante, inclua o link do calendário: ${member.calendar_url || ''}\n- NÃO use frases genéricas como \"espero que esteja bem\"\n- Assine como ${member.name}\n\nResponda SOMENTE com JSON:\n{\n  \"subject\": \"assunto (só para email, null para outros canais)\",\n  \"message\": \"corpo da mensagem\",\n  \"tone_check\": \"breve descrição do tom usado\"\n}`;\n\nreturn [{ json: { prompt, member, lead, channel: lead.channel_preference || 'email' } }];"
+      },
+      "id": "wf10-build-prompt",
+      "name": "Build Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 400]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "model": "claude-sonnet-4-20250514",
+        "messages": {
+          "values": [
+            {
+              "role": "user",
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "maxTokensToSample": 800,
+          "temperature": 0.7
+        }
+      },
+      "id": "wf10-claude",
+      "name": "Claude — Generate Message",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1,
+      "position": [1100, 400],
+      "credentials": {
+        "anthropicApi": {
+          "id": "ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude response\nconst raw = $('Claude — Generate Message').first().json;\nlet parsed;\ntry {\n  const text = typeof raw === 'string' ? raw : (raw.text || raw.content || JSON.stringify(raw));\n  const jsonMatch = text.match(/\\{[\\s\\S]*\\}/);\n  parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);\n} catch (e) {\n  parsed = { subject: null, message: String(raw), tone_check: 'fallback' };\n}\n\nconst prev = $('Build Claude Prompt').first().json;\nreturn [{ json: { ...parsed, member: prev.member, lead: prev.lead, channel: prev.channel } }];"
+      },
+      "id": "wf10-parse",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1350, 400]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "outputIndex": 0, "value": "email" },
+            { "outputIndex": 1, "value": "whatsapp" },
+            { "outputIndex": 2, "value": "linkedin" }
+          ]
+        },
+        "dataType": "string",
+        "value": "={{ $json.channel }}",
+        "fallbackOutput": "extra",
+        "options": {}
+      },
+      "id": "wf10-switch",
+      "name": "Switch Channel",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [1600, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"raw\": \"{{ Buffer.from(\n    `From: ${$json.member.name} <${$json.member.email}>\\r\\n` +\n    `To: ${$json.lead.contact_email}\\r\\n` +\n    `Subject: ${$json.subject || 'Follow-up'}\\r\\n` +\n    `Content-Type: text/plain; charset=utf-8\\r\\n\\r\\n` +\n    $json.message\n  ).toString('base64url') }}\"\n}",
+        "options": {}
+      },
+      "id": "wf10-send-email",
+      "name": "Send Email (Gmail)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 200],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "GMAIL_CREDENTIAL_ID",
+          "name": "Gmail Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.twilio.com/2010-04-01/Accounts/{{ $env.TWILIO_ACCOUNT_SID }}/Messages.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            { "name": "From", "value": "=whatsapp:{{ $json.member.whatsapp }}" },
+            { "name": "To", "value": "=whatsapp:{{ $json.lead.contact_whatsapp }}" },
+            { "name": "Body", "value": "={{ $json.message }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf10-send-whatsapp",
+      "name": "Send WhatsApp (Twilio)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 400],
+      "credentials": {
+        "twilioApi": {
+          "id": "TWILIO_CREDENTIAL_ID",
+          "name": "Twilio Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.linkedin.com/v2/messages",
+        "authentication": "oAuth2",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" },
+            { "name": "X-Restli-Protocol-Version", "value": "2.0.0" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"recipients\": [\"{{ $json.lead.contact_linkedin }}\"],\n  \"subject\": \"{{ $json.subject || 'Follow-up' }}\",\n  \"body\": \"{{ $json.message }}\"\n}",
+        "options": {}
+      },
+      "id": "wf10-send-linkedin",
+      "name": "Send LinkedIn DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 600],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "LINKEDIN_CREDENTIAL_ID",
+          "name": "LinkedIn Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableId": "assistant_interactions",
+        "fieldsToSend": "defineBelow",
+        "fieldValues": {
+          "values": [
+            { "fieldName": "lead_id", "fieldValue": "={{ $('Webhook').first().json.lead_id }}" },
+            { "fieldName": "company_name", "fieldValue": "={{ $('Webhook').first().json.company_name }}" },
+            { "fieldName": "channel", "fieldValue": "={{ $('Parse Claude Response').first().json.channel }}" },
+            { "fieldName": "direction", "fieldValue": "outbound" },
+            { "fieldName": "message_preview", "fieldValue": "={{ $('Parse Claude Response').first().json.message?.substring(0, 200) }}" },
+            { "fieldName": "sent_as", "fieldValue": "={{ $('Parse Claude Response').first().json.member.name }}" },
+            { "fieldName": "sent_by_member", "fieldValue": "={{ $('Parse Claude Response').first().json.member.id }}" },
+            { "fieldName": "status", "fieldValue": "sent" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf10-save-interaction",
+      "name": "Save Interaction",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [2200, 400],
+      "credentials": {
+        "supabaseApi": {
+          "id": "SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://slack.com/api/chat.postMessage",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "slackApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"channel\": \"#guardline-sales\",\n  \"text\": \"📤 *Mensagem enviada em nome de {{ $('Parse Claude Response').first().json.member.name }}:*\\n• Para: {{ $('Webhook').first().json.contact_name }} ({{ $('Webhook').first().json.company_name }})\\n• Canal: {{ $('Parse Claude Response').first().json.channel }}\\n• Tom: {{ $('Parse Claude Response').first().json.tone_check }}\"\n}",
+        "options": {}
+      },
+      "id": "wf10-slack",
+      "name": "Notify Member via Slack",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2450, 400],
+      "credentials": {
+        "slackApi": {
+          "id": "SLACK_CREDENTIAL_ID",
+          "name": "Slack Guardline"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"channel\": \"{{ $('Parse Claude Response').first().json.channel }}\",\n  \"sent_as\": \"{{ $('Parse Claude Response').first().json.member.name }}\",\n  \"tone\": \"{{ $('Parse Claude Response').first().json.tone_check }}\"\n}",
+        "options": {}
+      },
+      "id": "wf10-respond",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [2700, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          { "node": "Get Assigned Member", "type": "main", "index": 0 },
+          { "node": "Get Member Config", "type": "main", "index": 0 },
+          { "node": "Get Interaction History", "type": "main", "index": 0 },
+          { "node": "Get Latest Meeting", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Get Assigned Member": {
+      "main": [
+        [{ "node": "Build Claude Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Member Config": {
+      "main": [
+        [{ "node": "Build Claude Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Interaction History": {
+      "main": [
+        [{ "node": "Build Claude Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Get Latest Meeting": {
+      "main": [
+        [{ "node": "Build Claude Prompt", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Claude Prompt": {
+      "main": [
+        [{ "node": "Claude — Generate Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "Claude — Generate Message": {
+      "main": [
+        [{ "node": "Parse Claude Response", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse Claude Response": {
+      "main": [
+        [{ "node": "Switch Channel", "type": "main", "index": 0 }]
+      ]
+    },
+    "Switch Channel": {
+      "main": [
+        [{ "node": "Send Email (Gmail)", "type": "main", "index": 0 }],
+        [{ "node": "Send WhatsApp (Twilio)", "type": "main", "index": 0 }],
+        [{ "node": "Send LinkedIn DM", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send Email (Gmail)": {
+      "main": [
+        [{ "node": "Save Interaction", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send WhatsApp (Twilio)": {
+      "main": [
+        [{ "node": "Save Interaction", "type": "main", "index": 0 }]
+      ]
+    },
+    "Send LinkedIn DM": {
+      "main": [
+        [{ "node": "Save Interaction", "type": "main", "index": 0 }]
+      ]
+    },
+    "Save Interaction": {
+      "main": [
+        [{ "node": "Notify Member via Slack", "type": "main", "index": 0 }]
+      ]
+    },
+    "Notify Member via Slack": {
+      "main": [
+        [{ "node": "Respond to Webhook", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    { "name": "guardline" },
+    { "name": "assistant" },
+    { "name": "follow-up" }
+  ]
+}

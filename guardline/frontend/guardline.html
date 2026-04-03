@@ -1394,15 +1394,15 @@
     /* ── ETAPA 3: Pipeline + Leads ── */
     .kanban-board {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       overflow-x: auto;
       padding-bottom: 12px;
       min-height: 520px;
       scrollbar-width: thin;
     }
     .kanban-col {
-      min-width: 240px;
-      max-width: 260px;
+      min-width: 260px;
+      max-width: 290px;
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
@@ -1411,28 +1411,45 @@
       flex-shrink: 0;
     }
     .kanban-col-header {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      border-bottom: 2px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-surface);
     }
     .kanban-col-header .stage-name {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
       color: var(--text-secondary);
     }
-    .kanban-col-header .stage-value { font-size: 11px; color: var(--text-muted); }
+    .kanban-col-header .stage-value {
+      font-size: 12px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+    .kanban-col-header .stage-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
     .kanban-cards {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       overflow-y: auto;
-      max-height: 480px;
+      max-height: 560px;
+      scrollbar-width: thin;
     }
     .kanban-col.drag-over { outline: 2px dashed var(--accent-purple); outline-offset: -4px; }
 
@@ -1440,56 +1457,61 @@
       background: var(--bg-card);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md);
-      padding: 12px;
-      padding-top: 15px;
+      padding: 10px 12px;
+      padding-top: 13px;
       cursor: grab;
       transition: var(--transition-fast);
       position: relative;
       overflow: hidden;
     }
     .deal-card:active { cursor: grabbing; }
-    .deal-card.risk-high { border-color: rgba(239, 68, 68, 0.4); animation: pulse-critical 3s infinite; }
+    .deal-card.risk-high { border-left: 3px solid rgba(239, 68, 68, 0.8); animation: pulse-critical 3s infinite; }
     .deal-card:hover {
       border-color: var(--border-strong);
-      transform: translateY(-2px);
+      transform: translateY(-1px);
       box-shadow: var(--shadow-md);
     }
     .deal-risk-bar {
       position: absolute;
       top: 0;
       left: 0;
-      height: 3px;
+      height: 2px;
       border-radius: 0;
       transition: width 0.5s ease;
     }
-    .deal-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-    .deal-value { font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
+    .deal-card-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+    .deal-value { font-size: 15px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 6px; }
     .deal-meta-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      font-size: 11px;
+      gap: 6px;
+      font-size: 10px;
       color: var(--text-muted);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    .deal-meta-row i, .deal-next-action i { width: 11px; height: 11px; vertical-align: middle; }
-    .deal-age.warning { color: var(--accent-amber); }
+    .deal-meta-row i, .deal-next-action i { width: 10px; height: 10px; vertical-align: middle; }
+    .deal-age.warning { color: var(--accent-amber); font-weight: 600; }
     .deal-next-action {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--accent-purple-light);
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 5px;
+      margin-bottom: 8px;
+      padding: 4px 6px;
+      background: rgba(139, 92, 246, 0.08);
+      border-radius: 4px;
     }
     .deal-card-footer {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
       font-size: 10px;
       color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
     }
     .deal-avatar {
       width: 24px;
@@ -3274,8 +3296,8 @@
                 
                 if (res.ok && (data.success || data.token || (data.data && data.data.accessToken))) {
                   // Success - save tokens
-                  var token = data.token || (data.data && data.data.accessToken);
-                  var refresh = data.refreshToken || (data.data && data.data.refreshToken);
+                  var token = data.token || (data.data && (data.data.token || data.data.accessToken));
+                  var refresh = data.refreshToken || (data.data && (data.data.refresh_token || data.data.refreshToken));
                   if (token) localStorage.setItem('guardline_token', token);
                   if (refresh) localStorage.setItem('guardline_refresh', refresh);
                   
@@ -6150,23 +6172,33 @@
 
     async function sendEmail(opts) {
       opts = opts || {};
-      if (!guardlineResendReady()) {
-        throw new Error('E-mail desativado no browser. Configure envio no backend.');
+      /* Try backend API first (routes through n8n WF10 or SMTP) */
+      try {
+        var r = await API.request('/email/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            to: opts.to,
+            subject: opts.subject,
+            body: opts.html || opts.text || '',
+            deal_id: opts.deal_id || null,
+            from_name: (Auth.getUser() || {}).name || 'Guardline',
+          }),
+        });
+        if (r && r.success) {
+          if (typeof showToast === 'function') showToast('success', 'Email enviado', r.method === 'n8n_wf10' ? 'Via automação N8N' : 'Registrado no sistema');
+          return r;
+        }
+      } catch (_) {}
+      /* Fallback: Resend API (if configured) */
+      if (guardlineResendReady()) {
+        var res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + CONFIG.resend.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: CONFIG.resend.from, to: opts.to, subject: opts.subject, html: opts.html }),
+        });
+        return res.json();
       }
-      var r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + CONFIG.resend.key,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: CONFIG.resend.from,
-          to: opts.to,
-          subject: opts.subject,
-          html: opts.html,
-        }),
-      });
-      return r.json();
+      throw new Error('Email: configure SMTP, n8n WF10 ou Resend API.');
     }
 
     async function searchMarket(query, gl) {
@@ -9050,9 +9082,8 @@
             '<div class="kanban-col"><div class="kanban-col-header"><span class="stage-name">' +
             escapeHtml(stage) +
             '</span><span class="stage-value">$' +
-            (sum / 1000).toFixed(1) +
-            'k · ' +
-            colDeals.length +
+            (sum >= 1000000 ? (sum / 1000000).toFixed(1) + 'M' : (sum / 1000).toFixed(1) + 'k') +
+            '<span class="stage-count">' + colDeals.length + '</span>' +
             '</span></div><div class="kanban-cards" data-stage="' +
             escapeHtml(stage) +
             '">';
@@ -13603,8 +13634,21 @@
         .join('');
     }
 
-    function guardlineInboxSendReply() {
-      showToast('info', 'Email', 'Resposta será enviada via integração Gmail');
+    async function guardlineInboxSendReply() {
+      var textarea = document.querySelector('#inbox-reply-text, .inbox-reply textarea');
+      var text = textarea ? textarea.value.trim() : '';
+      if (!text) { showToast('warning', 'Email', 'Escreva uma mensagem antes de enviar'); return; }
+      try {
+        await sendEmail({
+          to: window._guardlineInboxSelectedEmail || '',
+          subject: 'Re: ' + (window._guardlineInboxSelectedSubject || 'Follow-up'),
+          html: text.replace(/\n/g, '<br>'),
+          deal_id: window._guardlineInboxSelectedDealId || null,
+        });
+        if (textarea) textarea.value = '';
+      } catch (e) {
+        showToast('error', 'Erro', e.message || 'Falha ao enviar email');
+      }
     }
 
     async function ingestMeetingSummary(meetingId, summary, transcript) {
