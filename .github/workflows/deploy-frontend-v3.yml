@@ -38,7 +38,7 @@ jobs:
       - name: Deploy to Cloudflare Pages
         run: |
           cd guardline/frontend-v3
-          npx wrangler pages deploy dist --project-name guardline-dashboard
+          npx wrangler pages deploy dist --project-name guardline-dashboard --commit-dirty
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
