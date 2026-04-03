@@ -17238,6 +17238,26 @@ function _demoLeadAnalyticsData() {
   </script>
   <script src="documents-module.js"></script>
 
+  <!-- Julio K2.5 Groq API key — set via localStorage or injected by backend -->
+  <!-- In production: set window.GROQ_API_KEY from server-side env. In demo: use browser console:
+       localStorage.setItem('groq_api_key', '<your-key>') then refresh. -->
+  <script>
+    // Load Groq key from localStorage (set by user or backend)
+    window.GROQ_API_KEY = window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
+    // Helper: julioSetGroqKey('gsk_...') to configure from console or settings UI
+    window.julioSetGroqKey = function(key) {
+      if (key && key.startsWith('gsk_')) {
+        localStorage.setItem('groq_api_key', key);
+        window.GROQ_API_KEY = key;
+        if (typeof showToast === 'function') showToast('success', 'Julio AI', 'Groq API key configurada. Julio está ativo!');
+        console.log('[Julio K2.5] Groq key configurada. Reload não necessário.');
+      } else {
+        console.warn('[Julio K2.5] Key inválida. Use: julioSetGroqKey("gsk_...");');
+      }
+    };
+  </script>
+  <script src="julio-k25-superpowers.js"></script>
+
   <!-- ── Julio AI Floating Chat Widget ─────────────────────── -->
   <button id="julio-fab" title="Perguntar ao Júlio" aria-label="Abrir chat Júlio AI">
     🤖
@@ -17426,12 +17446,64 @@ function _demoLeadAnalyticsData() {
           setStreaming(false);
           return;
         }
+        var isDemoOrNoToken = !jwtToken || jwtToken === 'guardline-demo-session';
+        var hasGroqKey = !!(window.GROQ_API_KEY || localStorage.getItem('groq_api_key'));
+
+        // ── Groq direct path (demo mode or no backend token) ──────────────
+        if (isDemoOrNoToken && hasGroqKey && window.julioK25) {
+          removeTyping();
+          var bubble0 = appendMsg('julio', '');
+          var cursor0 = document.createElement('span');
+          cursor0.className = 'jfp-cursor';
+          bubble0.appendChild(cursor0);
+          var full0 = '';
+          setStreaming(true);
+          try {
+            await window.julioK25.chat(text, {
+              mode: window.julioK25.currentMode || 'instant',
+              history: sessionHistory.slice(-16),
+              onChunk: function(chunk, fullSoFar) {
+                full0 = fullSoFar;
+                bubble0.innerHTML = renderMd(full0);
+                var cur = document.createElement('span');
+                cur.className = 'jfp-cursor';
+                bubble0.appendChild(cur);
+                history.scrollTop = history.scrollHeight;
+              },
+              onStep: function(step) {
+                var se = document.createElement('div');
+                se.style.cssText = 'font-size:11px;color:var(--accent-amber,#f59e0b);font-style:italic;margin:2px 0';
+                se.textContent = step;
+                bubble0.insertBefore(se, bubble0.lastChild);
+                history.scrollTop = history.scrollHeight;
+              },
+              onDone: function(finalText) {
+                full0 = finalText || full0;
+                bubble0.innerHTML = renderMd(full0);
+                sessionHistory.push({ role: 'user', content: text });
+                sessionHistory.push({ role: 'assistant', content: full0 });
+                if (sessionHistory.length > 40) sessionHistory = sessionHistory.slice(-40);
+              },
+              onError: function(err) {
+                bubble0.textContent = '⚠ Groq: ' + err;
+                bubble0.style.color = 'var(--accent-red,#ef4444)';
+              },
+            });
+          } catch(ge) {
+            bubble0.textContent = '⚠ Groq error: ' + (ge.message || String(ge));
+          } finally {
+            setStreaming(false);
+            history.scrollTop = history.scrollHeight;
+          }
+          return;
+        }
+
         if (!jwtToken) {
           removeTyping();
           var errBubble2 = appendMsg('julio', '');
-          errBubble2.textContent = '⚠ Faça login para usar o Júlio AI.';
+          errBubble2.textContent = hasGroqKey ? '⚠ Carregando Groq...' : '⚠ Faça login para usar o Júlio AI.';
           setStreaming(false);
-          if (typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
+          if (!hasGroqKey && typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
           return;
         }
 
@@ -17501,11 +17573,40 @@ function _demoLeadAnalyticsData() {
 
         } catch (e) {
           removeTyping();
-          if (bubble) {
-            bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+          // Backend failed — try Groq fallback if key available
+          if (hasGroqKey && window.julioK25) {
+            if (bubble) bubble.remove();
+            var fbBubble = appendMsg('julio', '');
+            var fbFull = '';
+            try {
+              await window.julioK25.chat(text, {
+                mode: window.julioK25.currentMode || 'instant',
+                history: sessionHistory.slice(-16),
+                onChunk: function(chunk, fullSoFar) {
+                  fbFull = fullSoFar;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  history.scrollTop = history.scrollHeight;
+                },
+                onDone: function(finalText) {
+                  fbFull = finalText || fbFull;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  sessionHistory.push({ role: 'user', content: text });
+                  sessionHistory.push({ role: 'assistant', content: fbFull });
+                },
+                onError: function(fbErr) {
+                  fbBubble.textContent = '⚠ Erro: ' + fbErr;
+                },
+              });
+            } catch(fbE) {
+              fbBubble.textContent = '⚠ Erro: ' + (fbE.message || String(fbE));
+            }
           } else {
-            var eb = appendMsg('julio', '');
-            eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            if (bubble) {
+              bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+            } else {
+              var eb = appendMsg('julio', '');
+              eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            }
           }
         } finally {
           setStreaming(false);
