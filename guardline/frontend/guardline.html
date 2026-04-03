@@ -8658,6 +8658,58 @@
       }
     }
 
+    // ─── DealRoom tab switcher ────────────────────────────────────────────────
+    function _drTab(dealSafeId, tab) {
+      var julio    = document.getElementById('julio-tab-content-'+dealSafeId);
+      var personas = document.getElementById('personas-tab-content-'+dealSafeId);
+      var btnJulio = document.getElementById('dr-tab-julio-'+dealSafeId);
+      var btnPers  = document.getElementById('dr-tab-personas-'+dealSafeId);
+      if (!julio || !personas) return;
+      if (tab === 'personas') {
+        julio.style.display = 'none';
+        personas.style.display = 'block';
+        if (btnJulio) { btnJulio.style.borderBottomColor = 'transparent'; btnJulio.style.color = 'var(--text-muted)'; btnJulio.style.fontWeight = 'normal'; }
+        if (btnPers)  { btnPers.style.borderBottomColor  = '#7c3aed';      btnPers.style.color  = 'var(--text-primary)'; btnPers.style.fontWeight = '600'; }
+      } else {
+        personas.style.display = 'none';
+        julio.style.display = 'block';
+        if (btnPers)  { btnPers.style.borderBottomColor  = 'transparent'; btnPers.style.color  = 'var(--text-muted)'; btnPers.style.fontWeight = 'normal'; }
+        if (btnJulio) { btnJulio.style.borderBottomColor = '#7c3aed';      btnJulio.style.color = 'var(--text-primary)'; btnJulio.style.fontWeight = '600'; }
+      }
+    }
+
+    // ─── Buyer Persona save (localStorage) ───────────────────────────────────
+    function _personaSave(dealSafeId, storageKey) {
+      var PERSONA_KEYS = ['cco', 'cro', 'cto', 'cfo'];
+      var data = {};
+      PERSONA_KEYS.forEach(function(k) {
+        var idEl  = document.getElementById('persona-id-'+k+'-'+dealSafeId);
+        var engEl = document.getElementById('persona-eng-'+k+'-'+dealSafeId);
+        var painEl= document.getElementById('persona-pain-'+k+'-'+dealSafeId);
+        if (!idEl) return;
+        data[k] = {
+          identified: idEl.checked,
+          engaged:    engEl ? engEl.checked : false,
+          pain:       painEl ? painEl.value : '',
+        };
+        // Update status badge in card header
+        var card = document.getElementById('persona-card-'+k+'-'+dealSafeId);
+        if (card) {
+          var badge = card.querySelector('span[style*="border-radius:10px"]');
+          if (badge) {
+            if (data[k].engaged) {
+              badge.style.background = 'rgba(52,211,153,.15)'; badge.style.color = '#34d399'; badge.textContent = 'Engaged';
+            } else if (data[k].identified) {
+              badge.style.background = 'rgba(96,165,250,.15)';  badge.style.color = '#60a5fa'; badge.textContent = 'Identified';
+            } else {
+              badge.style.background = 'rgba(100,116,139,.15)'; badge.style.color = '#94a3b8'; badge.textContent = 'Not contacted';
+            }
+          }
+        }
+      });
+      try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e) {}
+    }
+
     // ─── MEDDPICC gate thresholds per Playbook stage ──────────────────────────
     var MEDDPICC_GATE = {
       'Proposal':         { minPct: 30, requiredKeys: ['metrics', 'economic_buyer', 'implicate_pain'] },
