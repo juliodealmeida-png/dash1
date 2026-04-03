@@ -14,7 +14,7 @@
       var isLocal = host === 'localhost' || host === '127.0.0.1';
       if (isLocal) {
         var port = (typeof window !== 'undefined' && window.location && window.location.port) ? String(window.location.port) : '';
-        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3001';
+        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3002';
         var apiOrigin = port === '3001' ? window.location.origin : backendOrigin;
         window.GUARDLINE_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
         window.GUARDLINE_DATA_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
@@ -3208,7 +3208,7 @@
             // Always use Railway API, never Netlify
             var RESOLVED_API_BASE = (function() {
               if (window.GUARDLINE_API_BASE) return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
-              if (window.location.hostname === 'localhost') return 'http://localhost:3001/api';
+              if (window.location.hostname === 'localhost') return 'http://localhost:3002/api';
               return 'https://guardline-engine-production.up.railway.app/api';
             })();
             window.GUARDLINE_API_BASE = RESOLVED_API_BASE; // Expose globally
@@ -3907,7 +3907,7 @@
             return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
           }
           var loc = typeof window !== 'undefined' && window.location;
-          if (!loc || !loc.origin) return 'http://localhost:3001/api';
+          if (!loc || !loc.origin) return 'http://localhost:3002/api';
           return loc.origin + '/api';
         })(),
       },
@@ -5962,7 +5962,7 @@
 
     async function askJulioComplete(userMessage, maxTok) {
       if (!guardlineAnthropicReady()) {
-        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3001/api) e NVIDIA_API_KEY no servidor guardline/api.';
+        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3002/api) e NVIDIA_API_KEY no servidor guardline/api.';
       }
       var ctx = await buildJulioPipelineContext();
       var sys =
@@ -6745,7 +6745,7 @@
         } catch (e) {}
         return typeof window !== 'undefined' && window.location && window.location.origin
           ? window.location.origin
-          : 'http://localhost:3001';
+          : 'http://localhost:3002';
       })();
       guardlineSocket = io(_socketOrigin, {
           auth: { token: Auth.getToken() },
@@ -6869,6 +6869,18 @@
           guardlineSocket.disconnect();
         } catch (e) {}
       }
+    }
+
+    function applyRoleVisibility() {
+      var user = Auth.getUser() || {};
+      var role = (user.role || 'founder').toLowerCase();
+      document.querySelectorAll('.nav-item[data-roles]').forEach(function (btn) {
+        var allowed = btn.getAttribute('data-roles').split(',').map(function (r) { return r.trim(); });
+        btn.style.display = allowed.includes(role) || allowed.includes('all') ? '' : 'none';
+      });
+      document.querySelectorAll('.role-btn[data-role]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-role') === role);
+      });
     }
 
     function showDashboard() {
@@ -12451,7 +12463,7 @@
             showToast(
               'warning',
               'Fraud Map',
-              'Abre o dashboard por HTTP (ex.: localhost:3001), não como ficheiro file:// — senão o Mapbox não carrega o mapa.'
+              'Abre o dashboard por HTTP (ex.: localhost:3002), não como ficheiro file:// — senão o Mapbox não carrega o mapa.'
             );
           }
           mapboxgl.accessToken = mbToken;
@@ -16794,6 +16806,28 @@
       'quarterly-targets': renderQuarterlyTargets,
       'wonlost-analysis': renderWonLostAnalysis,
       'lead-analytics': renderLeadAnalytics,
+      'hubspot-pipeline': renderHubspotPipeline,
+      'pipeline-health': renderPipelineHealth,
+      'pipeline-funnel': renderPipelineFunnel,
+      'buyer-persona': renderBuyerPersona,
+      'tco-calculator': renderTcoCalculator,
+      battlecard: renderBattlecard,
+      'market-signals': renderMarketSignals,
+      'product-intelligence': renderProductIntelligence,
+      alerts: renderAlertsScreen,
+      'n8n-engine': renderN8nEngine,
+      logs: renderLogsScreen,
+      documents: renderDocumentsScreen,
+      admin: renderAdminScreen,
+      accounts: renderAccounts,
+      contacts: renderContacts,
+      meetings: renderMeetings,
+      inbox: renderInbox,
+      'channel-deals': renderChannelDeals,
+      'sdr-hub': renderSdrHub,
+      meddpicc: renderMeddpiccScreen,
+      profile: renderProfile,
+      forum: renderForum,
     };
 
     const SCREEN_TITLES = {
@@ -16807,6 +16841,15 @@
       'quarterly-targets': 'Quarterly Goals — 2026',
       'wonlost-analysis': 'Won/Lost Analysis',
       'lead-analytics': 'Lead Analytics — Funnel',
+      'hubspot-pipeline': 'HubSpot Pipeline', 'pipeline-health': 'Pipeline Health',
+      'pipeline-funnel': 'Pipeline Funnel', 'buyer-persona': 'Buyer Personas',
+      'tco-calculator': 'TCO Calculator', battlecard: 'Battlecard',
+      'market-signals': 'Market Signals', 'product-intelligence': 'Product Intelligence',
+      alerts: 'Alertas', 'n8n-engine': 'N8N Engine', logs: 'Logs',
+      documents: 'Documentos', admin: 'Admin', accounts: 'Accounts',
+      contacts: 'Contacts', meetings: 'Meetings', inbox: 'Inbox',
+      'channel-deals': 'Channel Deals', 'sdr-hub': 'SDR Hub',
+      meddpicc: 'MEDDPICC', profile: 'Perfil', forum: 'Fórum',
     };
 
     // ══════════════════════════════════════════════════════════════════════════════
