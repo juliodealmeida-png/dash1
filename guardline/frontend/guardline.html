@@ -16577,6 +16577,142 @@
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards (MUST be before SCREENS definition)
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    function _demoTimelineDeals() {
+      return [
+        { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+        { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+        { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+        { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+        { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+        { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+        { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+        { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+        { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+        { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+      ];
+    }
+
+    function _demoSegmentData() {
+      return {
+        segments: [
+          { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+          { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+          { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+        ]
+      };
+    }
+
+    function _demoProductData() {
+      return {
+        products: [
+          { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+          { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+          { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+        ]
+      };
+    }
+
+    function _demoQuarterlyTargets() {
+      return {
+        quarters: [
+          { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+          { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+          { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+          { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+        ]
+      };
+    }
+
+    function _demoWonLostData() {
+      return {
+        won: [
+          { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+          { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+          { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+          { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+          { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+        ],
+        lost: [
+          { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+          { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+          { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+          { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+          { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+        ]
+      };
+    }
+
+    function _demoLeadAnalyticsData() {
+      return {
+        stages: [
+          { stage:'prospected',  count:342, avgDaysInStage:8 },
+          { stage:'qualified',   count:87,  avgDaysInStage:12 },
+          { stage:'contacted',   count:34,  avgDaysInStage:15 },
+          { stage:'meeting',     count:12,  avgDaysInStage:7 },
+          { stage:'converted',   count:8,   avgDaysInStage:0 },
+        ],
+        sources: [
+          { source:'LinkedIn',   count:156, conversion:4.2 },
+          { source:'Cold Email', count:98,  conversion:2.8 },
+          { source:'Referral',   count:67,  conversion:8.5 },
+          { source:'Event',      count:42,  conversion:6.3 },
+          { source:'Inbound',    count:28,  conversion:14.2 },
+        ]
+      };
+    }
+
+    async function renderTimelineDeals() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Timeline de Fechamento', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var deals = _demoTimelineDeals();
+      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
+      var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Timeline de Fechamento</h2><div class="card"><div class="card-header">Deals Fechando Este Mês</div><div style="padding:16px">'+thisMonth.length+' deals este mês</div></div></div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function renderSegmentBreakdown() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Segment Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var data = _demoSegmentData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderProductBreakdown() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Product Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var data = _demoProductData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderQuarterlyTargets() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Quarterly Goals', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var data = _demoQuarterlyTargets();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderWonLostAnalysis() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Won/Lost Analysis', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var data = _demoWonLostData();
+      var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
+    }
+
+    async function renderLeadAnalytics() {
+      var area = document.getElementById('content-area');
+      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Lead Analytics', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      var data = _demoLeadAnalyticsData();
+      var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     const SCREENS = {
       command: renderCommandCenter,
       julio: renderJulio,
@@ -16602,6 +16738,220 @@
       attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
       integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
     };
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards
+    // ══════════════════════════════════════════════════════════════════════════════
+
+function _demoTimelineDeals() {
+  return [
+    { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+    { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+    { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+    { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+    { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+    { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+    { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+    { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+    { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+    { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+  ];
+}
+
+function _demoSegmentData() {
+  return {
+    segments: [
+      { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+      { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+      { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+    ]
+  };
+}
+
+function _demoProductData() {
+  return {
+    products: [
+      { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+      { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+      { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+    ]
+  };
+}
+
+function _demoQuarterlyTargets() {
+  return {
+    quarters: [
+      { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+      { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+      { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+      { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+    ]
+  };
+}
+
+function _demoWonLostData() {
+  return {
+    won: [
+      { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+      { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+      { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+      { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+      { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+    ],
+    lost: [
+      { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+      { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+      { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+      { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+      { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+    ]
+  };
+}
+
+function _demoLeadAnalyticsData() {
+  return {
+    stages: [
+      { stage:'prospected',  count:342, avgDaysInStage:8 },
+      { stage:'qualified',   count:87,  avgDaysInStage:12 },
+      { stage:'contacted',   count:34,  avgDaysInStage:15 },
+      { stage:'meeting',     count:12,  avgDaysInStage:7 },
+      { stage:'converted',   count:8,   avgDaysInStage:0 },
+    ],
+    sources: [
+      { source:'LinkedIn',   count:156, conversion:4.2 },
+      { source:'Cold Email', count:98,  conversion:2.8 },
+      { source:'Referral',   count:67,  conversion:8.5 },
+      { source:'Event',      count:42,  conversion:6.3 },
+      { source:'Inbound',    count:28,  conversion:14.2 },
+    ]
+  };
+}
+
+async function renderTimelineDeals() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Timeline de Fechamento', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+
+  var deals = _demoTimelineDeals();
+  try {
+    var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc');
+    deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; });
+  } catch(e) { console.warn('[Timeline] API unavailable:', e.message); }
+
+  try {
+    var today = new Date('2026-04-02');
+    var thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth() && ed.getFullYear() === today.getFullYear(); });
+    var nextMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === (today.getMonth()+1)%12; });
+    var nextQuarter = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed > new Date(today.getTime() + 91*86400000); });
+    var totalValue = deals.reduce(function(a,d){ return a+(d.value||0); },0);
+    var avgCycle = 47;
+    var closingValue = thisMonth.reduce(function(a,d){ return a+(d.value||0); },0);
+
+    function kpiCard(label, val, sub, color, anim) {
+      return '<div class="kpi-card" style="cursor:default;animation:slide-up '+anim+'s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">'+label+'</div><div style="font-size:26px;font-weight:800;color:'+color+';margin:6px 0 2px">'+val+'</div><div style="font-size:11px;color:var(--text-muted)">'+sub+'</div></div>';
+    }
+
+    function dealBubble(d, idx) {
+      var daysUntil = Math.max(0, Math.round((new Date(d.expectedCloseDate) - new Date('2026-04-02'))/86400000));
+      return '<div style="animation:slide-up '+(0.3+idx*0.05)+'s ease;margin-bottom:12px;padding:10px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px"><div style="display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;font-size:13px">'+escapeHtml(d.companyName||'')+'</span><span style="font-size:11px;color:var(--accent-cyan)">$'+((d.value||0)/1000).toFixed(0)+'k</span></div><div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--text-muted);margin-top:6px"><span>'+daysUntil+' dias</span><span>'+new Date(d.expectedCloseDate).toLocaleDateString('pt-BR')+'</span></div></div>';
+    }
+
+    var timelineDeals = deals.sort(function(a,b){ return new Date(a.expectedCloseDate) - new Date(b.expectedCloseDate); }).slice(0,10).map(dealBubble).join('');
+    var kpiGrid = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+kpiCard('Deals Fechando Este Mês', thisMonth.length, 'Abril 2026', 'var(--accent-green)', '.3')+kpiCard('$ Fechando Este Mês', '$'+(closingValue/1000).toFixed(0)+'k', 'do total pipeline', 'var(--accent-cyan)', '.32')+kpiCard('Próximo Mês', nextMonth.length+' deals', 'Maio 2026', 'var(--accent-purple-light)', '.34')+kpiCard('Ciclo de Vendas Médio', avgCycle+'d', 'Qualification → Won', 'var(--accent-amber,#F59E0B)', '.36')+'</div>';
+
+    area.innerHTML = '<div class="pipeline-page-wrap"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><div><h2 style="margin:0 0 4px;font-size:1.4rem">Timeline de Fechamento</h2><p style="font-size:13px;color:var(--text-muted);margin:0">Previsão de deals fechados por período · Semanas futuras vs pipeline total</p></div></div>'+kpiGrid+'<div class="command-grid" style="align-items:start;margin-bottom:16px"><div class="card" style="animation:slide-up .4s ease;grid-column:1/-1"><div class="card-header"><span class="card-title">Timeline — Deals Ordenados por Data de Fechamento</span></div><div style="padding:8px 0">'+timelineDeals+'</div></div></div></div>';
+  } catch(e) {
+    console.error('[Timeline]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function renderSegmentBreakdown() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Segment Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  var data = _demoSegmentData();
+  try { var r = await API.get('/deals?perPage=200'); } catch(e) { console.warn('[Segment] API unavailable:', e.message); }
+  try {
+    var totalDeals = data.segments.reduce(function(a,s){ return a+s.dealCount; },0);
+    var totalValue = data.segments.reduce(function(a,s){ return a+s.totalValue; },0);
+    var avgDealSize = totalDeals ? Math.round(totalValue / totalDeals) : 0;
+    var segmentRows = data.segments.map(function(s, idx) { var pct = totalValue ? Math.round((s.totalValue / totalValue)*100) : 0; var avgSize = s.dealCount ? Math.round(s.totalValue / s.dealCount) : 0; return '<div style="animation:slide-up '+(0.3+idx*0.05)+'s ease;padding:12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-weight:600">'+s.name+'</span><span style="font-size:12px;color:var(--accent-cyan)">$'+(s.totalValue/1000).toFixed(0)+'k ('+pct+'%)</span></div><div style="height:8px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(s.name==='Enterprise'?'#f472b6':'#60a5fa')+'"></div></div></div>'; }).join('');
+    var kpiGrid = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"><div class="kpi-card"><div style="font-size:11px;color:var(--text-muted)">Total Pipeline</div><div style="font-size:26px;font-weight:800;color:var(--accent-cyan)">$'+(totalValue/1000).toFixed(0)+'k</div></div></div>';
+    area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px;font-size:1.4rem">Segment Breakdown</h2>'+kpiGrid+'<div class="card"><div class="card-header"><span class="card-title">Breakdown por Segmento</span></div><div style="padding:8px 0">'+segmentRows+'</div></div></div>';
+  } catch(e) {
+    console.error('[Segment]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function renderProductBreakdown() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Product Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  var data = _demoProductData();
+  try { var r = await API.get('/deals?perPage=200'); } catch(e) { console.warn('[Product] API unavailable:', e.message); }
+  try {
+    var totalRevenue = data.products.reduce(function(a,p){ return a+p.revenue; },0);
+    var totalDeals = data.products.reduce(function(a,p){ return a+p.dealCount; },0);
+    var productRows = data.products.map(function(p, idx) { var pct = totalRevenue ? Math.round((p.revenue / totalRevenue)*100) : 0; return '<div style="animation:slide-up '+(0.3+idx*0.05)+'s ease;padding:12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:12px"><div style="font-weight:600">'+p.name+'</div><div style="font-size:12px;color:var(--accent-cyan);margin-top:4px">$'+(p.revenue/1000).toFixed(0)+'k ('+pct+'%)</div></div>'; }).join('');
+    area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px;font-size:1.4rem">Product Breakdown</h2><div class="card"><div class="card-header"><span class="card-title">Receita por Produto</span></div><div style="padding:8px 0">'+productRows+'</div></div></div>';
+  } catch(e) {
+    console.error('[Product]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function renderQuarterlyTargets() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Quarterly Goals', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  var data = _demoQuarterlyTargets();
+  try { var r = await API.get('/metrics/quarterly'); } catch(e) { console.warn('[Quarterly] API unavailable:', e.message); }
+  try {
+    var totalTarget = data.quarters.reduce(function(a,q){ return a+(q.target||0); },0);
+    var quarterRows = data.quarters.map(function(q, idx) { var attain = q.target ? Math.round((q.forecast / q.target)*100) : 0; return '<div style="animation:slide-up '+(0.3+idx*0.05)+'s ease;padding:12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:12px"><div style="font-weight:600">'+q.quarter+'</div><div style="font-size:12px;margin-top:4px">Target: $'+(q.target/1000).toFixed(0)+'k | Forecast: $'+(q.forecast/1000).toFixed(0)+'k</div></div>'; }).join('');
+    area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px;font-size:1.4rem">Sales Targets 2026</h2><div class="card"><div class="card-header"><span class="card-title">Quarterly Breakdown</span></div><div style="padding:8px 0">'+quarterRows+'</div></div></div>';
+  } catch(e) {
+    console.error('[Quarterly]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+async function renderWonLostAnalysis() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Won/Lost Analysis', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  var data = _demoWonLostData();
+  try { var r = await API.get('/deals?status=closed&perPage=200'); } catch(e) { console.warn('[WonLost] API unavailable:', e.message); }
+  try {
+    var totalWon = data.won.length;
+    var totalLost = data.lost.length;
+    var winRate = (totalWon + totalLost) ? Math.round((totalWon / (totalWon + totalLost))*100) : 0;
+    var wonRows = data.won.map(function(d, idx) { return '<div style="animation:slide-up '+(0.3+idx*0.03)+'s ease;padding:10px;font-size:13px;margin-bottom:8px;background:rgba(16,185,129,.08);border-radius:6px"><span style="font-weight:600">'+escapeHtml(d.companyName||'')+'</span> · $'+(d.value||0).toLocaleString('en-US')+'</div>'; }).join('');
+    var lostRows = data.lost.map(function(d, idx) { return '<div style="animation:slide-up '+(0.3+idx*0.03)+'s ease;padding:10px;font-size:13px;margin-bottom:8px;background:rgba(239,68,68,.08);border-radius:6px"><span style="font-weight:600">'+escapeHtml(d.companyName||'')+'</span> · $'+(d.value||0).toLocaleString('en-US')+'</div>'; }).join('');
+    area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px;font-size:1.4rem">Won/Lost Analysis</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:16px"><div class="card"><div class="card-header"><span class="card-title">Won ✓ ('+totalWon+')</span></div><div style="padding:8px 0">'+wonRows+'</div></div><div class="card"><div class="card-header"><span class="card-title">Lost ✗ ('+totalLost+')</span></div><div style="padding:8px 0">'+lostRows+'</div></div></div></div>';
+  } catch(e) {
+    console.error('[WonLost]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+}
+
+async function renderLeadAnalytics() {
+  var area = document.getElementById('content-area');
+  if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Lead Analytics', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+  var data = _demoLeadAnalyticsData();
+  try { var r = await API.get('/leads?perPage=200'); } catch(e) { console.warn('[LeadAnalytics] API unavailable:', e.message); }
+  try {
+    var totalLeads = data.stages.reduce(function(a,s){ return a+s.count; },0);
+    var stageRows = data.stages.map(function(s, idx) { var pct = totalLeads ? Math.round((s.count / totalLeads)*100) : 0; return '<div style="animation:slide-up '+(0.3+idx*0.05)+'s ease;padding:12px;background:rgba(255,255,255,.02);border-radius:8px;margin-bottom:12px"><div style="font-weight:600;text-transform:capitalize">'+s.stage+'</div><div style="font-size:12px;color:var(--accent-cyan);margin-top:4px">'+s.count+' leads ('+pct+'%)</div></div>'; }).join('');
+    area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px;font-size:1.4rem">Lead Analytics</h2><div class="card"><div class="card-header"><span class="card-title">Leads por Estágio</span></div><div style="padding:8px 0">'+stageRows+'</div></div></div>';
+  } catch(e) {
+    console.error('[LeadAnalytics]', e);
+    area.innerHTML = '<div class="pipeline-page-wrap"><div class="card"><p class="placeholder-note">Erro: '+escapeHtml((e.message||String(e)).slice(0,80))+'</p></div></div>';
+  }
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+}
 
     Object.assign(SCREENS, {
       accounts: renderAccounts,
@@ -17922,6 +18272,7 @@
     setTimeout(init, 500);
   }
 })();
+
   </script>
 
   <!-- Julio K2.5 Super Powers: Agent Swarm, Deep Research, Visual Coding, Artifacts -->
