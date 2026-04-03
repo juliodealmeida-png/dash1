@@ -12955,7 +12955,7 @@
 
     async function renderAccounts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div><p style="margin-top:12px;color:var(--text-muted)">Carregando contas…</p></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13072,7 +13072,7 @@
 
     async function renderContacts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contatos', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/leads?perPage=100');
@@ -13565,7 +13565,7 @@
 
     async function renderInbox() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Inbox', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=50');
@@ -13678,7 +13678,7 @@
 
     async function renderChannelDeals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Canal', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13795,7 +13795,7 @@
 
     async function renderSdrHub() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('SDR Hub', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -13948,7 +13948,7 @@
 
     async function renderMeddpiccScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('MEDDPICC', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc');
@@ -14088,7 +14088,7 @@
 
     async function renderPipelineHealth() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Health', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       var m = {}, allDeals = _demoDealsForHealth();
       try {
@@ -14252,7 +14252,7 @@
 
     async function renderPipelineFunnel() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Funnel', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       // Demo-safe fallback deals — overwritten by API if available
       var allDeals = _demoDealsForHealth();
@@ -14753,7 +14753,7 @@
 
     async function renderMarketSignals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Sinais', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50');
@@ -14877,7 +14877,7 @@
 
     async function renderProductIntelligence() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Produto', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var leads = [];
@@ -15002,7 +15002,7 @@
 
     async function renderAlertsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Alertas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50&unread=true');
@@ -15114,7 +15114,7 @@
 
     async function renderN8nEngine() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('n8n', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15256,7 +15256,7 @@
 
     async function renderLogsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Logs', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15351,7 +15351,7 @@
 
     async function renderAdminScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Admin', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -16667,7 +16667,6 @@
 
     async function renderTimelineDeals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Timeline de Fechamento', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
       var deals = _demoTimelineDeals();
       try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
       var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
@@ -16677,28 +16676,28 @@
 
     async function renderSegmentBreakdown() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Segment Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       var data = _demoSegmentData();
       area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
     }
 
     async function renderProductBreakdown() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Product Breakdown', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       var data = _demoProductData();
       area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
     }
 
     async function renderQuarterlyTargets() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Quarterly Goals', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       var data = _demoQuarterlyTargets();
       area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
     }
 
     async function renderWonLostAnalysis() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Won/Lost Analysis', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       var data = _demoWonLostData();
       var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
       area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
@@ -16706,7 +16705,7 @@
 
     async function renderLeadAnalytics() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Lead Analytics', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       var data = _demoLeadAnalyticsData();
       var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
       area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
