@@ -8526,62 +8526,102 @@
         .join('');
       if (!tlHtml) tlHtml = '<div class="timeline-item">Sem eventos registrados.</div>';
 
-      document.getElementById('deal-layer-panel').innerHTML =
-        '<div class="deal-modal-top">' +
-        '<button type="button" class="act-btn" onclick="closeDealDetail()">← Voltar</button>' +
-        '<span style="font-weight:700;flex:1">' +
-        escapeHtml(deal.company) +
-        '</span>' +
-        '<button type="button" class="act-btn">Editar</button></div>' +
-        '<div class="deal-modal-body">' +
-        '<div class="deal-modal-col"><h4 style="margin:0 0 12px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">INFORMAÇÕES</h4>' +
-        '<div class="deal-info-row"><strong>Valor:</strong> $' +
-        deal.value.toLocaleString('en-US') +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Estágio:</strong> ' +
-        escapeHtml(deal.stage) +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Fonte:</strong> ' +
-        escapeHtml(deal.source) +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Entrada:</strong> ' +
-        escapeHtml(deal.entry) +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Responsável:</strong> ' +
-        escapeHtml(deal.owner) +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Contato:</strong> ' +
-        escapeHtml(deal.contact) +
-        '</div>' +
-        '<div class="deal-info-row"><strong>Tel:</strong> ' +
-        escapeHtml(deal.phone) +
-        '</div>' +
-        '<h4 style="margin:20px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">TIMELINE</h4>' +
-        tlHtml +
-        '<button type="button" class="btn-full" style="margin-top:16px" onclick="guardlineRegisterActivity(\'' + String(deal.id || '').replace(/'/g, "\\'") + '\')">Registrar atividade</button></div>' +
-        '<div class="deal-modal-col">' +
+      // ── Buyer Personas tab HTML ───────────────────────────────────────────────
+      var dealSafeId = String(deal.id || '').replace(/[^a-zA-Z0-9]/g, '');
+      var dealIdEsc = String(deal.id || '').replace(/'/g, "\\'");
+
+      var BUYER_PERSONAS_DEF = [
+        { key: 'cco', label: 'CCO', icon: '👥', desc: 'Chief Commercial Officer', color: '#818cf8' },
+        { key: 'cro', label: 'CRO', icon: '📈', desc: 'Chief Revenue Officer',    color: '#34d399' },
+        { key: 'cto', label: 'CTO', icon: '💻', desc: 'Chief Technology Officer', color: '#60a5fa' },
+        { key: 'cfo', label: 'CFO', icon: '💰', desc: 'Chief Financial Officer',  color: '#fb923c' },
+      ];
+
+      // Load saved persona state from localStorage keyed by deal id
+      var personaStorageKey = 'gl_personas_' + dealSafeId;
+      var savedPersonas = {};
+      try { savedPersonas = JSON.parse(localStorage.getItem(personaStorageKey) || '{}'); } catch(e) {}
+
+      var personaCardsHtml = BUYER_PERSONAS_DEF.map(function(p) {
+        var saved = savedPersonas[p.key] || {};
+        var identified = !!saved.identified;
+        var engaged = !!saved.engaged;
+        var pain = saved.pain || '';
+        var statusBadge = engaged ? '<span style="background:rgba(52,211,153,.15);color:#34d399;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">Engaged</span>'
+          : identified ? '<span style="background:rgba(96,165,250,.15);color:#60a5fa;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">Identified</span>'
+          : '<span style="background:rgba(100,116,139,.15);color:#94a3b8;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">Not contacted</span>';
+        return '<div id="persona-card-'+p.key+'-'+dealSafeId+'" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:14px 16px;margin-bottom:10px">' +
+          '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
+          '<span style="font-size:20px">'+p.icon+'</span>' +
+          '<div style="flex:1">' +
+          '<div style="font-size:13px;font-weight:700;color:'+p.color+'">'+p.label+'</div>' +
+          '<div style="font-size:11px;color:var(--text-muted)">'+p.desc+'</div>' +
+          '</div>' +
+          statusBadge +
+          '</div>' +
+          '<div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px">' +
+          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
+          '<input type="checkbox" id="persona-id-'+p.key+'-'+dealSafeId+'" '+(identified?'checked':'')+' onchange="_personaSave(\''+dealSafeId+'\',\''+personaStorageKey+'\')"> Identified</label>' +
+          '<label style="display:flex;align-items:center;gap:6px;cursor:pointer">' +
+          '<input type="checkbox" id="persona-eng-'+p.key+'-'+dealSafeId+'" '+(engaged?'checked':'')+' onchange="_personaSave(\''+dealSafeId+'\',\''+personaStorageKey+'\')"> Engaged</label>' +
+          '</div>' +
+          '<textarea id="persona-pain-'+p.key+'-'+dealSafeId+'" placeholder="Pain point / motivação desta persona…" style="width:100%;box-sizing:border-box;background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.08);border-radius:6px;color:var(--text-primary);font-size:12px;padding:8px;resize:vertical;min-height:56px" onchange="_personaSave(\''+dealSafeId+'\',\''+personaStorageKey+'\')" onblur="_personaSave(\''+dealSafeId+'\',\''+personaStorageKey+'\')">'+escapeHtml(pain)+'</textarea>' +
+          '</div>';
+      }).join('');
+
+      var personasTabHtml =
+        '<div id="personas-tab-content-'+dealSafeId+'" style="display:none">' +
+        '<h4 style="margin:0 0 14px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">BUYER PERSONAS — COBERTURA</h4>' +
+        '<p style="font-size:12px;color:var(--text-muted);margin:0 0 14px">Mapeie o engajamento de cada persona decisora neste deal.</p>' +
+        personaCardsHtml +
+        '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)">Dados salvos localmente. Conecte CRM API para persistência.</div>' +
+        '</div>';
+
+      var julioTabHtml =
+        '<div id="julio-tab-content-'+dealSafeId+'">' +
         '<h4 style="margin:0 0 12px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">JULIO AI — ANÁLISE</h4>' +
         '<div class="julio-deal-box" style="margin-bottom:12px">' +
         '<strong>Risk Score: ' + deal.risk + '/100</strong>' +
         (deal.risk >= 70 ? ' 🔴 Alto risco' : deal.risk >= 40 ? ' 🟡 Risco moderado' : ' 🟢 Saudável') +
         '</div>' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">' +
-        '<button type="button" class="btn-full" id="julio-meddpicc-btn-' + String(deal.id || '').replace(/[^a-zA-Z0-9]/g,'') + '" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);font-size:12px" onclick="julioDealMeddpiccAnalyze(' +
-        '\'' + String(deal.id || '').replace(/'/g, "\\'") + '\'' +
-        ',\'deal-meddpicc-julio-slot\'' +
-        ',\'julio-meddpicc-btn-' + String(deal.id || '').replace(/[^a-zA-Z0-9]/g,'') + '\'' +
-        ')">🤖 Analisar com Júlio (MEDDPICC)</button>' +
+        '<button type="button" class="btn-full" id="julio-meddpicc-btn-' + dealSafeId + '" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);font-size:12px" onclick="julioDealMeddpiccAnalyze(\'' + dealIdEsc + '\',\'deal-meddpicc-julio-slot\',\'julio-meddpicc-btn-' + dealSafeId + '\')">🤖 Analisar com Júlio (MEDDPICC)</button>' +
         '<button type="button" class="act-btn" style="font-size:11px" onclick="(function(){var msg=\'Analise o deal ' + escapeHtml(deal.company).replace(/'/g, "\\'") + ' — valor $' + (deal.value||0).toLocaleString('en-US') + ', estágio ' + escapeHtml(deal.stage) + ', risk ' + (deal.risk||0) + '/100. Quais são as 3 ações MAIS urgentes agora?\';if(typeof julioFloatOpen===\'function\')julioFloatOpen(msg);})()">💬 Perguntar ao Júlio</button>' +
         '</div>' +
         '<div id="deal-meddpicc-julio-slot" style="min-height:40px"></div>' +
-        '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">EMAILS AUTO-LINKADOS (' +
-        (deal.emails || []).length +
-        ')</h4>' +
+        '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">EMAILS AUTO-LINKADOS (' + (deal.emails || []).length + ')</h4>' +
         emailsHtml +
         '<h4 style="margin:18px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">AUTOMAÇÕES DISPARADAS</h4>' +
         autosHtml +
         '<button type="button" class="btn-full" style="margin-top:14px" onclick="guardlineN8nManualShow()">Disparar automação manual</button>' +
-        '<div id="deal-meddpicc-slot"></div><div id="deal-next-questions"></div></div></div>';
+        '<div id="deal-meddpicc-slot"></div><div id="deal-next-questions"></div>' +
+        '</div>';
+
+      document.getElementById('deal-layer-panel').innerHTML =
+        '<div class="deal-modal-top">' +
+        '<button type="button" class="act-btn" onclick="closeDealDetail()">← Voltar</button>' +
+        '<span style="font-weight:700;flex:1">' + escapeHtml(deal.company) + '</span>' +
+        '<button type="button" class="act-btn">Editar</button></div>' +
+        '<div class="deal-modal-body">' +
+        '<div class="deal-modal-col">' +
+        '<h4 style="margin:0 0 12px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">INFORMAÇÕES</h4>' +
+        '<div class="deal-info-row"><strong>Valor:</strong> $' + deal.value.toLocaleString('en-US') + '</div>' +
+        '<div class="deal-info-row"><strong>Estágio:</strong> ' + escapeHtml(deal.stage) + '</div>' +
+        '<div class="deal-info-row"><strong>Fonte:</strong> ' + escapeHtml(deal.source) + '</div>' +
+        '<div class="deal-info-row"><strong>Entrada:</strong> ' + escapeHtml(deal.entry) + '</div>' +
+        '<div class="deal-info-row"><strong>Responsável:</strong> ' + escapeHtml(deal.owner) + '</div>' +
+        '<div class="deal-info-row"><strong>Contato:</strong> ' + escapeHtml(deal.contact) + '</div>' +
+        '<div class="deal-info-row"><strong>Tel:</strong> ' + escapeHtml(deal.phone) + '</div>' +
+        '<h4 style="margin:20px 0 10px;font-size:11px;color:var(--text-muted);letter-spacing:2px;">TIMELINE</h4>' +
+        tlHtml +
+        '<button type="button" class="btn-full" style="margin-top:16px" onclick="guardlineRegisterActivity(\'' + dealIdEsc + '\')">Registrar atividade</button></div>' +
+        '<div class="deal-modal-col">' +
+        '<div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px">' +
+        '<button type="button" id="dr-tab-julio-'+dealSafeId+'" onclick="_drTab(\''+dealSafeId+'\',\'julio\')" style="padding:8px 16px;border:none;border-bottom:2px solid #7c3aed;background:transparent;color:var(--text-primary);font-size:12px;font-weight:600;cursor:pointer;margin-bottom:-1px">🤖 Julio AI</button>' +
+        '<button type="button" id="dr-tab-personas-'+dealSafeId+'" onclick="_drTab(\''+dealSafeId+'\',\'personas\')" style="padding:8px 16px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--text-muted);font-size:12px;cursor:pointer;margin-bottom:-1px">👥 Buyer Personas</button>' +
+        '</div>' +
+        julioTabHtml + personasTabHtml +
+        '</div></div>';
 
       document.getElementById('deal-layer-backdrop').classList.add('visible');
       document.getElementById('deal-layer-panel').classList.add('visible');
@@ -16586,6 +16626,12 @@
       documents: function() { return window.renderDocumentsScreen(); },
       profile: renderProfile,
       forum: renderForum,
+      'timeline-deals': renderTimelineDeals,
+      'segment-breakdown': renderSegmentBreakdown,
+      'product-breakdown': renderProductBreakdown,
+      'quarterly-targets': renderQuarterlyTargets,
+      'wonlost-analysis': renderWonLostAnalysis,
+      'lead-analytics': renderLeadAnalytics,
     });
     Object.assign(SCREEN_TITLES, {
       accounts: 'Contas',
@@ -16610,6 +16656,12 @@
       documents: 'Documentos',
       profile: 'Meu Perfil',
       forum: 'Forum',
+      'timeline-deals': 'Timeline de Fechamento',
+      'segment-breakdown': 'Segment Breakdown',
+      'product-breakdown': 'Product Breakdown',
+      'quarterly-targets': 'Quarterly Goals — 2026',
+      'wonlost-analysis': 'Won/Lost Analysis',
+      'lead-analytics': 'Lead Analytics — Funnel',
     });
 
     function applyRoleVisibility() {
@@ -17045,6 +17097,39 @@
       <button class="jfp-chip" data-ask="Criar contrato de prestação de serviços">Criar contrato</button>
       <button class="jfp-chip" data-ask="Analisar meu pipeline atual">Analisar pipeline</button>
       <button class="jfp-chip" data-ask="Criar modelo de NDA">Modelo NDA</button>
+      <button class="jfp-chip" onclick="_julioShowSuperpowers()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);border-color:#7c3aed">⚡ Superpowers</button>
+    </div>
+
+    <!-- Julio K2.5 Superpowers Panel (hidden by default) -->
+    <div id="julio-superpowers-panel" style="display:none;padding:12px;background:rgba(124,58,237,.05);border:1px solid rgba(124,58,237,.2);border-radius:8px;margin-bottom:12px;font-size:12px">
+      <div style="font-weight:700;color:#a78bfa;margin-bottom:10px;display:flex;align-items:center;gap:6px">
+        ⚡ Julio K2.5 Superpowers
+        <button onclick="this.closest('#julio-superpowers-panel').style.display='none'" style="margin-left:auto;background:none;border:none;color:#a78bfa;cursor:pointer">✕</button>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Modo Operacional:</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button onclick="_julioSetMode('INSTANT')" class="sup-mode-btn sup-mode-active" data-mode="INSTANT" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.2);color:#a78bfa;cursor:pointer;font-size:11px;transition:all .2s">⚡ Instant</button>
+          <button onclick="_julioSetMode('THINKING')" class="sup-mode-btn" data-mode="THINKING" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.05);color:#a78bfa;cursor:pointer;font-size:11px;transition:all .2s">🧠 Thinking</button>
+          <button onclick="_julioSetMode('AGENT')" class="sup-mode-btn" data-mode="AGENT" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.05);color:#a78bfa;cursor:pointer;font-size:11px;transition:all .2s">🤖 Agent</button>
+          <button onclick="_julioSetMode('SWARM')" class="sup-mode-btn" data-mode="SWARM" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.05);color:#a78bfa;cursor:pointer;font-size:11px;transition:all .2s">🐝 Swarm</button>
+          <button onclick="_julioSetMode('RESEARCH')" class="sup-mode-btn" data-mode="RESEARCH" style="padding:4px 10px;border-radius:6px;border:1px solid rgba(124,58,237,.3);background:rgba(124,58,237,.05);color:#a78bfa;cursor:pointer;font-size:11px;transition:all .2s">🔬 Research</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:10px">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">Ações Rápidas:</div>
+        <button onclick="_julioQuickAction('MEDDPICC_DEEP')" style="width:100%;padding:6px;border-radius:4px;border:1px solid rgba(124,58,237,.3);background:transparent;color:#a78bfa;cursor:pointer;font-size:11px;margin-bottom:4px;text-align:left">📊 MEDDPICC Profundo</button>
+        <button onclick="_julioQuickAction('DEAL_INTELLIGENCE')" style="width:100%;padding:6px;border-radius:4px;border:1px solid rgba(124,58,237,.3);background:transparent;color:#a78bfa;cursor:pointer;font-size:11px;margin-bottom:4px;text-align:left">🔍 Deal Intelligence</button>
+        <button onclick="_julioQuickAction('MARKET_RESEARCH')" style="width:100%;padding:6px;border-radius:4px;border:1px solid rgba(124,58,237,.3);background:transparent;color:#a78bfa;cursor:pointer;font-size:11px;margin-bottom:4px;text-align:left">🌐 Pesquisa Paralela (100x)</button>
+        <button onclick="_julioQuickAction('CONTRACT_REVIEW')" style="width:100%;padding:6px;border-radius:4px;border:1px solid rgba(124,58,237,.3);background:transparent;color:#a78bfa;cursor:pointer;font-size:11px;margin-bottom:4px;text-align:left">⚖️ Análise Contrato</button>
+        <button onclick="_julioQuickAction('CODE_GENERATION')" style="width:100%;padding:6px;border-radius:4px;border:1px solid rgba(124,58,237,.3);background:transparent;color:#a78bfa;cursor:pointer;font-size:11px;margin-bottom:4px;text-align:left">💻 Gerar Código</button>
+      </div>
+
+      <div style="font-size:10px;color:var(--text-muted);padding-top:8px;border-top:1px solid rgba(124,58,237,.2)">
+        🌟 Capacidades: Agent Swarm (100 subagentes) · Deep Research · Visual Coding · Geração de Artefatos (Slides/Docs/Sheets/Web)
+      </div>
     </div>
 
     <div class="jfp-input-row">
@@ -17273,6 +17358,104 @@
         history.innerHTML = '<div class="jfp-msg julio">Olá! Em que posso ajudar?</div>';
         chipsEl.style.display = 'flex';
       };
+
+      // ─── Julio K2.5 Superpowers Functions ───────────────────────────────
+      window._julioShowSuperpowers = function() {
+        var panel = document.getElementById('julio-superpowers-panel');
+        if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      };
+
+      window._julioSetMode = function(mode) {
+        if (window.julioK25) {
+          var modes = { INSTANT: 'instant', THINKING: 'thinking', AGENT: 'agent', SWARM: 'swarm', RESEARCH: 'research' };
+          window.julioK25.currentMode = modes[mode] || mode;
+
+          document.querySelectorAll('.sup-mode-btn').forEach(b => {
+            b.classList.remove('sup-mode-active');
+            b.style.background = 'rgba(124,58,237,.05)';
+          });
+          var btn = document.querySelector('[data-mode="' + mode + '"]');
+          if (btn) {
+            btn.classList.add('sup-mode-active');
+            btn.style.background = 'rgba(124,58,237,.2)';
+          }
+
+          if (typeof showToast === 'function') {
+            showToast('info', 'Julio', 'Modo: ' + mode + ' ✓', 2000);
+          }
+        }
+      };
+
+      window._julioQuickAction = function(action) {
+        if (!window.julioK25) {
+          if (typeof showToast === 'function') {
+            showToast('warning', 'Julio K2.5', 'Carregando Superpowers…');
+          }
+          return;
+        }
+
+        var prompts = {
+          'MEDDPICC_DEEP': 'Faça análise MEDDPICC profunda do deal atual com raciocínio step-by-step. Identifique gaps críticos.',
+          'DEAL_INTELLIGENCE': 'Analise padrões no meu pipeline. Quais deals têm maior risco? Qual é a próxima ação?',
+          'MARKET_RESEARCH': 'Pesquise em paralelo: mercado SaaS LATAM 2026, tendências, players, valuations. Use 20 subagentes.',
+          'CONTRACT_REVIEW': 'Revise o contrato de prestação de serviços padrão. Identifique cláusulas de risco.',
+          'CODE_GENERATION': 'Gere um dashboard React interativo com gráficos de pipeline drag-and-drop.',
+        };
+
+        var prompt = prompts[action] || 'Execute: ' + action;
+        var mode = action.includes('DEEP') || action.includes('INTELLIGENCE') ? 'THINKING'
+             : action.includes('MARKET') || action.includes('RESEARCH') ? 'SWARM'
+             : action.includes('CODE') ? 'AGENT'
+             : 'INSTANT';
+
+        if (typeof julioFloatOpen === 'function') {
+          julioFloatOpen(prompt);
+        }
+
+        if (typeof showToast === 'function') {
+          showToast('success', 'Julio K2.5', 'Executando (' + mode + ') …');
+        }
+      };
+      // ─── End Superpowers ───────────────────────────
+
+      // ─── Buyer Personas & DealRoom Tabs ─────────────────────────────
+      window._personaSave = function(dealSafeId, storageKey) {
+        var personas = { cco: {}, cro: {}, cto: {}, cfo: {} };
+        var keys = Object.keys(personas);
+        keys.forEach(function(k) {
+          personas[k].identified = !!document.getElementById('persona-id-' + k + '-' + dealSafeId)?.checked;
+          personas[k].engaged = !!document.getElementById('persona-eng-' + k + '-' + dealSafeId)?.checked;
+          personas[k].pain = document.getElementById('persona-pain-' + k + '-' + dealSafeId)?.value || '';
+        });
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(personas));
+          if (typeof showToast === 'function') {
+            showToast('success', 'Personas', 'Salvo localmente', 2000);
+          }
+        } catch(e) {
+          console.warn('[Personas] Save error:', e);
+        }
+      };
+
+      window._drTab = function(dealSafeId, tab) {
+        var julioContent = document.getElementById('julio-tab-content-' + dealSafeId);
+        var personasContent = document.getElementById('personas-tab-content-' + dealSafeId);
+        var julioBtn = document.getElementById('dr-tab-julio-' + dealSafeId);
+        var personasBtn = document.getElementById('dr-tab-personas-' + dealSafeId);
+
+        if (tab === 'julio') {
+          if (julioContent) julioContent.style.display = 'block';
+          if (personasContent) personasContent.style.display = 'none';
+          if (julioBtn) { julioBtn.style.borderBottomColor = '#7c3aed'; julioBtn.style.color = 'var(--text-primary)'; }
+          if (personasBtn) { personasBtn.style.borderBottomColor = 'transparent'; personasBtn.style.color = 'var(--text-muted)'; }
+        } else {
+          if (julioContent) julioContent.style.display = 'none';
+          if (personasContent) personasContent.style.display = 'block';
+          if (julioBtn) { julioBtn.style.borderBottomColor = 'transparent'; julioBtn.style.color = 'var(--text-muted)'; }
+          if (personasBtn) { personasBtn.style.borderBottomColor = '#7c3aed'; personasBtn.style.color = 'var(--text-primary)'; }
+        }
+      };
+      // ─── End DealRoom Tabs ─────────────────────────
 
       // Ctrl+J / Cmd+J global shortcut
       document.addEventListener('keydown', function (e) {
@@ -17740,5 +17923,9 @@
   }
 })();
   </script>
+
+  <!-- Julio K2.5 Super Powers: Agent Swarm, Deep Research, Visual Coding, Artifacts -->
+  <script src="./julio-k25-superpowers.js" defer></script>
+
 </body>
 </html>
