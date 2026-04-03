@@ -1401,8 +1401,8 @@
       scrollbar-width: thin;
     }
     .kanban-col {
-      min-width: 260px;
-      max-width: 290px;
+      min-width: 280px;
+      max-width: 320px;
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
@@ -1480,7 +1480,7 @@
       transition: width 0.5s ease;
     }
     .deal-card-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 210px; }
     .deal-value { font-size: 15px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 6px; }
     .deal-meta-row {
       display: flex;
@@ -3595,87 +3595,55 @@
         <button type="button" class="role-btn" data-role="sdr">👥 SDR</button>
       </div>
       <div class="sidebar-scroll">
+        <!-- INTELIGÊNCIA -->
         <div class="nav-section-label" data-section="intel">Inteligência</div>
-        <button type="button" class="nav-item active" data-screen="command" data-roles="founder">
-          <i data-lucide="home" class="nav-icon"></i><span class="nav-label">Command Center</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="julio" data-roles="founder">
-          <i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="signals" data-roles="founder,sdr">
-          <i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span>
-        </button>
+        <button type="button" class="nav-item active" data-screen="command" data-roles="founder,sdr"><i data-lucide="home" class="nav-icon"></i><span class="nav-label">Command Center</span></button>
+        <button type="button" class="nav-item" data-screen="julio" data-roles="founder,sdr"><i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span></button>
+        <button type="button" class="nav-item" data-screen="signals" data-roles="founder,sdr"><i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span></button>
 
+        <!-- RECEITA -->
         <div class="nav-section-label" data-section="revenue">Receita</div>
-        <button type="button" class="nav-item" data-screen="pipeline" data-roles="founder,sdr">
-          <i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span><span class="nav-badge badge-amber" id="nav-badge-pipeline" style="display:none"></span>
-        </button>
-        <button type="button" class="nav-item" data-screen="leads" data-roles="sdr">
-          <i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="lead-flow" data-roles="founder,sdr">
-          <i data-lucide="git-branch" class="nav-icon"></i><span class="nav-label">Fluxo de Leads</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="forecast" data-roles="founder">
-          <i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="loss" data-roles="founder">
-          <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="hubspot-pipeline" data-roles="founder,sdr">
-          <i data-lucide="git-merge" class="nav-icon"></i><span class="nav-label">HubSpot Pipeline</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder">
-          <i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder">
-          <i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="buyer-persona" data-roles="founder">
-          <i data-lucide="users-round" class="nav-icon"></i><span class="nav-label">Buyer Personas</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="tco-calculator" data-roles="founder,sdr">
-          <i data-lucide="calculator" class="nav-icon"></i><span class="nav-label">TCO Calculator</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="battlecard" data-roles="founder,sdr">
-          <i data-lucide="swords" class="nav-icon"></i><span class="nav-label">Battlecard</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="pipeline" data-roles="founder,sdr"><i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="leads" data-roles="founder,sdr"><i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span></button>
+        <button type="button" class="nav-item" data-screen="lead-flow" data-roles="founder,sdr"><i data-lucide="git-branch" class="nav-icon"></i><span class="nav-label">Fluxo de Leads</span></button>
+        <button type="button" class="nav-item" data-screen="forecast" data-roles="founder,sdr"><i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span></button>
+        <button type="button" class="nav-item" data-screen="loss" data-roles="founder,sdr"><i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span></button>
+        <button type="button" class="nav-item" data-screen="hubspot-pipeline" data-roles="founder,sdr"><i data-lucide="git-merge" class="nav-icon"></i><span class="nav-label">HubSpot Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder,sdr"><i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder,sdr"><i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span></button>
+        <button type="button" class="nav-item" data-screen="buyer-persona" data-roles="founder,sdr"><i data-lucide="users-round" class="nav-icon"></i><span class="nav-label">Buyer Personas</span></button>
+        <button type="button" class="nav-item" data-screen="tco-calculator" data-roles="founder,sdr"><i data-lucide="calculator" class="nav-icon"></i><span class="nav-label">TCO Calculator</span></button>
+        <button type="button" class="nav-item" data-screen="battlecard" data-roles="founder,sdr"><i data-lucide="swords" class="nav-icon"></i><span class="nav-label">Battlecard</span></button>
 
-        <div class="nav-section-label" data-section="acq">Aquisição</div>
-        <button type="button" class="nav-item" data-screen="campaigns" data-roles="sdr">
-          <i data-lucide="megaphone" class="nav-icon"></i><span class="nav-label">Campanhas</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="attribution" data-roles="sdr">
-          <i data-lucide="link" class="nav-icon"></i><span class="nav-label">Attribution</span>
-        </button>
-
+        <!-- OPERAÇÕES -->
         <div class="nav-section-label" data-section="ops">Operações</div>
-        <button type="button" class="nav-item" data-screen="automations" data-roles="sdr">
-          <i data-lucide="zap" class="nav-icon"></i><span class="nav-label">Automações</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="recipes" data-roles="sdr">
-          <i data-lucide="chef-hat" class="nav-icon"></i><span class="nav-label">Revenue Recipes</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr">
-          <i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="forum" data-roles="founder,sdr">
-          <i data-lucide="message-square" class="nav-icon"></i><span class="nav-label">Forum</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="profile" data-roles="founder,sdr">
-          <i data-lucide="user-cog" class="nav-icon"></i><span class="nav-label">Meu Perfil</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr"><i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span></button>
+        <button type="button" class="nav-item" data-screen="forum" data-roles="founder,sdr"><i data-lucide="message-circle" class="nav-icon"></i><span class="nav-label">Forum</span></button>
+        <button type="button" class="nav-item" data-screen="profile" data-roles="founder,sdr"><i data-lucide="user-cog" class="nav-icon"></i><span class="nav-label">Meu Perfil</span></button>
 
+        <!-- EXPANSÃO -->
         <div class="nav-section-label" data-section="exp">Expansão</div>
-        <button type="button" class="nav-item" data-screen="investor" data-roles="founder">
-          <i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr">
-          <i data-lucide="map" class="nav-icon"></i><span class="nav-label">Fraud Map</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr">
-          <i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="investor" data-roles="founder,sdr"><i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr"><i data-lucide="newspaper" class="nav-icon"></i><span class="nav-label">Market Intel</span></button>
+        <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr"><i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios CEO</span></button>
+
+        <!-- REVENUE OS v2 -->
+        <div class="nav-section-label" data-section="v2">Revenue OS v2</div>
+        <button type="button" class="nav-item" data-screen="sdr-hub" data-roles="founder,sdr"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">SDR Hub</span></button>
+        <button type="button" class="nav-item" data-screen="inbox" data-roles="founder,sdr"><i data-lucide="inbox" class="nav-icon"></i><span class="nav-label">Inbox</span></button>
+        <button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr"><i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span></button>
+        <button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr"><i data-lucide="user-circle" class="nav-icon"></i><span class="nav-label">Contatos</span></button>
+        <button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr"><i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span></button>
+        <button type="button" class="nav-item" data-screen="channel-deals" data-roles="founder,sdr"><i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span></button>
+        <button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr"><i data-lucide="layout-grid" class="nav-icon"></i><span class="nav-label">MEDDPICC</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder,sdr"><i data-lucide="heart-pulse" class="nav-icon"></i><span class="nav-label">Saúde</span></button>
+        <button type="button" class="nav-item" data-screen="market-signals" data-roles="founder,sdr"><i data-lucide="globe" class="nav-icon"></i><span class="nav-label">Sinais</span></button>
+        <button type="button" class="nav-item" data-screen="product-intelligence" data-roles="founder,sdr"><i data-lucide="cpu" class="nav-icon"></i><span class="nav-label">Produto</span></button>
+        <button type="button" class="nav-item" data-screen="alerts" data-roles="founder,sdr"><i data-lucide="bell" class="nav-icon"></i><span class="nav-label">Alertas</span></button>
+        <button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>
+        <button type="button" class="nav-item" data-screen="logs" data-roles="founder,sdr"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>
+        <button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>
+        <button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>
       </div>
 
       <div class="julio-sidebar-box">
@@ -4855,7 +4823,7 @@
       var ownerName = row.owner_name || (row.metadata && row.metadata.owner_name) || '\u2014';
       return {
         id: 'deal:' + row.id,
-        company: row.deal_name || 'Deal',
+        company: row.deal_name || row.companyName || row.company_name || 'Deal',
         value: amt,
         stage: hubspotStageIdToLabel(row.deal_stage),
         apiStage: row.deal_stage,
@@ -6926,6 +6894,14 @@
       initGuardlineSocket();
       if (typeof lucide !== 'undefined') lucide.createIcons();
       if (typeof guardlineInjectV2Nav === 'function') guardlineInjectV2Nav();
+      /* Re-bind nav clicks for all sidebar items (including v2 static) */
+      document.querySelectorAll('.nav-item[data-screen]').forEach(function (item) {
+        if (item._glBound) return;
+        item._glBound = true;
+        item.addEventListener('click', function () {
+          if (typeof navigateTo === 'function') navigateTo(item.getAttribute('data-screen'));
+        });
+      });
     }
 
     function guardlineLogout() {
@@ -12296,7 +12272,7 @@
       document.getElementById('content-area').innerHTML =
         '<div class="fraud-page">' +
         '<div class="fraud-control-bar"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
-        '<span style="font-weight:800;font-size:1.1rem">FRAUD MAP CONTROL CENTER</span>' +
+        '<span style="font-weight:800;font-size:1.1rem">MARKET INTEL &mdash; RegTech &amp; FinTech LATAM</span>' +
         '<span class="live-indicator"><span class="live-dot"></span> <span id="fraud-live-label">Mapbox GL · camadas</span></span></div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
         '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)"><input type="checkbox" id="fraud-layer-lead" checked /> Leads risco</label>' +
@@ -12311,14 +12287,14 @@
         '<div class="fraud-map-split">' +
         '<div id="fraud-map"></div>' +
         '<div class="fraud-feed">' +
-        '<div class="feed-header"><span>FRAUD ALERTS</span><span class="live-dot"></span></div>' +
+        '<div class="feed-header"><span>MARKET NEWS &amp; REGULAT&Oacute;RIO</span><span class="live-dot"></span></div>' +
         '<div class="feed-list" id="fraud-feed-list"></div>' +
         '<button type="button" class="btn-link" onclick="navigateTo(\'signals\')">Ver todos os sinais →</button></div></div>' +
         '<div class="fraud-kpi-row">' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-events">—</div><div class="fk-l">Eventos (sinais + intel)</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-value">—</div><div class="fk-l">Valor em risco (USD)</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-leads">—</div><div class="fk-l">Leads score ≥75</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-countries">—</div><div class="fk-l">Países afetados</div></div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-events">—</div><div class="fk-l">Alertas regulat&oacute;rios</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-value">—</div><div class="fk-l">Oportunidades detectadas</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-leads">—</div><div class="fk-l">Normas novas (30d)</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-countries">—</div><div class="fk-l">Pa&iacute;ses monitorados</div></div></div>' +
         '<div class="fraud-bottom-charts">' +
         '<div class="card"><div class="card-header"><span class="card-title">Fraudes por tipo</span></div><div class="fraud-chart-h"><canvas id="fraud-donut"></canvas></div></div>' +
         '<div class="card"><div class="card-header"><span class="card-title">Tendência 15 dias</span></div><div class="fraud-chart-h"><canvas id="fraud-trend"></canvas></div></div></div></div>';
@@ -15789,43 +15765,7 @@
     }
 
     function guardlineInjectV2Nav() {
-      if (document.getElementById('guardline-v2-nav')) return;
-      var scroll = document.querySelector('.sidebar-scroll');
-      if (!scroll) return;
-      var wrap = document.createElement('div');
-      wrap.id = 'guardline-v2-nav';
-      wrap.innerHTML =
-        '<div class="nav-section-label" data-section="v2">Revenue OS v2</div>' +
-        '<button type="button" class="nav-item" data-screen="sdr-hub" data-roles="founder,sdr"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">SDR Hub</span></button>' +
-        '<button type="button" class="nav-item" data-screen="inbox" data-roles="founder,sdr"><i data-lucide="inbox" class="nav-icon"></i><span class="nav-label">Inbox</span></button>' +
-        '<button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr"><i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span></button>' +
-        '<button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr"><i data-lucide="user-circle" class="nav-icon"></i><span class="nav-label">Contatos</span></button>' +
-        '<button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr"><i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span></button>' +
-        '<button type="button" class="nav-item" data-screen="channel-deals" data-roles="founder"><i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span></button>' +
-        '<button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr"><i data-lucide="layout-grid" class="nav-icon"></i><span class="nav-label">MEDDPICC</span></button>' +
-        '<button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder"><i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Saúde</span></button>' +
-        '<button type="button" class="nav-item" data-screen="market-signals" data-roles="founder,sdr"><i data-lucide="globe" class="nav-icon"></i><span class="nav-label">Sinais</span></button>' +
-        '<button type="button" class="nav-item" data-screen="product-intelligence" data-roles="founder"><i data-lucide="cpu" class="nav-icon"></i><span class="nav-label">Produto</span></button>' +
-        '<button type="button" class="nav-item" data-screen="alerts" data-roles="founder,sdr"><i data-lucide="bell" class="nav-icon"></i><span class="nav-label">Alertas</span></button>' +
-        '<button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>' +
-        '<button type="button" class="nav-item" data-screen="logs" data-roles="founder"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>' +
-        '<button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>' +
-        '<button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>' +
-        '<div class="nav-section-label" data-section="playbooks">Playbook Dashboards</div>' +
-        '<button type="button" class="nav-item" data-screen="timeline-deals" data-roles="founder,sdr"><i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Timeline de Fechamento</span></button>' +
-        '<button type="button" class="nav-item" data-screen="segment-breakdown" data-roles="founder,sdr"><i data-lucide="pie-chart" class="nav-icon"></i><span class="nav-label">Segment Breakdown</span></button>' +
-        '<button type="button" class="nav-item" data-screen="product-breakdown" data-roles="founder,sdr"><i data-lucide="bar-chart-3" class="nav-icon"></i><span class="nav-label">Product Breakdown</span></button>' +
-        '<button type="button" class="nav-item" data-screen="quarterly-targets" data-roles="founder,sdr"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">Quarterly Goals 2026</span></button>' +
-        '<button type="button" class="nav-item" data-screen="wonlost-analysis" data-roles="founder,sdr"><i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Won/Lost Analysis</span></button>' +
-        '<button type="button" class="nav-item" data-screen="lead-analytics" data-roles="founder,sdr"><i data-lucide="users" class="nav-icon"></i><span class="nav-label">Lead Analytics Funnel</span></button>';
-      scroll.appendChild(wrap);
-      wrap.querySelectorAll('.nav-item[data-screen]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          navigateTo(btn.getAttribute('data-screen'));
-        });
-      });
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-      applyRoleVisibility();
+      /* v2 nav is now in static HTML — no-op */
     }
 
     function guardlineMaybeOpenSignQuery() {
