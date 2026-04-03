@@ -13,22 +13,20 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build & Deploy to Cloudflare Pages
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 24
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: guardline/frontend-v3/package-lock.json
 
-      - name: Clean install
-        run: rm -rf node_modules package-lock.json && npm install
+      - name: Install dependencies
+        run: npm ci
         working-directory: guardline/frontend-v3
 
       - name: Build
@@ -38,11 +36,11 @@ jobs:
           VITE_API_BASE: https://guardline-engine-production.up.railway.app/api
 
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy guardline/frontend-v3/dist --project-name=guardline-dashboard --commit-dirty=true
+        run: npx wrangler pages deploy guardline/frontend-v3/dist --project-name=guardline-dashboard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
 
 
 
