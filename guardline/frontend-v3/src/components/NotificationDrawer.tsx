@@ -1,28 +1,17 @@
-import { useEffect, useState, useCallback } from 'react'
-import { api, fmtDate } from '../lib/api'
-import { useSocket } from '../context/SocketContext'
-import { 
-  X, 
-  Bell, 
-  AlertTriangle, 
-  Info, 
-  CheckCircle2, 
-  Clock,
-  ArrowRight,
-  ExternalLink,
-  Loader2
-} from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import api from '../lib/api'
+import { useSocket } from '../contexts/SocketContext'
 
 interface Signal {
   id: string
-  type: string
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info'
+  severity: string
   title: string
-  message: string
-  dealId?: string
-  createdAt: string
-  read: boolean
+  message?: string
+  description?: string
+  read?: boolean
+  is_read?: boolean
+  createdAt?: string
+  created_at?: string
 }
 
 interface NotificationDrawerProps {
@@ -30,135 +19,61 @@ interface NotificationDrawerProps {
   onClose: () => void
 }
 
+const SEV_COLOR: Record<string, string> = {
+  critical: '#f87171',
+  warning: '#fbbf24',
+  info: '#60a5fa',
+}
+
 export default function NotificationDrawer({ open, onClose }: NotificationDrawerProps) {
-  const { socket } = useSocket()
-  const navigate = useNavigate()
   const [signals, setSignals] = useState<Signal[]>([])
-  const [loading, setLoading] = useState(false)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await api.get<{ data: Signal[] }>('/signals?limit=20')
-      setSignals(res.data ?? [])
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { on } = useSocket()
 
   useEffect(() => {
-    if (open) load()
-  }, [open, load])
+    api.get<{ success: boolean; data: Signal[] } | Signal[]>('/api/signals?take=30')
+      .then(res => {
+        const list = (res as { data: Signal[] })?.data ?? (Array.isArray(res) ? res : [])
+        setSignals(list)
+      })
+      .catch(() => {})
+  }, [open])
 
   useEffect(() => {
-    if (!socket) return
-    socket.on('signal:new', (newSignal: Signal) => {
-      setSignals(prev => [newSignal, ...prev].slice(0, 20))
+    return on('signal.new', (data) => {
+      setSignals(prev => [data as Signal, ...prev].slice(0, 30))
     })
-    return () => {
-      socket.off('signal:new')
-    }
-  }, [socket])
+  }, [on])
 
-  const markAsRead = async (id: string) => {
-    try {
-      await api.patch(`/signals/${id}/read`, {})
-      setSignals(prev => prev.map(s => s.id === id ? { ...s, read: true } : s))
-    } catch (e) {
-      console.error(e)
-    }
+  async function markRead(id: string) {
+    await api.patch(`/api/signals/${id}/read`, {}).catch(() => {})
+    setSignals(prev => prev.map(s => s.id === id ? { ...s, is_read: true, read: true } : s))
   }
 
-  const handleAction = (signal: Signal) => {
-    markAsRead(signal.id)
-    if (signal.dealId) {
-      navigate(`/deals/${signal.dealId}`)
-    }
-    onClose()
-  }
-
-  const getSeverityIcon = (sev: string) => {
-    switch (sev) {
-      case 'critical': return <AlertTriangle size={16} className="text-accent-red" />
-      case 'high': return <AlertTriangle size={16} className="text-accent-amber" />
-      case 'medium': return <Info size={16} className="text-accent-cyan" />
-      case 'info': return <Info size={16} className="text-text-muted" />
-      default: return <CheckCircle2 size={16} className="text-accent-green" />
-    }
-  }
-
-  if (!open) return null
+  const unread = signals.filter(s => !s.is_read && !s.read)
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] animate-fade-in" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 w-[380px] bg-card border-l border-border shadow-2xl z-[101] flex flex-col animate-slide-in">
-        <div className="p-5 border-b border-border flex items-center justify-between bg-surface/30">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-accent-purple/10 text-accent-purple-light">
-              <Bell size={18} />
-            </div>
-            <h2 className="text-sm font-bold text-text-primary uppercase tracking-widest">Revenue Signals</h2>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface rounded-xl text-text-muted hover:text-text-primary transition-all">
-            <X size={18} />
-          </button>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 7998, opacity: open ? 1 : 0, pointerEvents: open ? 'all' : 'none', background: 'rgba(0,0,0,0.4)', transition: 'opacity 0.3s' }} />
+      <div style={{ position: 'fixed', right: 0, top: 0, height: '100vh', width: 380, maxWidth: '95vw', background: '#1e293b', borderLeft: '1px solid rgba(255,255,255,0.08)', zIndex: 7999, transform: open ? 'translateX(0)' : 'translateX(100%)', transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '20px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontWeight: 700 }}>Notifications {unread.length > 0 && <span style={{ background: '#f87171', color: '#fff', borderRadius: 20, padding: '1px 7px', fontSize: 11, marginLeft: 6 }}>{unread.length}</span>}</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 20 }}>×</button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {loading && signals.length === 0 ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 animate-spin text-accent-purple" />
+        <div style={{ flex: 1, overflowY: 'auto' }}>
+          {signals.length === 0 && <div style={{ padding: 20, color: '#64748b', fontSize: 13 }}>No notifications</div>}
+          {signals.map(s => (
+            <div
+              key={s.id}
+              onClick={() => markRead(s.id)}
+              style={{ padding: '12px 20px', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer', borderLeft: `3px solid ${SEV_COLOR[s.severity] ?? '#64748b'}`, opacity: (s.is_read || s.read) ? 0.5 : 1, background: !(s.is_read || s.read) ? 'rgba(255,255,255,0.02)' : 'transparent' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+              onMouseLeave={e => (e.currentTarget.style.background = !(s.is_read || s.read) ? 'rgba(255,255,255,0.02)' : 'transparent')}
+            >
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>{s.title}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{s.message ?? s.description ?? ''}</div>
+              <div style={{ fontSize: 10, color: '#64748b', marginTop: 4 }}>{(s.createdAt ?? s.created_at ?? '').slice(0, 16).replace('T', ' ')}</div>
             </div>
-          ) : signals.length === 0 ? (
-            <div className="text-center py-20">
-              <Bell size={40} className="mx-auto text-text-muted mb-4 opacity-10" />
-              <p className="text-xs text-text-muted italic">Nenhum sinal detectado recentemente.</p>
-            </div>
-          ) : (
-            signals.map(signal => (
-              <div 
-                key={signal.id} 
-                className={`card p-4 transition-all hover:border-border-strong group cursor-pointer ${!signal.read ? 'border-l-2 border-l-accent-purple bg-accent-purple/5' : 'bg-surface/30'}`}
-                onClick={() => handleAction(signal)}
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5">{getSeverityIcon(signal.severity)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-bold text-text-primary truncate">{signal.title}</span>
-                      {!signal.read && <div className="w-1.5 h-1.5 rounded-full bg-accent-purple" />}
-                    </div>
-                    <p className="text-[11px] text-text-secondary leading-relaxed mb-2 line-clamp-2">
-                      {signal.message}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[10px] text-text-muted">
-                        <Clock size={10} />
-                        {fmtDate(signal.createdAt)}
-                      </div>
-                      {signal.dealId && (
-                        <div className="text-[10px] font-bold text-accent-purple-light uppercase flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          Ver Deal <ArrowRight size={10} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="p-4 border-t border-border bg-surface/30">
-          <button 
-            className="w-full btn-secondary text-[10px] font-bold uppercase tracking-widest py-2.5"
-            onClick={() => { navigate('/signals'); onClose(); }}
-          >
-            Ver todos os sinais
-          </button>
+          ))}
         </div>
       </div>
     </>

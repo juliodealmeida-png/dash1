@@ -1,28 +1,26 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-const PROD_API = 'https://guardline-engine-production.up.railway.app/api'
-
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [react()],
-  define: {
-    ...(mode === 'production' && {
-      'import.meta.env.VITE_API_BASE': JSON.stringify(
-        process.env.VITE_API_BASE || PROD_API
-      ),
-    }),
-  },
   server: {
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:3002',
         changeOrigin: true,
       },
     },
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          charts: ['chart.js', 'react-chartjs-2'],
+        },
+      },
+    },
   },
-}))
+})

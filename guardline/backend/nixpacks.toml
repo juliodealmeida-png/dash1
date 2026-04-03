@@ -1,8 +1,0 @@
-[phases.install]
-cmds = ["npm install --ignore-scripts"]
-
-[phases.build]
-cmds = ["npx prisma generate", "node copy-frontend-assets.js"]
-
-[start]
-cmd = "node src/server.js"

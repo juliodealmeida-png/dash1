@@ -8658,6 +8658,58 @@
       }
     }
 
+    // ─── DealRoom tab switcher ────────────────────────────────────────────────
+    function _drTab(dealSafeId, tab) {
+      var julio    = document.getElementById('julio-tab-content-'+dealSafeId);
+      var personas = document.getElementById('personas-tab-content-'+dealSafeId);
+      var btnJulio = document.getElementById('dr-tab-julio-'+dealSafeId);
+      var btnPers  = document.getElementById('dr-tab-personas-'+dealSafeId);
+      if (!julio || !personas) return;
+      if (tab === 'personas') {
+        julio.style.display = 'none';
+        personas.style.display = 'block';
+        if (btnJulio) { btnJulio.style.borderBottomColor = 'transparent'; btnJulio.style.color = 'var(--text-muted)'; btnJulio.style.fontWeight = 'normal'; }
+        if (btnPers)  { btnPers.style.borderBottomColor  = '#7c3aed';      btnPers.style.color  = 'var(--text-primary)'; btnPers.style.fontWeight = '600'; }
+      } else {
+        personas.style.display = 'none';
+        julio.style.display = 'block';
+        if (btnPers)  { btnPers.style.borderBottomColor  = 'transparent'; btnPers.style.color  = 'var(--text-muted)'; btnPers.style.fontWeight = 'normal'; }
+        if (btnJulio) { btnJulio.style.borderBottomColor = '#7c3aed';      btnJulio.style.color = 'var(--text-primary)'; btnJulio.style.fontWeight = '600'; }
+      }
+    }
+
+    // ─── Buyer Persona save (localStorage) ───────────────────────────────────
+    function _personaSave(dealSafeId, storageKey) {
+      var PERSONA_KEYS = ['cco', 'cro', 'cto', 'cfo'];
+      var data = {};
+      PERSONA_KEYS.forEach(function(k) {
+        var idEl  = document.getElementById('persona-id-'+k+'-'+dealSafeId);
+        var engEl = document.getElementById('persona-eng-'+k+'-'+dealSafeId);
+        var painEl= document.getElementById('persona-pain-'+k+'-'+dealSafeId);
+        if (!idEl) return;
+        data[k] = {
+          identified: idEl.checked,
+          engaged:    engEl ? engEl.checked : false,
+          pain:       painEl ? painEl.value : '',
+        };
+        // Update status badge in card header
+        var card = document.getElementById('persona-card-'+k+'-'+dealSafeId);
+        if (card) {
+          var badge = card.querySelector('span[style*="border-radius:10px"]');
+          if (badge) {
+            if (data[k].engaged) {
+              badge.style.background = 'rgba(52,211,153,.15)'; badge.style.color = '#34d399'; badge.textContent = 'Engaged';
+            } else if (data[k].identified) {
+              badge.style.background = 'rgba(96,165,250,.15)';  badge.style.color = '#60a5fa'; badge.textContent = 'Identified';
+            } else {
+              badge.style.background = 'rgba(100,116,139,.15)'; badge.style.color = '#94a3b8'; badge.textContent = 'Not contacted';
+            }
+          }
+        }
+      });
+      try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e) {}
+    }
+
     // ─── MEDDPICC gate thresholds per Playbook stage ──────────────────────────
     var MEDDPICC_GATE = {
       'Proposal':         { minPct: 30, requiredKeys: ['metrics', 'economic_buyer', 'implicate_pain'] },
@@ -12955,7 +13007,7 @@
 
     async function renderAccounts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div><p style="margin-top:12px;color:var(--text-muted)">Carregando contas…</p></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13072,7 +13124,7 @@
 
     async function renderContacts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contatos', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/leads?perPage=100');
@@ -13565,7 +13617,7 @@
 
     async function renderInbox() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Inbox', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=50');
@@ -13678,7 +13730,7 @@
 
     async function renderChannelDeals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Canal', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13795,7 +13847,7 @@
 
     async function renderSdrHub() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('SDR Hub', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -13948,7 +14000,7 @@
 
     async function renderMeddpiccScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('MEDDPICC', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc');
@@ -14088,7 +14140,7 @@
 
     async function renderPipelineHealth() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Health', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       var m = {}, allDeals = _demoDealsForHealth();
       try {
@@ -14252,7 +14304,7 @@
 
     async function renderPipelineFunnel() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Funnel', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       // Demo-safe fallback deals — overwritten by API if available
       var allDeals = _demoDealsForHealth();
@@ -14753,7 +14805,7 @@
 
     async function renderMarketSignals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Sinais', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50');
@@ -14877,7 +14929,7 @@
 
     async function renderProductIntelligence() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Produto', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var leads = [];
@@ -15002,7 +15054,7 @@
 
     async function renderAlertsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Alertas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50&unread=true');
@@ -15114,7 +15166,7 @@
 
     async function renderN8nEngine() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('n8n', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15256,7 +15308,7 @@
 
     async function renderLogsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Logs', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15351,7 +15403,7 @@
 
     async function renderAdminScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Admin', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15702,7 +15754,14 @@
         '<button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>' +
         '<button type="button" class="nav-item" data-screen="logs" data-roles="founder"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>' +
         '<button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>' +
-        '<button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>';
+        '<button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>' +
+        '<div class="nav-section-label" data-section="playbooks">Playbook Dashboards</div>' +
+        '<button type="button" class="nav-item" data-screen="timeline-deals" data-roles="founder,sdr"><i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Timeline de Fechamento</span></button>' +
+        '<button type="button" class="nav-item" data-screen="segment-breakdown" data-roles="founder,sdr"><i data-lucide="pie-chart" class="nav-icon"></i><span class="nav-label">Segment Breakdown</span></button>' +
+        '<button type="button" class="nav-item" data-screen="product-breakdown" data-roles="founder,sdr"><i data-lucide="bar-chart-3" class="nav-icon"></i><span class="nav-label">Product Breakdown</span></button>' +
+        '<button type="button" class="nav-item" data-screen="quarterly-targets" data-roles="founder,sdr"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">Quarterly Goals 2026</span></button>' +
+        '<button type="button" class="nav-item" data-screen="wonlost-analysis" data-roles="founder,sdr"><i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Won/Lost Analysis</span></button>' +
+        '<button type="button" class="nav-item" data-screen="lead-analytics" data-roles="founder,sdr"><i data-lucide="users" class="nav-icon"></i><span class="nav-label">Lead Analytics Funnel</span></button>';
       scroll.appendChild(wrap);
       wrap.querySelectorAll('.nav-item[data-screen]').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -16577,6 +16636,141 @@
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards (MUST be before SCREENS definition)
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    function _demoTimelineDeals() {
+      return [
+        { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+        { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+        { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+        { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+        { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+        { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+        { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+        { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+        { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+        { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+      ];
+    }
+
+    function _demoSegmentData() {
+      return {
+        segments: [
+          { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+          { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+          { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+        ]
+      };
+    }
+
+    function _demoProductData() {
+      return {
+        products: [
+          { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+          { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+          { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+        ]
+      };
+    }
+
+    function _demoQuarterlyTargets() {
+      return {
+        quarters: [
+          { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+          { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+          { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+          { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+        ]
+      };
+    }
+
+    function _demoWonLostData() {
+      return {
+        won: [
+          { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+          { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+          { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+          { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+          { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+        ],
+        lost: [
+          { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+          { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+          { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+          { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+          { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+        ]
+      };
+    }
+
+    function _demoLeadAnalyticsData() {
+      return {
+        stages: [
+          { stage:'prospected',  count:342, avgDaysInStage:8 },
+          { stage:'qualified',   count:87,  avgDaysInStage:12 },
+          { stage:'contacted',   count:34,  avgDaysInStage:15 },
+          { stage:'meeting',     count:12,  avgDaysInStage:7 },
+          { stage:'converted',   count:8,   avgDaysInStage:0 },
+        ],
+        sources: [
+          { source:'LinkedIn',   count:156, conversion:4.2 },
+          { source:'Cold Email', count:98,  conversion:2.8 },
+          { source:'Referral',   count:67,  conversion:8.5 },
+          { source:'Event',      count:42,  conversion:6.3 },
+          { source:'Inbound',    count:28,  conversion:14.2 },
+        ]
+      };
+    }
+
+    async function renderTimelineDeals() {
+      var area = document.getElementById('content-area');
+      var deals = _demoTimelineDeals();
+      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
+      var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Timeline de Fechamento</h2><div class="card"><div class="card-header">Deals Fechando Este Mês</div><div style="padding:16px">'+thisMonth.length+' deals este mês</div></div></div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function renderSegmentBreakdown() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoSegmentData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderProductBreakdown() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoProductData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderQuarterlyTargets() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoQuarterlyTargets();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderWonLostAnalysis() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoWonLostData();
+      var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
+    }
+
+    async function renderLeadAnalytics() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoLeadAnalyticsData();
+      var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     const SCREENS = {
       command: renderCommandCenter,
       julio: renderJulio,
@@ -16594,6 +16788,12 @@
       investor: renderInvestorPipeline,
       fraudmap: renderFraudMap,
       reports: renderReports,
+      'timeline-deals': renderTimelineDeals,
+      'segment-breakdown': renderSegmentBreakdown,
+      'product-breakdown': renderProductBreakdown,
+      'quarterly-targets': renderQuarterlyTargets,
+      'wonlost-analysis': renderWonLostAnalysis,
+      'lead-analytics': renderLeadAnalytics,
     };
 
     const SCREEN_TITLES = {
@@ -16601,132 +16801,101 @@
       leads: 'Leads', 'lead-flow': 'Fluxo de Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
       attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
       integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
-    };
-
-    Object.assign(SCREENS, {
-      accounts: renderAccounts,
-      contacts: renderContacts,
-      meetings: renderMeetings,
-      inbox: renderInbox,
-      'channel-deals': renderChannelDeals,
-      'sdr-hub': renderSdrHub,
-      meddpicc: renderMeddpiccScreen,
-      'pipeline-health': renderPipelineHealth,
-      'pipeline-funnel': renderPipelineFunnel,
-      'hubspot-pipeline': renderHubspotPipeline,
-      'buyer-persona': renderBuyerPersona,
-      'tco-calculator': renderTcoCalculator,
-      'battlecard': renderBattlecard,
-      'market-signals': renderMarketSignals,
-      'product-intelligence': renderProductIntelligence,
-      alerts: renderAlertsScreen,
-      'n8n-engine': renderN8nEngine,
-      logs: renderLogsScreen,
-      admin: renderAdminScreen,
-      documents: function() { return window.renderDocumentsScreen(); },
-      profile: renderProfile,
-      forum: renderForum,
-      'timeline-deals': renderTimelineDeals,
-      'segment-breakdown': renderSegmentBreakdown,
-      'product-breakdown': renderProductBreakdown,
-      'quarterly-targets': renderQuarterlyTargets,
-      'wonlost-analysis': renderWonLostAnalysis,
-      'lead-analytics': renderLeadAnalytics,
-    });
-    Object.assign(SCREEN_TITLES, {
-      accounts: 'Contas',
-      contacts: 'Contatos',
-      meetings: 'Reuniões',
-      inbox: 'Inbox',
-      'channel-deals': 'Deals de canal',
-      'sdr-hub': 'SDR Hub',
-      meddpicc: 'MEDDPICC',
-      'pipeline-health': 'Pipeline Health — KPI Dashboard',
-      'pipeline-funnel': 'Pipeline Funnel View',
-      'hubspot-pipeline': 'HubSpot Pipeline — Funnel_Guardline',
-      'buyer-persona': 'Buyer Persona Coverage',
-      'tco-calculator': 'TCO Calculator',
-      'battlecard': 'Competitors Battlecard',
-      'market-signals': 'Sinais de mercado',
-      'product-intelligence': 'Inteligência de produto',
-      alerts: 'Alertas',
-      'n8n-engine': 'n8n Engine',
-      logs: 'Logs',
-      admin: 'Admin',
-      documents: 'Documentos',
-      profile: 'Meu Perfil',
-      forum: 'Forum',
       'timeline-deals': 'Timeline de Fechamento',
       'segment-breakdown': 'Segment Breakdown',
       'product-breakdown': 'Product Breakdown',
       'quarterly-targets': 'Quarterly Goals — 2026',
       'wonlost-analysis': 'Won/Lost Analysis',
       'lead-analytics': 'Lead Analytics — Funnel',
-    });
-
-    function applyRoleVisibility() {
-      document.querySelectorAll('.nav-item[data-roles]').forEach(function (el) {
-        var roles = el.getAttribute('data-roles').split(',');
-        var show = roles.indexOf(currentRole) !== -1;
-        el.classList.toggle('hidden-role', !show);
-      });
-      document.querySelectorAll('.nav-section-label[data-section]').forEach(function (label) {
-        var el = label.nextElementSibling;
-        var any = false;
-        while (el && !el.classList.contains('nav-section-label')) {
-          if (el.classList.contains('nav-item') && !el.classList.contains('hidden-role')) any = true;
-          el = el.nextElementSibling;
-        }
-        label.classList.toggle('hidden-section', !any);
-      });
-      var currentEl = document.querySelector('.nav-item[data-screen="' + currentScreen + '"]');
-      if (!currentEl || currentEl.classList.contains('hidden-role')) {
-        var first = document.querySelector('.sidebar-scroll .nav-item[data-roles]:not(.hidden-role)');
-        if (first) navigateTo(first.getAttribute('data-screen'), true);
-      }
-    }
-
-    var GL_LANG = localStorage.getItem('gl_lang') || 'pt';
-    var GL_I18N = {
-      pt: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Sinais', forecast:'Forecast', campaigns:'Campanhas',
-            automations:'Automações', recipes:'Revenue Recipes', integrations:'Integrações', reports:'Relatórios',
-            contacts:'Contatos', accounts:'Contas', meetings:'Reuniões', inbox:'Inbox', 'lead-flow':'Fluxo de Leads',
-            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Sair',
-            profile:'Meu Perfil', settings:'Configurações', live:'Live Intelligence' },
-      en: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Signals', forecast:'Forecast', campaigns:'Campaigns',
-            automations:'Automations', recipes:'Revenue Recipes', integrations:'Integrations', reports:'Reports',
-            contacts:'Contacts', accounts:'Accounts', meetings:'Meetings', inbox:'Inbox', 'lead-flow':'Lead Flow',
-            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Logout',
-            profile:'My Profile', settings:'Settings', live:'Live Intelligence' },
-      es: { dashboard:'Panel', pipeline:'Pipeline', leads:'Leads', signals:'Señales', forecast:'Pronóstico', campaigns:'Campañas',
-            automations:'Automatizaciones', recipes:'Revenue Recipes', integrations:'Integraciones', reports:'Reportes',
-            contacts:'Contactos', accounts:'Cuentas', meetings:'Reuniones', inbox:'Buzón', 'lead-flow':'Flujo de Leads',
-            battlecard:'Battlecard', fraudmap:'Mapa Fraude', investor:'Pipeline Inversor', logout:'Salir',
-            profile:'Mi Perfil', settings:'Configuración', live:'Inteligencia en Vivo' }
     };
-    function setLanguage(lang) {
-      if (!GL_I18N[lang]) return;
-      GL_LANG = lang;
-      localStorage.setItem('gl_lang', lang);
-      document.querySelectorAll('.lang-btn').forEach(function(b) {
-        b.classList.toggle('active', b.getAttribute('data-lang') === lang);
-      });
-      var dict = GL_I18N[lang];
-      document.querySelectorAll('.nav-item[data-screen]').forEach(function(el) {
-        var sc = el.getAttribute('data-screen');
-        var lbl = el.querySelector('.nav-label');
-        if (lbl && dict[sc]) lbl.textContent = dict[sc];
-      });
-      var liveEl = document.querySelector('.live-text');
-      if (liveEl && dict.live) liveEl.textContent = dict.live;
-      document.querySelectorAll('[data-i18n]').forEach(function(el) {
-        var k = el.getAttribute('data-i18n');
-        if (dict[k]) el.textContent = dict[k];
-      });
-      if (typeof showToast === 'function') showToast('info', lang.toUpperCase(), { pt:'Idioma: Português', en:'Language: English', es:'Idioma: Español' }[lang]);
-    }
-    (function(){ try { if (GL_LANG !== 'pt') setLanguage(GL_LANG); } catch(e){} })();
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards
+    // ══════════════════════════════════════════════════════════════════════════════
+
+function _demoTimelineDeals() {
+  return [
+    { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+    { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+    { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+    { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+    { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+    { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+    { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+    { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+    { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+    { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+  ];
+}
+
+function _demoSegmentData() {
+  return {
+    segments: [
+      { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+      { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+      { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+    ]
+  };
+}
+
+function _demoProductData() {
+  return {
+    products: [
+      { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+      { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+      { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+    ]
+  };
+}
+
+function _demoQuarterlyTargets() {
+  return {
+    quarters: [
+      { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+      { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+      { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+      { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+    ]
+  };
+}
+
+function _demoWonLostData() {
+  return {
+    won: [
+      { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+      { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+      { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+      { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+      { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+    ],
+    lost: [
+      { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+      { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+      { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+      { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+      { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+    ]
+  };
+}
+
+function _demoLeadAnalyticsData() {
+  return {
+    stages: [
+      { stage:'prospected',  count:342, avgDaysInStage:8 },
+      { stage:'qualified',   count:87,  avgDaysInStage:12 },
+      { stage:'contacted',   count:34,  avgDaysInStage:15 },
+      { stage:'meeting',     count:12,  avgDaysInStage:7 },
+      { stage:'converted',   count:8,   avgDaysInStage:0 },
+    ],
+    sources: [
+      { source:'LinkedIn',   count:156, conversion:4.2 },
+      { source:'Cold Email', count:98,  conversion:2.8 },
+      { source:'Referral',   count:67,  conversion:8.5 },
+      { source:'Event',      count:42,  conversion:6.3 },
+      { source:'Inbound',    count:28,  conversion:14.2 },
+    ]
+  };
+}
     function navigateTo(screen, skipAnim) {
       var area = document.getElementById('content-area');
       var fn = SCREENS[screen];
@@ -17069,6 +17238,26 @@
   </script>
   <script src="documents-module.js"></script>
 
+  <!-- Julio K2.5 Groq API key — set via localStorage or injected by backend -->
+  <!-- In production: set window.GROQ_API_KEY from server-side env. In demo: use browser console:
+       localStorage.setItem('groq_api_key', '<your-key>') then refresh. -->
+  <script>
+    // Load Groq key from localStorage (set by user or backend)
+    window.GROQ_API_KEY = window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
+    // Helper: julioSetGroqKey('gsk_...') to configure from console or settings UI
+    window.julioSetGroqKey = function(key) {
+      if (key && key.startsWith('gsk_')) {
+        localStorage.setItem('groq_api_key', key);
+        window.GROQ_API_KEY = key;
+        if (typeof showToast === 'function') showToast('success', 'Julio AI', 'Groq API key configurada. Julio está ativo!');
+        console.log('[Julio K2.5] Groq key configurada. Reload não necessário.');
+      } else {
+        console.warn('[Julio K2.5] Key inválida. Use: julioSetGroqKey("gsk_...");');
+      }
+    };
+  </script>
+  <script src="julio-k25-superpowers.js"></script>
+
   <!-- ── Julio AI Floating Chat Widget ─────────────────────── -->
   <button id="julio-fab" title="Perguntar ao Júlio" aria-label="Abrir chat Júlio AI">
     🤖
@@ -17257,12 +17446,64 @@
           setStreaming(false);
           return;
         }
+        var isDemoOrNoToken = !jwtToken || jwtToken === 'guardline-demo-session';
+        var hasGroqKey = !!(window.GROQ_API_KEY || localStorage.getItem('groq_api_key'));
+
+        // ── Groq direct path (demo mode or no backend token) ──────────────
+        if (isDemoOrNoToken && hasGroqKey && window.julioK25) {
+          removeTyping();
+          var bubble0 = appendMsg('julio', '');
+          var cursor0 = document.createElement('span');
+          cursor0.className = 'jfp-cursor';
+          bubble0.appendChild(cursor0);
+          var full0 = '';
+          setStreaming(true);
+          try {
+            await window.julioK25.chat(text, {
+              mode: window.julioK25.currentMode || 'instant',
+              history: sessionHistory.slice(-16),
+              onChunk: function(chunk, fullSoFar) {
+                full0 = fullSoFar;
+                bubble0.innerHTML = renderMd(full0);
+                var cur = document.createElement('span');
+                cur.className = 'jfp-cursor';
+                bubble0.appendChild(cur);
+                history.scrollTop = history.scrollHeight;
+              },
+              onStep: function(step) {
+                var se = document.createElement('div');
+                se.style.cssText = 'font-size:11px;color:var(--accent-amber,#f59e0b);font-style:italic;margin:2px 0';
+                se.textContent = step;
+                bubble0.insertBefore(se, bubble0.lastChild);
+                history.scrollTop = history.scrollHeight;
+              },
+              onDone: function(finalText) {
+                full0 = finalText || full0;
+                bubble0.innerHTML = renderMd(full0);
+                sessionHistory.push({ role: 'user', content: text });
+                sessionHistory.push({ role: 'assistant', content: full0 });
+                if (sessionHistory.length > 40) sessionHistory = sessionHistory.slice(-40);
+              },
+              onError: function(err) {
+                bubble0.textContent = '⚠ Groq: ' + err;
+                bubble0.style.color = 'var(--accent-red,#ef4444)';
+              },
+            });
+          } catch(ge) {
+            bubble0.textContent = '⚠ Groq error: ' + (ge.message || String(ge));
+          } finally {
+            setStreaming(false);
+            history.scrollTop = history.scrollHeight;
+          }
+          return;
+        }
+
         if (!jwtToken) {
           removeTyping();
           var errBubble2 = appendMsg('julio', '');
-          errBubble2.textContent = '⚠ Faça login para usar o Júlio AI.';
+          errBubble2.textContent = hasGroqKey ? '⚠ Carregando Groq...' : '⚠ Faça login para usar o Júlio AI.';
           setStreaming(false);
-          if (typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
+          if (!hasGroqKey && typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
           return;
         }
 
@@ -17332,11 +17573,40 @@
 
         } catch (e) {
           removeTyping();
-          if (bubble) {
-            bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+          // Backend failed — try Groq fallback if key available
+          if (hasGroqKey && window.julioK25) {
+            if (bubble) bubble.remove();
+            var fbBubble = appendMsg('julio', '');
+            var fbFull = '';
+            try {
+              await window.julioK25.chat(text, {
+                mode: window.julioK25.currentMode || 'instant',
+                history: sessionHistory.slice(-16),
+                onChunk: function(chunk, fullSoFar) {
+                  fbFull = fullSoFar;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  history.scrollTop = history.scrollHeight;
+                },
+                onDone: function(finalText) {
+                  fbFull = finalText || fbFull;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  sessionHistory.push({ role: 'user', content: text });
+                  sessionHistory.push({ role: 'assistant', content: fbFull });
+                },
+                onError: function(fbErr) {
+                  fbBubble.textContent = '⚠ Erro: ' + fbErr;
+                },
+              });
+            } catch(fbE) {
+              fbBubble.textContent = '⚠ Erro: ' + (fbE.message || String(fbE));
+            }
           } else {
-            var eb = appendMsg('julio', '');
-            eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            if (bubble) {
+              bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+            } else {
+              var eb = appendMsg('julio', '');
+              eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            }
           }
         } finally {
           setStreaming(false);
@@ -17922,6 +18192,7 @@
     setTimeout(init, 500);
   }
 })();
+
   </script>
 
   <!-- Julio K2.5 Super Powers: Agent Swarm, Deep Research, Visual Coding, Artifacts -->
