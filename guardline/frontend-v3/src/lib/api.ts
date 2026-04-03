@@ -86,6 +86,19 @@ const DEMO_FALLBACKS: Record<string, unknown> = {
     { id: 'log2', action: 'Deal stage change: proposal → negotiation', user: 'ae@guardline.com', resource: 'Stark Industries', timestamp: new Date(Date.now() - 3600000).toISOString(), level: 'info' },
   ],
   '/api/admin/system': { db_status: 'healthy', api_status: 'ok', n8n_status: 'ok', redis_status: 'ok', users_total: 4, active_sessions: 2 }
+  ,
+  '/api/dashboard/kpis': { pipeline_total: 2450000, forecast_90d: 1200000, active_deals: 18, at_risk_count: 4, win_rate: 34, critical_alerts: 2, hot_leads: 3 },
+  '/api/dashboard/pipeline-health': { health_score: 74, coverage_ratio: 1.2 },
+  '/api/julio/brief/latest': { success: true, data: { brief: { items: ['Pipeline concentrado em 2 deals grandes; crie saída para reduzir risco.', '2 deals com baixa probabilidade: acione champion + próximo passo claro.', 'Sinais de intenção em 1 conta: resposta em <2h aumenta win-rate.', 'Forecast 90d: ajuste commit e empurre proposta pendente.', 'Acione n8n: enrichment + alertas para manter cadência.'], generated_at: new Date().toISOString() } } },
+  '/api/automations/recipes': { recipes: [{ id: 'wf01', name: 'WF01 — Ingestão de leads', is_active: true }, { id: 'wf02', name: 'WF02 — Scoring', is_active: true }, { id: 'wf03', name: 'WF03 — Signals', is_active: false }] },
+  '/api/executions': { executions: [{ id: 'exe-1', workflow_name: 'Lead Sync', status: 'success', created_at: new Date().toISOString() }, { id: 'exe-2', workflow_name: 'Signal Refresh', status: 'error', created_at: new Date(Date.now() - 3600000).toISOString() }] },
+  '/api/forecast': { scenarios: { pessimistic: 650000, base: 900000, optimistic: 1200000 }, committed: 900000, best_case: 1200000, at_risk_deals: [{ id: 'mock-deal-1', name: 'Acme Corp Expansion', value: 120000, reason: 'Sem resposta há 8 dias; MEDDPICC incompleto.' }, { id: 'mock-deal-3', name: 'Wayne Ent Retry', value: 85000, reason: 'Champion não confirmado; next step indefinido.' }] },
+  '/api/analytics': { revenue_by_month: [{ month: 'Jan', value: 210000 }, { month: 'Fev', value: 260000 }, { month: 'Mar', value: 310000 }, { month: 'Abr', value: 280000 }, { month: 'Mai', value: 360000 }], pipeline_by_stage: [{ stage: 'prospecting', count: 6, value: 420000 }, { stage: 'qualification', count: 5, value: 610000 }, { stage: 'proposal', count: 4, value: 740000 }, { stage: 'negotiation', count: 3, value: 680000 }], win_loss_ratio: { won: 8, lost: 5 } },
+  '/api/campaigns': [{ id: 'cmp-1', name: 'Outbound — ICP SaaS', status: 'running', sent: 1200, opens: 410, replies: 38, created_at: new Date(Date.now() - 7 * 86400000).toISOString() }, { id: 'cmp-2', name: 'Revival — Lost Q1', status: 'paused', sent: 640, opens: 180, replies: 12, created_at: new Date(Date.now() - 20 * 86400000).toISOString() }],
+  '/api/documents': [{ id: 'doc-1', name: 'Proposta — Acme', type: 'Proposal', deal: 'Acme Corp Expansion', created_at: new Date(Date.now() - 2 * 86400000).toISOString(), url: 'https://example.com/proposta.pdf' }, { id: 'doc-2', name: 'NDA — Stark', type: 'NDA', deal: 'Stark Industries API', created_at: new Date(Date.now() - 12 * 86400000).toISOString(), url: 'https://example.com/nda.pdf' }],
+  '/api/products/intelligence': [{ product: 'Guardline Core', revenue: 840000, deals: 14, win_rate: 36, avg_deal_size: 60000, top_objections: ['Preço', 'Integração com CRM', 'Segurança'] }, { product: 'Guardline Signals', revenue: 420000, deals: 7, win_rate: 42, avg_deal_size: 58000, top_objections: ['Tempo de implementação', 'Dados disponíveis'] }],
+  '/api/investor/metrics': { arr: 4200000, mrr: 350000, pipeline_value: 2450000, win_rate: 34, avg_deal_size: 72000, sales_cycle_days: 41, churn_rate: 2.1, nrr: 118 },
+  '/api/fraud/alerts': [{ id: 'fraud-1', type: 'Anomalia de pagamento', severity: 'high', description: 'Tentativa de cobrança duplicada detectada em conta VIP.', entity: 'Acme Corp', created_at: new Date(Date.now() - 3 * 3600000).toISOString(), resolved: false }, { id: 'fraud-2', type: 'Login suspeito', severity: 'medium', description: 'Login fora do padrão geográfico.', entity: 'Wayne Ent', created_at: new Date(Date.now() - 26 * 3600000).toISOString(), resolved: true }]
 }
 
 function getFallbackForPath(path: string): unknown {
@@ -164,6 +177,10 @@ async function request<T = unknown>(
         user: { id: 'demo123', email: 'admin@guardline.com', role: 'admin', modules: [] }
       } as unknown as T
     }
+    if (method === 'POST' && (path.includes('/api/sync/n8n') || path.includes('/api/webhooks/n8n') || path.includes('/api/ai/julio/meeting-intel'))) {
+      console.warn('[API Fallback] Simulando execução n8n (Offline Mode)')
+      return { success: true, ok: true } as unknown as T
+    }
     throw error
   }
 }
@@ -189,6 +206,37 @@ export const N8N = {
     api.post('/api/webhooks/n8n/wf07', data),
   ingestMeeting: (data: unknown) =>
     api.post('/api/ai/julio/meeting-intel', data),
+}
+
+export const LLM = {
+  chat: async (messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>): Promise<string> => {
+    const key = (import.meta.env.VITE_GROQ_API_KEY as string) || ''
+    const model = (import.meta.env.VITE_GROQ_MODEL as string) || 'mixtral-8x7b-32768'
+    if (!key) {
+      const last = messages[messages.length - 1]?.content || ''
+      return `Modo demo: Júlio AI analisou sua solicitação e vai atuar sobre pipeline, MEDDPICC, riscos e forecast. Pergunta: "${last}".`
+    }
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: 0.2,
+        top_p: 0.9,
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.text().catch(() => '')
+      throw new Error(err || `HTTP ${res.status}`)
+    }
+    const data = await res.json()
+    const txt = data?.choices?.[0]?.message?.content || ''
+    return txt
+  },
 }
 
 export default api

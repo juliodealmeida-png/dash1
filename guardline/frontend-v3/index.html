@@ -15702,6 +15702,13 @@
         '<button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>' +
         '<button type="button" class="nav-item" data-screen="logs" data-roles="founder"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>' +
         '<button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>' +
+        '<div class="nav-section-label">Playbook Dashboards</div>' +
+        '<button type="button" class="nav-item" data-screen="timeline-deals" data-roles="founder,sdr"><i data-lucide="calendar-clock" class="nav-icon"></i><span class="nav-label">Timeline Deals</span></button>' +
+        '<button type="button" class="nav-item" data-screen="segment-breakdown" data-roles="founder,sdr"><i data-lucide="pie-chart" class="nav-icon"></i><span class="nav-label">Segment Analysis</span></button>' +
+        '<button type="button" class="nav-item" data-screen="product-breakdown" data-roles="founder,sdr"><i data-lucide="box" class="nav-icon"></i><span class="nav-label">Product Analysis</span></button>' +
+        '<button type="button" class="nav-item" data-screen="quarterly-targets" data-roles="founder"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">Q-Targets 2026</span></button>' +
+        '<button type="button" class="nav-item" data-screen="wonlost-analysis" data-roles="founder,sdr"><i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Won vs Lost</span></button>' +
+        '<button type="button" class="nav-item" data-screen="lead-analytics" data-roles="founder,sdr"><i data-lucide="bar-chart-3" class="nav-icon"></i><span class="nav-label">Lead Funnel</span></button>' +
         '<button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>';
       scroll.appendChild(wrap);
       wrap.querySelectorAll('.nav-item[data-screen]').forEach(function (btn) {
@@ -16575,6 +16582,140 @@
       } catch (e) {
         showToast('error', 'Perfil', (e && e.message) || String(e));
       }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // 6 PLAYBOOK DASHBOARDS (render functions)
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    async function renderTimelineDeals() {
+      var area = document.getElementById('content-area');
+      var deals = _playbook_demoTimelineDeals();
+      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
+      var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Timeline de Fechamento</h2><div class="card"><div class="card-header">Deals Fechando Este Mês</div><div style="padding:16px">'+thisMonth.length+' deals este mês</div></div></div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function renderSegmentBreakdown() {
+      var area = document.getElementById('content-area');
+      var data = _playbook_demoSegmentData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderProductBreakdown() {
+      var area = document.getElementById('content-area');
+      var data = _playbook_demoProductData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderQuarterlyTargets() {
+      var area = document.getElementById('content-area');
+      var data = _playbook_demoQuarterlyTargets();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderWonLostAnalysis() {
+      var area = document.getElementById('content-area');
+      var data = _playbook_demoWonLostData();
+      var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
+    }
+
+    async function renderLeadAnalytics() {
+      var area = document.getElementById('content-area');
+      var data = _playbook_demoLeadAnalyticsData();
+      var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // 6 PLAYBOOK DASHBOARDS (demo data functions)
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    function _playbook_demoTimelineDeals() {
+      return [
+        { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+        { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+        { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+        { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+        { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+        { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+        { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+        { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+        { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+        { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+      ];
+    }
+
+    function _playbook_demoSegmentData() {
+      return {
+        segments: [
+          { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+          { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+          { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+        ]
+      };
+    }
+
+    function _playbook_demoProductData() {
+      return {
+        products: [
+          { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+          { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+          { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+        ]
+      };
+    }
+
+    function _playbook_demoQuarterlyTargets() {
+      return {
+        quarters: [
+          { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+          { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+          { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+          { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+        ]
+      };
+    }
+
+    function _playbook_demoWonLostData() {
+      return {
+        won: [
+          { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+          { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+          { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+          { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+          { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+        ],
+        lost: [
+          { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+          { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+          { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+          { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+          { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+        ]
+      };
+    }
+
+    function _playbook_demoLeadAnalyticsData() {
+      return {
+        stages: [
+          { stage:'prospected',  count:342, avgDaysInStage:8 },
+          { stage:'qualified',   count:87,  avgDaysInStage:12 },
+          { stage:'contacted',   count:34,  avgDaysInStage:15 },
+          { stage:'meeting',     count:12,  avgDaysInStage:7 },
+          { stage:'converted',   count:8,   avgDaysInStage:0 },
+        ],
+        sources: [
+          { source:'LinkedIn',   count:156, conversion:4.2 },
+          { source:'Cold Email', count:98,  conversion:2.8 },
+          { source:'Referral',   count:67,  conversion:8.5 },
+          { source:'Event',      count:42,  conversion:6.3 },
+          { source:'Inbound',    count:28,  conversion:14.2 },
+        ]
+      };
     }
 
     const SCREENS = {

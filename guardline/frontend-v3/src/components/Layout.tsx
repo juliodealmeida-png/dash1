@@ -6,6 +6,29 @@ import NotificationDrawer from './NotificationDrawer'
 
 const NAV: Array<{ path: string; label: string; icon: string; end?: boolean; adminOnly?: boolean }> = [
   { path: '/', label: 'sidebar.commandCenter', icon: '⚡', end: true },
+  { path: '/pipeline', label: 'sidebar.pipeline', icon: '🧩' },
+  { path: '/leads', label: 'sidebar.leads', icon: '🧲' },
+  { path: '/forecast', label: 'sidebar.forecast', icon: '📈' },
+  { path: '/loss-intelligence', label: 'sidebar.lossIntelligence', icon: '🧠' },
+  { path: '/signals', label: 'sidebar.signals', icon: '📡' },
+  { path: '/battlecard', label: 'sidebar.battlecard', icon: '🤖' },
+  { path: '/hubspot', label: 'sidebar.hubspot', icon: '🟠' },
+  { path: '/sdr-hub', label: 'sidebar.sdrHub', icon: '🎯' },
+  { path: '/pipeline-health', label: 'sidebar.pipelineHealth', icon: '🩺' },
+  { path: '/automations', label: 'sidebar.automations', icon: '🧬' },
+  { path: '/n8n', label: 'sidebar.n8n', icon: '🛠' },
+  { path: '/analytics', label: 'sidebar.analytics', icon: '📊' },
+  { path: '/inbox', label: 'sidebar.inbox', icon: '✉️' },
+  { path: '/meetings', label: 'sidebar.meetings', icon: '📅' },
+  { path: '/accounts', label: 'sidebar.accounts', icon: '🏢' },
+  { path: '/contacts', label: 'sidebar.contacts', icon: '👤' },
+  { path: '/campaigns', label: 'sidebar.campaigns', icon: '📣' },
+  { path: '/channel-deals', label: 'sidebar.channelDeals', icon: '🤝' },
+  { path: '/documents', label: 'sidebar.documents', icon: '📄' },
+  { path: '/product-intelligence', label: 'sidebar.productIntelligence', icon: '🧪' },
+  { path: '/investor', label: 'sidebar.investor', icon: '💼' },
+  { path: '/fraud', label: 'sidebar.fraud', icon: '🛡' },
+  { path: '/admin', label: 'sidebar.admin', icon: '🔒', adminOnly: true },
 ]
 
 type Lang = 'PT' | 'EN' | 'ES'
@@ -16,6 +39,9 @@ export default function Layout() {
   const [notifOpen, setNotifOpen] = useState(false)
 
   const visibleNav = NAV.filter(n => !n.adminOnly || user?.role === 'admin')
+  const activeColor = '#60a5fa'
+  const activeBg = 'rgba(59,130,246,0.15)'
+  const activeBgStrong = 'rgba(59,130,246,0.22)'
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg-base)' }}>
@@ -40,8 +66,8 @@ export default function Layout() {
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '8px 10px', borderRadius: 8, marginBottom: 2,
                 textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
-                color: isActive ? '#a78bfa' : '#94a3b8',
-                background: isActive ? 'rgba(124,58,237,0.15)' : 'transparent',
+                color: isActive ? activeColor : '#94a3b8',
+                background: isActive ? activeBg : 'transparent',
                 transition: 'all 0.15s',
               })}
             >
@@ -61,8 +87,8 @@ export default function Layout() {
                 style={{
                   flex: 1, padding: '4px 0', borderRadius: 6, fontSize: 11, fontWeight: 600,
                   cursor: 'pointer', border: 'none',
-                  background: lang === l ? 'rgba(124,58,237,0.2)' : 'rgba(255,255,255,0.05)',
-                  color: lang === l ? '#a78bfa' : '#64748b',
+                  background: lang === l ? activeBgStrong : 'rgba(255,255,255,0.05)',
+                  color: lang === l ? activeColor : '#64748b',
                 }}
               >
                 {l}
