@@ -6873,7 +6873,9 @@
 
     function applyRoleVisibility() {
       var user = Auth.getUser() || {};
-      var role = (user.role || 'founder').toLowerCase();
+      var rawRole = (user.role || 'founder').toLowerCase();
+      /* admin and founder see everything */
+      var role = (rawRole === 'admin' || rawRole === 'founder') ? 'founder' : rawRole;
       document.querySelectorAll('.nav-item[data-roles]').forEach(function (btn) {
         var allowed = btn.getAttribute('data-roles').split(',').map(function (r) { return r.trim(); });
         btn.style.display = allowed.includes(role) || allowed.includes('all') ? '' : 'none';
