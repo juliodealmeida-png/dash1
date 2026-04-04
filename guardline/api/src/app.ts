@@ -25,6 +25,8 @@ import { aiProxyRoutes } from './routes/aiProxy.js';
 import { fraudMapRoutes } from './routes/fraudMap.js';
 import { authRoutes } from './routes/auth.js';
 import { emailRoutes } from './routes/email.js';
+import { hubspotBidiSyncRoutes } from './routes/hubspotBidiSync.js';
+import { onboardingRoutes } from './routes/onboarding.js';
 
 export function createApp() {
   const env = loadEnv();
@@ -94,6 +96,7 @@ export function createApp() {
   app.use('/api/realtime', sseRoutes(env));
 
   app.use('/api/auth', authRoutes(env, supabase));
+  app.use('/api/onboarding', onboardingRoutes(env, supabase));
   app.use('/api/email', emailRoutes(env, supabase));
   app.use('/api/dashboard', dashboardRoutes(env, supabase));
   app.use('/api/leads', leadsRoutes(env, supabase));
@@ -105,6 +108,7 @@ export function createApp() {
   app.use('/api/meetings', meetingsRoutes(env, supabase));
   app.use('/api/batch', batchRoutes(env));
   app.use('/api/hubspot-sync', hubspotSyncRoutes(env));
+  app.use('/api/hubspot-bidi', hubspotBidiSyncRoutes(env, supabase));
 
   app.use('/api/webhooks/n8n', webhooksN8nRoutes(env, supabase));
   app.use('/api/webhooks/hubspot', webhooksHubspotRoutes(env, supabase));
