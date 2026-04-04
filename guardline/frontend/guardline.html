@@ -1401,8 +1401,8 @@
       scrollbar-width: thin;
     }
     .kanban-col {
-      min-width: 280px;
-      max-width: 310px;
+      min-width: 320px;
+      max-width: 360px;
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
@@ -1462,8 +1462,8 @@
       border-radius: 0;
       transition: width 0.5s ease;
     }
-    .deal-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .deal-company { font-weight: 700; font-size: 13px; color: #e2e8f0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
+    .deal-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 8px; flex-wrap: nowrap; }
+    .deal-company { font-weight: 700; font-size: 14px; color: #f1f5f9; line-height: 1.4; word-break: break-word; white-space: normal; max-width: 100%; flex: 1; }
     .deal-value { font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
     .deal-meta-row {
       display: flex;
@@ -8539,12 +8539,13 @@
         escapeHtml(deal.company) +
         '</span><div class="risk-badge ' +
         (deal.risk >= 75 ? 'risk-critical' : deal.risk >= 55 ? 'risk-warning' : 'risk-healthy') +
-        '" title="Risco: ' + deal.risk + '%" style="font-weight:800;min-width:32px;text-align:center;background:' +
+        '" title="Risco: ' + deal.risk + '%" style="font-weight:800;min-width:28px;max-width:36px;text-align:center;font-size:10px;padding:2px 4px;flex-shrink:0;background:' +
         (deal.risk >= 75 ? 'rgba(239,68,68,0.2)' : deal.risk >= 55 ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)') +
         ';color:' +
         (deal.risk >= 75 ? 'var(--accent-red)' : deal.risk >= 55 ? 'var(--accent-amber)' : 'var(--accent-green)') +
         ';border:1px solid ' +
         (deal.risk >= 75 ? 'rgba(239,68,68,0.4)' : deal.risk >= 55 ? 'rgba(245,158,11,0.4)' : 'rgba(34,197,94,0.4)') +
+        ';border-radius:6px' +
         '">' +
         deal.risk + '%' +
         '</div></div>' +
@@ -13605,6 +13606,254 @@
       );
     }
 
+    // ── Google Calendar Integration ───────────────────────────────────────────
+    var _gcalClient = null;
+    var _gcalEvents = [];
+    var _gcalView = { year: new Date().getFullYear(), month: new Date().getMonth() };
+    var _gcalSelectedDay = null;
+    var GCAL_CLIENT_ID = localStorage.getItem('gl_gcal_client_id') || '';
+    var GCAL_API_KEY = localStorage.getItem('gl_gcal_api_key') || '';
+    var GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar';
+    var _gcalTokenClient = null;
+    var _gcalInited = false;
+    var _gcalAuthed = false;
+
+    function gcalSaveCredentials(clientId, apiKey) {
+      localStorage.setItem('gl_gcal_client_id', clientId || '');
+      localStorage.setItem('gl_gcal_api_key', apiKey || '');
+      GCAL_CLIENT_ID = clientId || '';
+      GCAL_API_KEY = apiKey || '';
+      showToast('success', 'Google Calendar', 'Credenciais salvas. Recarregue para conectar.');
+    }
+
+    function gcalIsConfigured() {
+      return !!(localStorage.getItem('gl_gcal_client_id') && localStorage.getItem('gl_gcal_api_key'));
+    }
+
+    async function gcalInit() {
+      if (_gcalInited) return;
+      return new Promise(function(resolve) {
+        if (!window.gapi) { resolve(false); return; }
+        gapi.load('client', async function() {
+          try {
+            await gapi.client.init({ apiKey: GCAL_API_KEY, discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'] });
+            _gcalInited = true;
+            resolve(true);
+          } catch(e) { console.warn('gapi init error', e); resolve(false); }
+        });
+      });
+    }
+
+    function gcalAuth(callback) {
+      if (!window.google || !GCAL_CLIENT_ID) { if (callback) callback(false); return; }
+      if (!_gcalTokenClient) {
+        _gcalTokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: GCAL_CLIENT_ID,
+          scope: GCAL_SCOPES,
+          callback: function(resp) {
+            if (resp.error) { showToast('error', 'Google Calendar', resp.error); if (callback) callback(false); return; }
+            _gcalAuthed = true;
+            showToast('success', 'Google Calendar', 'Conectado com sucesso!');
+            if (callback) callback(true);
+            gcalFetchEvents();
+          }
+        });
+      }
+      if (_gcalAuthed) { if (callback) callback(true); }
+      else _gcalTokenClient.requestAccessToken({ prompt: '' });
+    }
+
+    async function gcalFetchEvents() {
+      if (!_gcalInited || !_gcalAuthed) return;
+      try {
+        var now = new Date(_gcalView.year, _gcalView.month, 1);
+        var end = new Date(_gcalView.year, _gcalView.month + 1, 0, 23, 59);
+        var resp = await gapi.client.calendar.events.list({
+          calendarId: 'primary',
+          timeMin: now.toISOString(),
+          timeMax: end.toISOString(),
+          maxResults: 250,
+          singleEvents: true,
+          orderBy: 'startTime'
+        });
+        _gcalEvents = (resp.result.items || []).map(function(ev) {
+          var start = ev.start && (ev.start.dateTime || ev.start.date);
+          var end = ev.end && (ev.end.dateTime || ev.end.date);
+          return { id: ev.id, title: ev.summary || '(sem título)', start: start, end: end, location: ev.location, description: ev.description, htmlLink: ev.htmlLink, attendees: ev.attendees || [], organizer: ev.organizer, allDay: !!(ev.start && ev.start.date && !ev.start.dateTime), meetLink: ev.conferenceData && ev.conferenceData.entryPoints && ev.conferenceData.entryPoints[0] && ev.conferenceData.entryPoints[0].uri };
+        });
+        gcalRenderCalendar();
+      } catch(e) { console.error('gcal fetch error', e); }
+    }
+
+    // Also load local meetings from localStorage
+    function gcalGetLocalMeetings() {
+      try { return JSON.parse(localStorage.getItem('gl_meetings_local') || '[]'); } catch(e) { return []; }
+    }
+
+    function gcalAllEvents() {
+      var local = gcalGetLocalMeetings().map(function(m) {
+        return { id: m.id, title: m.title, start: m.date, end: m.date, location: m.location, allDay: false, local: true };
+      });
+      return _gcalEvents.concat(local);
+    }
+
+    function gcalEventsOnDay(year, month, day) {
+      return gcalAllEvents().filter(function(ev) {
+        var d = new Date(ev.start);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+      });
+    }
+
+    function gcalRenderCalendar() {
+      var area = document.getElementById('content-area');
+      if (!area) return;
+      var now = new Date();
+      var year = _gcalView.year, month = _gcalView.month;
+      var firstDay = new Date(year, month, 1).getDay();
+      var daysInMonth = new Date(year, month + 1, 0).getDate();
+      var monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+      var dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+      var allEvents = gcalAllEvents();
+
+      // Build calendar grid
+      var cells = '';
+      var totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+      for (var i = 0; i < totalCells; i++) {
+        var day = i - firstDay + 1;
+        var isCurrentMonth = day >= 1 && day <= daysInMonth;
+        var isToday = isCurrentMonth && day === now.getDate() && month === now.getMonth() && year === now.getFullYear();
+        var isSelected = isCurrentMonth && day === _gcalSelectedDay;
+        var dayEvents = isCurrentMonth ? gcalEventsOnDay(year, month, day) : [];
+        var cellBg = isToday ? 'background:rgba(6,182,212,0.15);border-color:var(--accent-cyan)' : isSelected ? 'background:rgba(124,58,237,0.15);border-color:var(--accent-purple)' : '';
+        var evDots = dayEvents.slice(0,3).map(function(ev) {
+          var color = ev.local ? 'var(--accent-purple-light)' : 'var(--accent-cyan)';
+          var label = (ev.title || '').slice(0,22);
+          return '<div style="font-size:10px;padding:1px 5px;border-radius:3px;background:' + color.replace('var(--accent-cyan)','rgba(6,182,212,0.25)').replace('var(--accent-purple-light)','rgba(167,139,250,0.25)') + ';color:' + color + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1px">' + escapeHtml(label) + '</div>';
+        }).join('');
+        var moreDots = dayEvents.length > 3 ? '<div style="font-size:9px;color:var(--text-muted)">+' + (dayEvents.length-3) + ' mais</div>' : '';
+        cells += '<div onclick="gcalSelectDay(' + (isCurrentMonth ? day : 0) + ')" style="min-height:90px;border:1px solid var(--border-subtle);border-radius:6px;padding:6px;cursor:' + (isCurrentMonth ? 'pointer' : 'default') + ';opacity:' + (isCurrentMonth ? '1' : '0.25') + ';transition:all .15s;' + cellBg + '" onmouseover="if(' + isCurrentMonth + ')this.style.borderColor=\'var(--accent-cyan)\'" onmouseout="this.style.borderColor=\'' + (isToday?'var(--accent-cyan)':isSelected?'var(--accent-purple)':'var(--border-subtle)') + '\'">' +
+          '<div style="font-size:13px;font-weight:' + (isToday?'800':'600') + ';color:' + (isToday?'var(--accent-cyan)':isCurrentMonth?'var(--text-primary)':'var(--text-dim)') + ';margin-bottom:4px">' + (isCurrentMonth?day:'') + '</div>' +
+          evDots + moreDots +
+          '</div>';
+      }
+
+      // Day detail panel
+      var dayDetail = '';
+      if (_gcalSelectedDay) {
+        var selEvents = gcalEventsOnDay(year, month, _gcalSelectedDay);
+        var selDate = new Date(year, month, _gcalSelectedDay);
+        var selLabel = selDate.toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+        dayDetail = '<div class="card" style="margin-top:14px;animation:slide-up .25s ease"><div class="card-header"><span class="card-title">📅 ' + escapeHtml(selLabel) + '</span><button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000" onclick="meetingsOpenNewModal()">+ Nova Reunião</button></div><div style="padding:8px 0">' +
+          (selEvents.length ? selEvents.map(function(ev) {
+            var t = ev.start ? new Date(ev.start).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+            var meetBtn = ev.meetLink ? '<a href="' + escapeHtml(ev.meetLink) + '" target="_blank" class="act-btn" style="background:rgba(6,182,212,0.2);font-size:11px;padding:3px 8px" onclick="gcalLaunchMeetingCopilot(\'' + escapeHtml(ev.id) + '\',\'' + escapeHtml(ev.title.replace(/'/g,"\\'")) + '\')">🤖 Copiloto</a>' : '';
+            var joinBtn = ev.meetLink ? '<a href="' + escapeHtml(ev.meetLink) + '" target="_blank" class="act-btn" style="background:rgba(34,197,94,0.2);color:var(--accent-green);font-size:11px;padding:3px 8px">▶ Entrar</a>' : '';
+            var localBadge = ev.local ? '<span style="font-size:10px;color:var(--accent-purple-light);background:rgba(124,58,237,0.15);padding:1px 6px;border-radius:4px">Local</span>' : '<span style="font-size:10px;color:var(--accent-cyan);background:rgba(6,182,212,0.15);padding:1px 6px;border-radius:4px">Google</span>';
+            return '<div style="padding:10px 12px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);margin-bottom:8px;display:flex;align-items:flex-start;gap:10px"><div style="flex:1"><div style="font-weight:700;margin-bottom:4px">' + escapeHtml(ev.title) + ' ' + localBadge + '</div><div style="font-size:12px;color:var(--text-muted)">' + (t ? '🕐 ' + t : '') + (ev.location ? ' · 📍 ' + escapeHtml(ev.location) : '') + (ev.attendees.length ? ' · 👥 ' + ev.attendees.length + ' participantes' : '') + '</div>' + (ev.description ? '<div style="font-size:11px;color:var(--text-dim);margin-top:4px">' + escapeHtml(ev.description.slice(0,80)) + '…</div>' : '') + '</div><div style="display:flex;gap:6px;flex-shrink:0">' + meetBtn + joinBtn + '<button type="button" class="act-btn" style="background:rgba(239,68,68,0.15);color:var(--accent-red);font-size:11px;padding:3px 8px" onclick="gcalDeleteEvent(\'' + escapeHtml(ev.id) + '\')">🗑</button></div></div>';
+          }).join('') : '<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">Nenhuma reunião neste dia.<br><button type="button" class="act-btn" style="margin-top:10px" onclick="meetingsOpenNewModal()">Agendar reunião</button></div>') +
+          '</div></div>';
+      }
+
+      var authStatus = _gcalAuthed ? '<span style="color:var(--accent-green);font-size:12px">● Conectado ao Google Calendar</span>' : gcalIsConfigured() ? '<button type="button" class="act-btn" style="font-size:12px;padding:4px 10px" onclick="gcalAuth(gcalFetchEvents)">🔗 Conectar Google Calendar</button>' : '<button type="button" class="act-btn" style="font-size:12px;padding:4px 10px" onclick="gcalShowConfig()">⚙ Configurar Google Calendar</button>';
+
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+        '<div><h2 style="margin:0 0 4px;font-size:22px">📅 Reuniões</h2><div>' + authStatus + '</div></div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<button type="button" class="meetings-cal-navbtn" onclick="gcalNavigate(-1)">‹</button>' +
+        '<span style="font-weight:700;min-width:160px;text-align:center">' + monthNames[month] + ' ' + year + '</span>' +
+        '<button type="button" class="meetings-cal-navbtn" onclick="gcalNavigate(1)">›</button>' +
+        '<button type="button" class="meetings-cal-today act-btn" onclick="gcalGoToday()">Hoje</button>' +
+        '<button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000;font-weight:700" onclick="meetingsOpenNewModal()">+ Nova Reunião</button>' +
+        '</div></div>' +
+        '<div class="card" style="animation:slide-up .3s ease">' +
+        '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:12px 12px 4px;border-bottom:1px solid var(--border-subtle)">' +
+        dayNames.map(function(d) { return '<div style="text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;padding:4px 0">' + d + '</div>'; }).join('') +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:8px 12px 12px">' +
+        cells +
+        '</div></div>' +
+        dayDetail +
+        guardlineMeetingsNewModal() +
+        gcalConfigModal() +
+        '</div>';
+
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function gcalSelectDay(day) {
+      if (!day) return;
+      _gcalSelectedDay = day;
+      gcalRenderCalendar();
+    }
+
+    function gcalNavigate(delta) {
+      _gcalView.month += delta;
+      if (_gcalView.month > 11) { _gcalView.month = 0; _gcalView.year++; }
+      if (_gcalView.month < 0) { _gcalView.month = 11; _gcalView.year--; }
+      _gcalSelectedDay = null;
+      gcalFetchEvents();
+      gcalRenderCalendar();
+    }
+
+    function gcalGoToday() {
+      var now = new Date();
+      _gcalView.year = now.getFullYear(); _gcalView.month = now.getMonth();
+      _gcalSelectedDay = now.getDate();
+      gcalFetchEvents();
+      gcalRenderCalendar();
+    }
+
+    async function gcalDeleteEvent(eventId) {
+      if (eventId && eventId.startsWith('local_')) {
+        try {
+          var saved = JSON.parse(localStorage.getItem('gl_meetings_local') || '[]');
+          localStorage.setItem('gl_meetings_local', JSON.stringify(saved.filter(function(m){return m.id !== eventId;})));
+          showToast('success', 'Reunião', 'Removida com sucesso');
+          gcalRenderCalendar();
+        } catch(e){}
+        return;
+      }
+      if (!_gcalAuthed) { showToast('error', 'Google Calendar', 'Não conectado'); return; }
+      try {
+        await gapi.client.calendar.events.delete({ calendarId: 'primary', eventId: eventId });
+        _gcalEvents = _gcalEvents.filter(function(e){return e.id !== eventId;});
+        showToast('success', 'Google Calendar', 'Evento removido');
+        gcalRenderCalendar();
+      } catch(e) { showToast('error', 'Google Calendar', 'Erro ao remover: ' + (e.message || e)); }
+    }
+
+    function gcalShowConfig() {
+      var modal = document.getElementById('gcal-config-modal');
+      if (modal) modal.style.display = 'flex';
+    }
+    function gcalHideConfig() {
+      var modal = document.getElementById('gcal-config-modal');
+      if (modal) modal.style.display = 'none';
+    }
+    function gcalConfigModal() {
+      return '<div id="gcal-config-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:16000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)gcalHideConfig()">' +
+        '<div class="card" style="max-width:480px;width:100%;animation:slide-up .2s ease" onclick="event.stopPropagation()">' +
+        '<div class="card-header"><span class="card-title">⚙ Configurar Google Calendar</span><button class="act-btn" style="padding:4px 10px" onclick="gcalHideConfig()">✕</button></div>' +
+        '<div style="padding:16px;display:flex;flex-direction:column;gap:12px">' +
+        '<p style="font-size:13px;color:var(--text-muted);margin:0">Para conectar o Google Calendar, você precisa de um projeto no Google Cloud Console com a API de Calendar ativada.</p>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">CLIENT ID (OAuth 2.0)</label><input id="gcal-client-id" type="text" value="' + escapeHtml(GCAL_CLIENT_ID) + '" placeholder="xxx.apps.googleusercontent.com" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:13px;box-sizing:border-box"/></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">API KEY</label><input id="gcal-api-key" type="text" value="' + escapeHtml(GCAL_API_KEY) + '" placeholder="AIzaSy..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:13px;box-sizing:border-box"/></div>' +
+        '<div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.2);border-radius:8px;padding:12px;font-size:12px;color:var(--text-muted)">' +
+        '1. Vá a <strong>console.cloud.google.com</strong><br>2. Crie um projeto → Ative "Google Calendar API"<br>3. Credenciais → Criar → Chave de API<br>4. Credenciais → Criar → ID de cliente OAuth (tipo: Aplicativo da web)<br>5. Em "Origens JS autorizadas" adicione <strong>http://localhost:60172</strong></div>' +
+        '<div style="display:flex;gap:8px;justify-content:flex-end">' +
+        '<button class="act-btn" style="background:var(--bg-surface)" onclick="gcalHideConfig()">Cancelar</button>' +
+        '<button class="act-btn" style="background:var(--accent-cyan);color:#000;font-weight:700" onclick="gcalSaveCredentials(document.getElementById(\'gcal-client-id\').value,document.getElementById(\'gcal-api-key\').value);gcalHideConfig()">Salvar e Conectar</button>' +
+        '</div></div></div></div>';
+    }
+
+    function gcalLaunchMeetingCopilot(eventId, eventTitle) {
+      // Save context for copilot
+      localStorage.setItem('gl_copilot_event', JSON.stringify({ id: eventId, title: eventTitle }));
+      navigateTo('meeting-copilot');
+    }
+
     async function renderMeetings() {
       var area = document.getElementById('content-area');
       if (!Auth.isLoggedIn()) {
@@ -13612,56 +13861,29 @@
         return;
       }
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
-      try {
-        var res = await API.get('/deals?perPage=100');
-        var deals = res.data || [];
-        var meetingRows = [];
-        deals.forEach(function (d) {
-          (d.activities || []).forEach(function (a) {
-            if (
-              a.type === 'meeting' ||
-              a.type === 'call' ||
-              (a.title || '').toLowerCase().indexOf('reunião') >= 0 ||
-              (a.title || '').toLowerCase().indexOf('meeting') >= 0
-            ) {
-              meetingRows.push({
-                company: d.companyName,
-                title: a.title || 'Reunião',
-                date: a.createdAt,
-                dealId: d.id,
-                type: a.type || 'meeting',
-              });
-            }
-          });
-        });
-        // FIX 8: Show empty state instead of synthetic data
-        if (!meetingRows.length) {
-          area.innerHTML = '<div class="pipeline-page-wrap">' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
-            '<h2 style="margin:0">📅 Reuniões</h2>' +
-            '<button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000" onclick="meetingsOpenNewModal()">+ Nova Reunião</button>' +
-            '</div>' +
-            '<div class="card" style="padding:48px;text-align:center">' +
-            '<div style="font-size:48px;margin-bottom:16px;opacity:0.3">📅</div>' +
-            '<p style="color:var(--text-muted);margin:0 0 16px">Nenhuma reunião registrada ainda.</p>' +
-            '<button type="button" class="act-btn" style="margin:0 auto;display:block" onclick="meetingsOpenNewModal()">Agendar primeira reunião</button>' +
-            '</div>' +
-            guardlineMeetingsNewModal() +
-            '</div>';
-          return;
-        }
-        meetingRows.sort(function (a, b) {
-          return new Date(b.date) - new Date(a.date);
-        });
-        meetingsCalendarEnsureView();
-        window.__meetingsRowsCache = meetingRows;
-        var pg = meetingsBuildMeetingsPageHtml(meetingRows);
-        // Inject Nova Reunião button into the header
-        area.innerHTML = pg.replace('<div class="pipeline-page-wrap">', '<div class="pipeline-page-wrap"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0"><span></span><button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000;position:absolute;top:12px;right:12px;z-index:10" onclick="meetingsOpenNewModal()">+ Nova Reunião</button></div>') + guardlineMeetingsNewModal();
-      } catch (e) {
-        showToast('error', 'Reuniões', (e && e.message) || String(e));
+
+      // Load GAPI if configured
+      if (gcalIsConfigured() && !window.gapi) {
+        var s1 = document.createElement('script');
+        s1.src = 'https://apis.google.com/js/api.js';
+        s1.onload = function() {
+          var s2 = document.createElement('script');
+          s2.src = 'https://accounts.google.com/gsi/client';
+          s2.onload = async function() {
+            await gcalInit();
+            if (_gcalAuthed) await gcalFetchEvents();
+            gcalRenderCalendar();
+          };
+          document.head.appendChild(s2);
+        };
+        document.head.appendChild(s1);
+      } else if (window.gapi && _gcalInited) {
+        if (_gcalAuthed) await gcalFetchEvents();
+        gcalRenderCalendar();
+      } else {
+        // No Google Calendar — show local calendar
+        gcalRenderCalendar();
       }
-      if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     function guardlineMeetingsNewModal() {
@@ -15657,60 +15879,267 @@
     // ── Julio AI Meeting Copilot ──────────────────────────────────────────────
     function renderMeetingCopilot() {
       var area = document.getElementById('content-area');
+      var savedEvent = null;
+      try { savedEvent = JSON.parse(localStorage.getItem('gl_copilot_event') || 'null'); } catch(e){}
+
       area.innerHTML =
         '<div class="pipeline-page-wrap">' +
-        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
         '<div><h2 style="margin:0 0 4px;font-size:22px">🤖 Copiloto de Reunião</h2>' +
-        '<p style="margin:0;font-size:13px;color:var(--text-muted)">Assistente stealth em tempo real · Análise de sentimento · Objeções</p></div>' +
+        '<p style="margin:0;font-size:13px;color:var(--text-muted)">Assistente em tempo real · Transcrição · Análise de sentimento · Objeções</p></div>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        '<span id="cop-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--accent-red);display:inline-block"></span>' +
-        '<span id="cop-status-txt" style="font-size:12px;color:var(--text-muted)">Aguardando reunião...</span>' +
-        '<button type="button" class="act-btn" style="background:var(--accent-green)" onclick="copilotStartSession()">▶ Iniciar Sessão</button>' +
-        '<button type="button" class="act-btn" onclick="copilotStopSession()">⏹ Parar</button>' +
+        '<span id="cop-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--accent-red);display:inline-block;transition:all .3s"></span>' +
+        '<span id="cop-status-txt" style="font-size:12px;color:var(--text-muted)">Aguardando...</span>' +
         '</div></div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
-        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Sentimento Geral</div>' +
-        '<div id="cop-sentiment-score" style="font-size:28px;font-weight:800;color:var(--accent-cyan);margin:6px 0">—</div>' +
-        '<div id="cop-sentiment-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-cyan);transition:width .5s ease"></div></div></div>' +
-        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Engajamento</div>' +
-        '<div id="cop-engagement-score" style="font-size:28px;font-weight:800;color:var(--accent-green);margin:6px 0">—</div>' +
-        '<div id="cop-engagement-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-green);transition:width .5s ease"></div></div></div>' +
-        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Tom da Conversa</div>' +
-        '<div id="cop-tone-score" style="font-size:28px;font-weight:800;color:var(--accent-purple-light);margin:6px 0">—</div>' +
-        '<div id="cop-tone-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-purple-light);transition:width .5s ease"></div></div></div>' +
-        '</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
-        '<div class="card" style="animation:slide-up .3s ease">' +
-        '<div class="card-header"><span class="card-title">💬 Objeções Detectadas</span><span class="card-subtitle" id="cop-obj-count">0 detectadas</span></div>' +
-        '<div id="cop-objections-list" style="padding:8px 0;display:flex;flex-direction:column;gap:8px">' +
-        '<div style="padding:12px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);font-size:13px;text-align:center">Sessão não iniciada</div>' +
-        '</div></div>' +
-        '<div class="card" style="animation:slide-up .35s ease">' +
-        '<div class="card-header"><span class="card-title">⚡ Flashcards de Resposta</span><span class="card-subtitle">Sugestões em tempo real</span></div>' +
-        '<div id="cop-flashcards" style="padding:8px 0;display:flex;flex-direction:column;gap:8px">' +
-        '<div style="padding:12px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);font-size:13px;text-align:center">Aguardando objeções...</div>' +
-        '</div></div>' +
-        '</div>' +
-        '<div class="card" style="margin-top:14px;animation:slide-up .4s ease">' +
-        '<div class="card-header"><span class="card-title">📋 Contexto do Deal</span></div>' +
-        '<div style="padding:12px">' +
-        '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">' +
-        '<input type="text" id="cop-deal-input" placeholder="Nome do cliente / deal..." style="flex:1;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px" />' +
-        '<button type="button" class="act-btn" onclick="copilotLoadDealContext()">Carregar Contexto</button>' +
-        '<button type="button" class="act-btn" style="background:rgba(124,58,237,0.3)" onclick="copilotAskJulio()">Perguntar ao Julio →</button>' +
-        '</div>' +
-        '<div id="cop-deal-context" style="font-size:13px;color:var(--text-muted);padding:8px;border-radius:6px;background:var(--bg-surface)">Carregue um deal para ver o contexto MEDDPICC, histórico e próximos passos recomendados.</div>' +
-        '</div></div>' +
-        '</div>';
 
-      // CSS for objection flashcards
+        // Meeting launch section
+        '<div class="card" style="margin-bottom:14px;animation:slide-up .2s ease">' +
+        '<div class="card-header"><span class="card-title">📹 Iniciar/Entrar na Reunião</span></div>' +
+        '<div style="padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
+        '<input id="cop-meet-url" type="text" placeholder="Cole o link da reunião (Google Meet, Teams, Zoom, Jitsi...)" value="" style="flex:1;min-width:280px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 14px;color:var(--text-primary);font-size:13px"/>' +
+        '<button type="button" class="act-btn" style="background:rgba(34,197,94,0.2);color:var(--accent-green);font-weight:700" onclick="copilotOpenMeeting()">▶ Abrir Reunião</button>' +
+        '<button type="button" class="act-btn" style="background:rgba(6,182,212,0.2);color:var(--accent-cyan)" onclick="copilotStartJitsi()">🎥 Reunião Interna (Jitsi)</button>' +
+        '<button type="button" class="act-btn" style="background:' + (_copilotSession ? 'rgba(239,68,68,0.3)' : 'rgba(124,58,237,0.3)') + '" onclick="' + (_copilotSession ? 'copilotStopSession()' : 'copilotStartSession()') + '">' + (_copilotSession ? '⏹ Parar Copiloto' : '🎙 Iniciar Copiloto') + '</button>' +
+        '</div>' +
+        (savedEvent ? '<div style="padding:0 12px 12px;font-size:13px;color:var(--text-muted)">Contexto: <strong>' + escapeHtml(savedEvent.title) + '</strong></div>' : '') +
+        '</div>' +
+
+        // Main grid: transcription + analysis
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">' +
+
+        // Transcription panel
+        '<div class="card" style="animation:slide-up .25s ease">' +
+        '<div class="card-header"><span class="card-title">🎙 Transcrição ao Vivo</span><span class="card-subtitle" id="cop-speech-status">Microfone desativado</span></div>' +
+        '<div id="cop-transcript" style="padding:12px;min-height:180px;max-height:260px;overflow-y:auto;font-size:13px;line-height:1.6;color:var(--text-secondary)">Inicie o copiloto para ver a transcrição em tempo real...</div>' +
+        '<div style="padding:8px 12px;border-top:1px solid var(--border-subtle);display:flex;gap:8px">' +
+        '<button type="button" class="act-btn" style="font-size:11px;padding:3px 10px" onclick="copilotToggleSpeech()" id="cop-speech-btn">🎙 Ativar Microfone</button>' +
+        '<button type="button" class="act-btn" style="font-size:11px;padding:3px 10px;background:var(--bg-surface)" onclick="copilotClearTranscript()">🗑 Limpar</button>' +
+        '</div></div>' +
+
+        // Sentiment + analysis
+        '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<div class="card" style="animation:slide-up .3s ease">' +
+        '<div class="card-header" style="padding:10px 14px"><span class="card-title" style="font-size:13px">📊 Análise em Tempo Real</span></div>' +
+        '<div style="padding:10px 14px;display:flex;flex-direction:column;gap:8px">' +
+        ['Sentimento','Engajamento','Tom'].map(function(label, i) {
+          var id = ['cop-sentiment','cop-engagement','cop-tone'][i];
+          var color = ['var(--accent-cyan)','var(--accent-green)','var(--accent-purple-light)'][i];
+          return '<div><div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-bottom:4px"><span>' + label + '</span><span id="' + id + '-val">—</span></div><div style="height:5px;background:var(--bg-surface);border-radius:3px;overflow:hidden"><div id="' + id + '-bar" style="height:100%;width:0%;background:' + color + ';transition:width .5s ease"></div></div></div>';
+        }).join('') +
+        '</div></div>' +
+        '<div class="card" style="animation:slide-up .35s ease;flex:1">' +
+        '<div class="card-header" style="padding:10px 14px"><span class="card-title" style="font-size:13px">⚡ Flashcards</span><span id="cop-obj-count" class="card-subtitle">0</span></div>' +
+        '<div id="cop-flashcards" style="padding:8px;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto"><div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px">Aguardando objeções...</div></div>' +
+        '</div></div></div>' +
+
+        // Jitsi embed (hidden initially)
+        '<div id="cop-jitsi-container" style="display:none;margin-bottom:14px">' +
+        '<div class="card" style="animation:slide-up .3s ease">' +
+        '<div class="card-header"><span class="card-title">🎥 Reunião Interna</span><button class="act-btn" style="padding:3px 10px;font-size:11px" onclick="copilotCloseJitsi()">Fechar ✕</button></div>' +
+        '<div style="padding:0"><div id="jitsi-meet-container" style="height:420px;border-radius:0 0 12px 12px;overflow:hidden;background:#000"></div></div>' +
+        '</div></div>' +
+
+        // Context + objeções
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div class="card" style="animation:slide-up .4s ease">' +
+        '<div class="card-header"><span class="card-title">⚠ Objeções Detectadas</span></div>' +
+        '<div id="cop-objections-list" style="padding:8px;display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto"><div style="font-size:12px;color:var(--text-muted);text-align:center;padding:16px">Sessão não iniciada</div></div>' +
+        '</div>' +
+        '<div class="card" style="animation:slide-up .42s ease">' +
+        '<div class="card-header"><span class="card-title">📋 Contexto do Deal</span></div>' +
+        '<div style="padding:10px">' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+        '<input type="text" id="cop-deal-input" placeholder="Nome do cliente / deal..." style="flex:1;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:12px" value="' + (savedEvent ? escapeHtml(savedEvent.title) : '') + '" />' +
+        '<button type="button" class="act-btn" style="font-size:11px;padding:4px 10px" onclick="copilotLoadDealContext()">Carregar</button>' +
+        '</div>' +
+        '<div id="cop-deal-context" style="font-size:12px;color:var(--text-muted);padding:8px;border-radius:6px;background:var(--bg-surface)">Carregue um deal para ver contexto MEDDPICC.</div>' +
+        '</div></div></div></div>';
+
+      // CSS
       if (!document.getElementById('cop-styles')) {
         var s = document.createElement('style');
         s.id = 'cop-styles';
-        s.textContent = '.cop-objection{padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);font-size:13px}.cop-objection .obj-text{font-weight:700;color:#f87171;margin-bottom:4px}.cop-objection .obj-time{font-size:11px;color:var(--text-dim)}.cop-flashcard{padding:12px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(6,182,212,0.1));border:1px solid rgba(124,58,237,0.3);font-size:13px;cursor:pointer;transition:all .2s}.cop-flashcard:hover{border-color:var(--accent-cyan);transform:translateX(2px)}.cop-flashcard .fc-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-purple-light);margin-bottom:6px;font-weight:700}.cop-flashcard .fc-text{color:var(--text-primary);line-height:1.5}';
+        s.textContent = '.cop-objection{padding:8px 12px;border-radius:8px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);font-size:12px}.cop-objection .obj-text{font-weight:700;color:#f87171}.cop-flashcard{padding:10px 12px;border-radius:8px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(6,182,212,0.08));border:1px solid rgba(124,58,237,0.25);font-size:12px;cursor:pointer;transition:all .2s}.cop-flashcard:hover{border-color:var(--accent-cyan)}.cop-flashcard .fc-label{font-size:10px;text-transform:uppercase;color:var(--accent-purple-light);margin-bottom:4px;font-weight:700}.transcript-line{padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.04)}.transcript-line.interim{color:var(--text-dim);font-style:italic}';
         document.head.appendChild(s);
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
+      // Auto-load deal context from saved event
+      if (savedEvent) {
+        setTimeout(copilotLoadDealContext, 500);
+      }
+    }
+
+    var _speechRecognition = null;
+    var _speechActive = false;
+    var _transcriptFull = '';
+
+    function copilotToggleSpeech() {
+      if (_speechActive) {
+        _speechActive = false;
+        if (_speechRecognition) { try { _speechRecognition.stop(); } catch(e){} }
+        var btn = document.getElementById('cop-speech-btn');
+        if (btn) btn.textContent = '🎙 Ativar Microfone';
+        var st = document.getElementById('cop-speech-status');
+        if (st) st.textContent = 'Microfone desativado';
+        return;
+      }
+      var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) { showToast('error', 'Transcrição', 'Seu navegador não suporta Web Speech API. Use o Chrome.'); return; }
+      _speechRecognition = new SpeechRecognition();
+      _speechRecognition.continuous = true;
+      _speechRecognition.interimResults = true;
+      _speechRecognition.lang = 'pt-BR';
+      _speechRecognition.onresult = function(event) {
+        var interim = '', final = '';
+        for (var i = event.resultIndex; i < event.results.length; i++) {
+          var t = event.results[i][0].transcript;
+          if (event.results[i].isFinal) { final += t; copilotAnalyzeText(t); }
+          else interim += t;
+        }
+        if (final) { _transcriptFull += final + ' '; copilotAppendTranscript(final, false); }
+        if (interim) { copilotUpdateInterim(interim); }
+      };
+      _speechRecognition.onerror = function(e) {
+        if (e.error !== 'no-speech') showToast('error', 'Microfone', e.error);
+      };
+      _speechRecognition.onend = function() {
+        if (_speechActive) _speechRecognition.start(); // auto-restart
+      };
+      _speechRecognition.start();
+      _speechActive = true;
+      var btn = document.getElementById('cop-speech-btn');
+      if (btn) btn.textContent = '🔴 Microfone Ativo';
+      var st = document.getElementById('cop-speech-status');
+      if (st) { st.textContent = '● Transcrevendo ao vivo'; st.style.color = 'var(--accent-green)'; }
+    }
+
+    function copilotAppendTranscript(text, isInterim) {
+      var div = document.getElementById('cop-transcript');
+      if (!div) return;
+      // Remove interim placeholder
+      var existing = div.querySelector('.transcript-line.interim');
+      if (existing) existing.remove();
+      var line = document.createElement('div');
+      line.className = 'transcript-line' + (isInterim ? ' interim' : '');
+      var time = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      line.innerHTML = '<span style="font-size:10px;color:var(--text-dim);margin-right:6px">' + time + '</span>' + escapeHtml(text);
+      div.appendChild(line);
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function copilotUpdateInterim(text) {
+      var div = document.getElementById('cop-transcript');
+      if (!div) return;
+      var existing = div.querySelector('.transcript-line.interim');
+      if (!existing) { existing = document.createElement('div'); existing.className = 'transcript-line interim'; div.appendChild(existing); }
+      existing.innerHTML = '<span style="font-size:10px;color:var(--text-dim);margin-right:6px">...</span>' + escapeHtml(text);
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function copilotClearTranscript() {
+      _transcriptFull = '';
+      var div = document.getElementById('cop-transcript');
+      if (div) div.innerHTML = '<span style="color:var(--text-dim);font-size:13px">Transcrição limpa.</span>';
+    }
+
+    async function copilotAnalyzeText(text) {
+      // Check for objections
+      var objKeywords = [
+        { kw: 'preço', label: 'Objeção de Preço', reply: 'Entendo a preocupação com o preço. Posso mostrar o ROI completo e comparar o TCO vs solução atual?' },
+        { kw: 'caro', label: 'Objeção de Preço', reply: 'Vamos calcular juntos: qual é o custo atual da lacuna de segurança que estamos resolvendo?' },
+        { kw: 'orçamento', label: 'Restrição de Budget', reply: 'Existe um ciclo de orçamento próximo? Posso preparar uma proposta de implementação faseada.' },
+        { kw: 'fornecedor', label: 'Parceiro Atual', reply: 'Como complemento ao atual fornecedor, a Guardline adiciona a camada de [X] que eles não cobrem.' },
+        { kw: 'aprovação', label: 'Bloqueador Interno', reply: 'Quem mais precisa participar da decisão? Posso preparar um executive summary.' },
+        { kw: 'concorrente', label: 'Menção a Concorrente', reply: 'Qual aspecto específico do concorrente está te interessando? Posso fazer uma comparação direta.' },
+        { kw: 'não tenho certeza', label: 'Dúvida de Fit', reply: 'Me conta o seu desafio específico — vamos verificar se é exatamente o que resolvemos.' },
+        { kw: 'tempo', label: 'Objeção de Timing', reply: 'O que mudaria no próximo trimestre? Podemos começar com uma prova de conceito de 30 dias.' },
+      ];
+      var tl = text.toLowerCase();
+      var objFound = objKeywords.find(function(o) { return tl.indexOf(o.kw) >= 0; });
+      if (objFound) { copilotShowObjection({ text: text, time: new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) }, objFound.reply, objFound.label); }
+
+      // Update sentiment with Groq if available
+      if (window.GROQ_API_KEY && _copilotTick % 5 === 0 && text.length > 20) {
+        copilotQuickSentiment(text);
+      }
+      _copilotTick++;
+    }
+
+    async function copilotQuickSentiment(text) {
+      try {
+        var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer ' + window.GROQ_API_KEY},
+          body: JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:60, messages:[{role:'user',content:'Analise este trecho de reunião de vendas e responda SOMENTE com JSON: {"sentimento":0-100,"engajamento":0-100,"tom":0-100}. Trecho: "' + text.slice(0,200) + '"'}] })
+        });
+        var d = await res.json();
+        var content = d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
+        if (content) {
+          var match = content.match(/\{[^}]+\}/);
+          if (match) {
+            var scores = JSON.parse(match[0]);
+            copilotUpdateScores(scores.sentimento||50, scores.engajamento||50, scores.tom||50);
+          }
+        }
+      } catch(e) { /* silent */ }
+    }
+
+    function copilotUpdateScores(s, e, t) {
+      var sv = document.getElementById('cop-sentiment-val'); if (sv) sv.textContent = s + '%';
+      var ev = document.getElementById('cop-engagement-val'); if (ev) ev.textContent = e + '%';
+      var tv = document.getElementById('cop-tone-val'); if (tv) tv.textContent = t + '%';
+      var sb = document.getElementById('cop-sentiment-bar'); if (sb) sb.style.width = s + '%';
+      var eb = document.getElementById('cop-engagement-bar'); if (eb) eb.style.width = e + '%';
+      var tb = document.getElementById('cop-tone-bar'); if (tb) tb.style.width = t + '%';
+    }
+
+    function copilotOpenMeeting() {
+      var url = document.getElementById('cop-meet-url') && document.getElementById('cop-meet-url').value.trim();
+      if (!url) { showToast('error', 'Copiloto', 'Cole o link da reunião'); return; }
+      if (!url.startsWith('http')) url = 'https://' + url;
+      window.open(url, '_blank', 'width=1200,height=800,noopener');
+      showToast('info', 'Reunião', 'Reunião aberta em nova janela. O copiloto continua ativo aqui!');
+      if (!_copilotSession) copilotStartSession();
+    }
+
+    function copilotStartJitsi() {
+      var container = document.getElementById('cop-jitsi-container');
+      if (!container) return;
+      container.style.display = 'block';
+      var meetDiv = document.getElementById('jitsi-meet-container');
+      if (!meetDiv || meetDiv.querySelector('iframe')) return;
+
+      if (!window.JitsiMeetExternalAPI) {
+        var script = document.createElement('script');
+        script.src = 'https://meet.jit.si/external_api.js';
+        script.onload = function() { initJitsiMeet(meetDiv); };
+        document.head.appendChild(script);
+      } else {
+        initJitsiMeet(meetDiv);
+      }
+      if (!_copilotSession) copilotStartSession();
+    }
+
+    function initJitsiMeet(container) {
+      var roomName = 'guardline-' + Date.now().toString(36);
+      var user = (Auth && Auth.getUser && Auth.getUser()) || {};
+      try {
+        new JitsiMeetExternalAPI('meet.jit.si', {
+          roomName: roomName,
+          width: '100%',
+          height: 420,
+          parentNode: container,
+          userInfo: { displayName: user.name || user.email || 'Guardline User' },
+          configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false },
+          interfaceConfigOverwrite: { TOOLBAR_BUTTONS: ['microphone','camera','chat','hangup','tileview'], SHOW_JITSI_WATERMARK: false }
+        });
+        showToast('success', 'Jitsi', 'Reunião criada: ' + roomName);
+      } catch(e) { showToast('error', 'Jitsi', 'Erro ao iniciar: ' + (e.message || e)); }
+    }
+
+    function copilotCloseJitsi() {
+      var container = document.getElementById('cop-jitsi-container');
+      if (container) { container.style.display = 'none'; var mc = document.getElementById('jitsi-meet-container'); if (mc) mc.innerHTML = ''; }
     }
 
     var _copilotInterval = null;
