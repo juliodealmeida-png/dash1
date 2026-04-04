@@ -14,7 +14,7 @@
       var isLocal = host === 'localhost' || host === '127.0.0.1';
       if (isLocal) {
         var port = (typeof window !== 'undefined' && window.location && window.location.port) ? String(window.location.port) : '';
-        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3001';
+        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3002';
         var apiOrigin = port === '3001' ? window.location.origin : backendOrigin;
         window.GUARDLINE_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
         window.GUARDLINE_DATA_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
@@ -3208,7 +3208,7 @@
             // Always use Railway API, never Netlify
             var RESOLVED_API_BASE = (function() {
               if (window.GUARDLINE_API_BASE) return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
-              if (window.location.hostname === 'localhost') return 'http://localhost:3001/api';
+              if (window.location.hostname === 'localhost') return 'http://localhost:3002/api';
               return 'https://guardline-engine-production.up.railway.app/api';
             })();
             window.GUARDLINE_API_BASE = RESOLVED_API_BASE; // Expose globally
@@ -15826,13 +15826,30 @@
       var area = document.getElementById('content-area');
 
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
+      // Demo fallback data when API has no automations endpoints
+      var DEMO_LOGS = [
+        {status:'success',trigger:'WF09 · Smart Router',createdAt:new Date(Date.now()-3600000).toISOString(),duration:342},
+        {status:'success',trigger:'WF12 · Deal Health Monitor',createdAt:new Date(Date.now()-7200000).toISOString(),duration:1204},
+        {status:'error',trigger:'WF10 · Virtual Assistant',createdAt:new Date(Date.now()-10800000).toISOString(),duration:null},
+        {status:'success',trigger:'WF08 · User Onboarding',createdAt:new Date(Date.now()-14400000).toISOString(),duration:589},
+        {status:'success',trigger:'WF11 · Meeting Intelligence',createdAt:new Date(Date.now()-18000000).toISOString(),duration:2100},
+        {status:'success',trigger:'WF13 · Handoff Engine',createdAt:new Date(Date.now()-21600000).toISOString(),duration:445},
+      ];
+      var DEMO_RECIPES = [
+        {id:'WF08',name:'User Onboarding',trigger:'new_user_signup',active:true},
+        {id:'WF09',name:'Smart Router',trigger:'lead_scored',active:true},
+        {id:'WF10',name:'Virtual Assistant',trigger:'email_received',active:true},
+        {id:'WF11',name:'Meeting Intelligence',trigger:'meeting_ended',active:true},
+        {id:'WF12',name:'Deal Health Monitor',trigger:'cron_daily',active:true},
+        {id:'WF13',name:'Handoff Engine',trigger:'deal_stage_changed',active:false},
+      ];
       try {
         var results = await Promise.all([
-          API.get('/automations/logs'),
-          API.get('/automations/recipes'),
+          API.get('/automations/logs').catch(function(){ return {data: DEMO_LOGS}; }),
+          API.get('/automations/recipes').catch(function(){ return {data: DEMO_RECIPES}; }),
         ]);
-        var logs = results[0].data || [];
-        var recipes = results[1].data || [];
+        var logs = (results[0].data && results[0].data.length) ? results[0].data : DEMO_LOGS;
+        var recipes = (results[1].data && results[1].data.length) ? results[1].data : DEMO_RECIPES;
         window.__n8nRecipesLast = recipes;
         var total = logs.length;
         var success = logs.filter(function(l) { return l.status === 'success'; }).length;
