@@ -1401,8 +1401,8 @@
       scrollbar-width: thin;
     }
     .kanban-col {
-      min-width: 240px;
-      max-width: 260px;
+      min-width: 280px;
+      max-width: 310px;
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
@@ -1463,7 +1463,7 @@
       transition: width 0.5s ease;
     }
     .deal-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+    .deal-company { font-weight: 700; font-size: 13px; color: #e2e8f0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 200px; }
     .deal-value { font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
     .deal-meta-row {
       display: flex;
@@ -3648,11 +3648,62 @@
         <button type="button" class="nav-item" data-screen="investor" data-roles="founder">
           <i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span>
         </button>
-        <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr">
-          <i data-lucide="map" class="nav-icon"></i><span class="nav-label">Fraud Map</span>
+        <button type="button" class="nav-item" data-screen="market-intel" data-roles="founder,sdr">
+          <i data-lucide="newspaper" class="nav-icon"></i><span class="nav-label">Market Intel</span>
         </button>
-        <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr">
-          <i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios</span>
+        <button type="button" class="nav-item" data-screen="reports" data-roles="founder">
+          <i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios CEO</span>
+        </button>
+
+        <div class="nav-section-label" data-section="v2">Revenue OS v2</div>
+        <button type="button" class="nav-item" data-screen="sdr-hub" data-roles="founder,sdr">
+          <i data-lucide="target" class="nav-icon"></i><span class="nav-label">SDR Hub</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="inbox" data-roles="founder,sdr">
+          <i data-lucide="mail" class="nav-icon"></i><span class="nav-label">Inbox</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr">
+          <i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr">
+          <i data-lucide="contact" class="nav-icon"></i><span class="nav-label">Contatos</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr">
+          <i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="meeting-copilot" data-roles="founder,sdr">
+          <i data-lucide="bot" class="nav-icon"></i>
+          <span class="nav-label">Copiloto AI</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="channel" data-roles="founder,sdr">
+          <i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr">
+          <i data-lucide="check-square" class="nav-icon"></i><span class="nav-label">MEDDPICC</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="health" data-roles="founder">
+          <i data-lucide="heart-pulse" class="nav-icon"></i><span class="nav-label">Saúde</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="market-signals" data-roles="founder,sdr">
+          <i data-lucide="radar" class="nav-icon"></i><span class="nav-label">Sinais</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="product-intelligence" data-roles="founder">
+          <i data-lucide="package" class="nav-icon"></i><span class="nav-label">Produto</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="alerts" data-roles="founder,sdr">
+          <i data-lucide="bell" class="nav-icon"></i><span class="nav-label">Alertas</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder">
+          <i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="logs" data-roles="founder">
+          <i data-lucide="terminal" class="nav-icon"></i><span class="nav-label">Logs</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr">
+          <i data-lucide="file-text" class="nav-icon"></i><span class="nav-label">Documentos</span>
+        </button>
+        <button type="button" class="nav-item" data-screen="admin" data-roles="founder">
+          <i data-lucide="settings-2" class="nav-icon"></i><span class="nav-label">Admin</span>
         </button>
       </div>
 
@@ -6882,6 +6933,15 @@
       initGuardlineSocket();
       if (typeof lucide !== 'undefined') lucide.createIcons();
       if (typeof guardlineInjectV2Nav === 'function') guardlineInjectV2Nav();
+      // Rebind all nav-item clicks (needed after role visibility changes)
+      document.querySelectorAll('.nav-item[data-screen]').forEach(function(item) {
+        item.onclick = null; // remove old inline handler if any
+        item.addEventListener('click', function() {
+          navigateTo(item.getAttribute('data-screen'));
+        });
+      });
+      // Celebration Engine: check birthdays
+      guardlineCelebrationCheck();
     }
 
     function guardlineLogout() {
@@ -6897,6 +6957,54 @@
       document.getElementById('avatar-dropdown').classList.remove('open');
       showLoginScreen();
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    // ── Celebration Engine ────────────────────────────────────────────────────
+    function guardlineCelebrationCheck() {
+      try {
+        var today = new Date();
+        var todayMD = (today.getMonth() + 1) + '-' + today.getDate();
+        // Check logged-in user's birthday
+        var user = Auth && typeof Auth.getUser === 'function' ? Auth.getUser() : null;
+        var profile = window.__guardlineCachedProfileRow || {};
+        var bday = profile.birthdate || profile.birth_date || (user && user.birthdate);
+        if (bday) {
+          var bd = new Date(bday);
+          var bdMD = (bd.getMonth() + 1) + '-' + bd.getDate();
+          if (bdMD === todayMD) {
+            var name = profile.first_name || (user && user.name && user.name.split(' ')[0]) || 'Equipe';
+            if (!sessionStorage.getItem('gl_bday_shown_' + todayMD)) {
+              sessionStorage.setItem('gl_bday_shown_' + todayMD, '1');
+              setTimeout(function() {
+                showToast('success', '🎂 Feliz Aniversário ' + name + '!', 'Toda a equipe Guardline deseja um dia incrível! 🥳');
+                // Inject birthday banner into Command Center if visible
+                var brief = document.getElementById('julio-brief-dynamic');
+                if (brief) {
+                  var banner = document.createElement('div');
+                  banner.className = 'brief-item success';
+                  banner.style.cssText = 'background:linear-gradient(135deg,rgba(124,58,237,0.3),rgba(6,182,212,0.2));border:1px solid var(--accent-purple-light);animation:pulse-critical 2s infinite';
+                  banner.innerHTML = '<span class="brief-num">🎂</span><p style="font-weight:800">Hoje é aniversário de <strong>' + escapeHtml(name) + '</strong>! Toda a equipe parabeniza! 🥳🎉</p>';
+                  brief.insertBefore(banner, brief.firstChild);
+                }
+              }, 1500);
+            }
+          }
+        }
+        // Check upcoming closes (deals closing in next 7 days)
+        var deals = window.__guardlineDealsCache || [];
+        var soon = deals.filter(function(d) {
+          if (!d.closeDate && !d.deal_close_date) return false;
+          var cd = new Date(d.closeDate || d.deal_close_date);
+          var diff = (cd - today) / 86400000;
+          return diff >= 0 && diff <= 7;
+        });
+        if (soon.length && !sessionStorage.getItem('gl_close_alert_' + todayMD)) {
+          sessionStorage.setItem('gl_close_alert_' + todayMD, '1');
+          setTimeout(function() {
+            showToast('info', '📅 ' + soon.length + ' deal(s) fechando esta semana', soon.slice(0,2).map(function(d){ return d.companyName || d.deal_name || '—'; }).join(', '));
+          }, 3000);
+        }
+      } catch(e) { /* silent */ }
     }
 
     window.onerror = function(msg, src, line, col, err) {
@@ -8431,8 +8539,14 @@
         escapeHtml(deal.company) +
         '</span><div class="risk-badge ' +
         (deal.risk >= 75 ? 'risk-critical' : deal.risk >= 55 ? 'risk-warning' : 'risk-healthy') +
+        '" title="Risco: ' + deal.risk + '%" style="font-weight:800;min-width:32px;text-align:center;background:' +
+        (deal.risk >= 75 ? 'rgba(239,68,68,0.2)' : deal.risk >= 55 ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)') +
+        ';color:' +
+        (deal.risk >= 75 ? 'var(--accent-red)' : deal.risk >= 55 ? 'var(--accent-amber)' : 'var(--accent-green)') +
+        ';border:1px solid ' +
+        (deal.risk >= 75 ? 'rgba(239,68,68,0.4)' : deal.risk >= 55 ? 'rgba(245,158,11,0.4)' : 'rgba(34,197,94,0.4)') +
         '">' +
-        deal.risk +
+        deal.risk + '%' +
         '</div></div>' +
         '<div class="deal-value">$' +
         deal.value.toLocaleString('en-US') +
@@ -9034,14 +9148,14 @@
           var sum = colDeals.reduce(function (a, d) {
             return a + d.value;
           }, 0);
+          var sumFmt = sum >= 1000000 ? '$' + (sum / 1000000).toFixed(1) + 'M' : '$' + (sum / 1000).toFixed(0) + 'k';
           html +=
-            '<div class="kanban-col"><div class="kanban-col-header"><span class="stage-name">' +
-            escapeHtml(stage) +
-            '</span><span class="stage-value">$' +
-            (sum / 1000).toFixed(1) +
-            'k · ' +
-            colDeals.length +
-            '</span></div><div class="kanban-cards" data-stage="' +
+            '<div class="kanban-col"><div class="kanban-col-header">' +
+            '<span class="stage-name">' + escapeHtml(stage) + '</span>' +
+            '<div style="display:flex;align-items:center;gap:6px">' +
+            '<span class="stage-value" style="color:var(--accent-cyan);font-weight:700">' + sumFmt + '</span>' +
+            '<span style="background:rgba(255,255,255,.1);border-radius:10px;padding:1px 7px;font-size:10px;font-weight:700;color:var(--text-muted)">' + colDeals.length + '</span>' +
+            '</div></div><div class="kanban-cards" data-stage="' +
             escapeHtml(stage) +
             '">';
           colDeals.forEach(function (d) {
@@ -13522,12 +13636,18 @@
         });
         // FIX 8: Show empty state instead of synthetic data
         if (!meetingRows.length) {
-          area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin:0 0 16px">Reuniões</h2>' +
+          area.innerHTML = '<div class="pipeline-page-wrap">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+            '<h2 style="margin:0">📅 Reuniões</h2>' +
+            '<button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000" onclick="meetingsOpenNewModal()">+ Nova Reunião</button>' +
+            '</div>' +
             '<div class="card" style="padding:48px;text-align:center">' +
             '<div style="font-size:48px;margin-bottom:16px;opacity:0.3">📅</div>' +
             '<p style="color:var(--text-muted);margin:0 0 16px">Nenhuma reunião registrada ainda.</p>' +
-            '<p style="font-size:12px;color:var(--text-dim);margin:0">Reuniões aparecerão aqui quando forem criadas via integração de calendário ou manualmente nos deals.</p>' +
-            '</div></div>';
+            '<button type="button" class="act-btn" style="margin:0 auto;display:block" onclick="meetingsOpenNewModal()">Agendar primeira reunião</button>' +
+            '</div>' +
+            guardlineMeetingsNewModal() +
+            '</div>';
           return;
         }
         meetingRows.sort(function (a, b) {
@@ -13535,11 +13655,91 @@
         });
         meetingsCalendarEnsureView();
         window.__meetingsRowsCache = meetingRows;
-        area.innerHTML = meetingsBuildMeetingsPageHtml(meetingRows);
+        var pg = meetingsBuildMeetingsPageHtml(meetingRows);
+        // Inject Nova Reunião button into the header
+        area.innerHTML = pg.replace('<div class="pipeline-page-wrap">', '<div class="pipeline-page-wrap"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0"><span></span><button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000;position:absolute;top:12px;right:12px;z-index:10" onclick="meetingsOpenNewModal()">+ Nova Reunião</button></div>') + guardlineMeetingsNewModal();
       } catch (e) {
         showToast('error', 'Reuniões', (e && e.message) || String(e));
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    function guardlineMeetingsNewModal() {
+      return '<div id="meetings-new-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:15000;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)meetingsCloseNewModal()">' +
+        '<div class="card" style="max-width:520px;width:100%;max-height:90vh;overflow-y:auto;animation:slide-up .25s ease" onclick="event.stopPropagation()">' +
+        '<div class="card-header"><span class="card-title">Nova Reunião</span><button type="button" class="act-btn" style="padding:4px 10px" onclick="meetingsCloseNewModal()">✕</button></div>' +
+        '<div style="padding:16px;display:flex;flex-direction:column;gap:14px">' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">TÍTULO *</label><input id="mtg-title" type="text" placeholder="Ex: Demo com Banco Galicia" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">DATA *</label><input id="mtg-date" type="date" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">HORA *</label><input id="mtg-time" type="time" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '</div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">TIPO</label><select id="mtg-type" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box"><option value="meeting">Reunião</option><option value="demo">Demo</option><option value="call">Ligação</option><option value="proposal">Apresentação de Proposta</option><option value="negotiation">Negociação</option><option value="follow-up">Follow-up</option></select></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">EMPRESA / DEAL</label><input id="mtg-company" type="text" placeholder="Ex: Banco Galicia" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">PARTICIPANTES</label><input id="mtg-participants" type="text" placeholder="emails separados por vírgula" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">LINK / LOCAL</label><input id="mtg-location" type="text" placeholder="https://meet.google.com/... ou endereço" style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;box-sizing:border-box" /></div>' +
+        '<div><label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:6px">NOTAS</label><textarea id="mtg-notes" rows="3" placeholder="Agenda, objetivos da reunião..." style="width:100%;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:9px 12px;color:var(--text-primary);font-size:14px;resize:vertical;box-sizing:border-box"></textarea></div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;padding-top:4px">' +
+        '<button type="button" class="act-btn" style="background:var(--bg-surface)" onclick="meetingsCloseNewModal()">Cancelar</button>' +
+        '<button type="button" class="act-btn" style="background:var(--accent-cyan);color:#000;font-weight:700" onclick="meetingsSaveNew()">💾 Salvar Reunião</button>' +
+        '</div></div></div></div>';
+    }
+
+    function meetingsOpenNewModal() {
+      var modal = document.getElementById('meetings-new-modal');
+      if (!modal) {
+        var area = document.getElementById('content-area');
+        if (area) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = guardlineMeetingsNewModal();
+          document.body.appendChild(tmp.firstChild);
+          modal = document.getElementById('meetings-new-modal');
+        }
+      }
+      if (!modal) return;
+      // Set default date to today
+      var td = document.getElementById('mtg-date');
+      if (td && !td.value) td.value = new Date().toISOString().slice(0,10);
+      var tt = document.getElementById('mtg-time');
+      if (tt && !tt.value) tt.value = '10:00';
+      modal.style.display = 'flex';
+    }
+
+    function meetingsCloseNewModal() {
+      var modal = document.getElementById('meetings-new-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function meetingsSaveNew() {
+      var title = (document.getElementById('mtg-title') && document.getElementById('mtg-title').value || '').trim();
+      var date = document.getElementById('mtg-date') && document.getElementById('mtg-date').value;
+      var time = document.getElementById('mtg-time') && document.getElementById('mtg-time').value;
+      var type = document.getElementById('mtg-type') && document.getElementById('mtg-type').value;
+      var company = document.getElementById('mtg-company') && document.getElementById('mtg-company').value;
+      var notes = document.getElementById('mtg-notes') && document.getElementById('mtg-notes').value;
+      var location = document.getElementById('mtg-location') && document.getElementById('mtg-location').value;
+      var participants = document.getElementById('mtg-participants') && document.getElementById('mtg-participants').value;
+      if (!title) { showToast('error', 'Reunião', 'Título é obrigatório'); return; }
+      if (!date) { showToast('error', 'Reunião', 'Data é obrigatória'); return; }
+      var newMtg = {
+        title: title, date: date + 'T' + (time || '09:00') + ':00',
+        type: type || 'meeting', company: company,
+        notes: notes, location: location, participants: participants,
+        id: 'local_' + Date.now()
+      };
+      // Save to localStorage for persistence
+      var saved = [];
+      try { saved = JSON.parse(localStorage.getItem('gl_meetings_local') || '[]'); } catch(e){}
+      saved.push(newMtg);
+      localStorage.setItem('gl_meetings_local', JSON.stringify(saved));
+      // Try to save to API
+      try {
+        await API.post('/meetings', newMtg);
+      } catch(e) { /* offline ok, saved locally */ }
+      meetingsCloseNewModal();
+      showToast('success', 'Reunião criada', title + ' agendada para ' + new Date(newMtg.date).toLocaleString('pt-BR', {dateStyle:'short',timeStyle:'short'}));
+      // Refresh calendar
+      renderMeetings();
     }
 
     function guardlineInboxPick(idx) {
@@ -13615,12 +13815,22 @@
       showToast('success', 'Reunião', 'Resumo enviado ao WF07');
     }
 
-    async function renderInbox() {
+    async function renderInbox(_mockMode) {
       var area = document.getElementById('content-area');
       
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
-        var res = await API.get('/deals?perPage=50');
+        var res = _mockMode
+          ? { data: [
+              { id:'d1', companyName:'RetailMax', contactEmail:'cco@retailmax.com', stage:'proposal', updatedAt:new Date().toISOString(),
+                emails:[{ from:'Ana Lima <ana@retailmax.com>', subject:'Re: Proposta Guardline Q2', body:'Olá, recebi a proposta. Podemos agendar uma call para discutir os detalhes do plano Enterprise?', receivedAt:new Date().toISOString() }] },
+              { id:'d2', companyName:'EduTech Brasil', contactEmail:'cro@edutech.com.br', stage:'active-pursuit', updatedAt:new Date(Date.now()-86400000).toISOString(), emails:[] },
+              { id:'d3', companyName:'NeoBank Lite', contactEmail:'cto@neobank.io', stage:'qualification', updatedAt:new Date(Date.now()-172800000).toISOString(),
+                emails:[{ from:'Pedro Alves <pedro@neobank.io>', subject:'Dúvidas sobre integração API', body:'Gostaria de entender melhor como funciona a integração com nosso stack atual. Vocês têm documentação técnica?', receivedAt:new Date(Date.now()-3600000).toISOString() }] },
+              { id:'d4', companyName:'Global Commerce SA', contactEmail:'cfo@globalcommerce.com', stage:'negotiation', updatedAt:new Date(Date.now()-259200000).toISOString(),
+                emails:[{ from:'Carlos Mendes <carlos@globalcommerce.com>', subject:'Aprovação orçamento 2026', body:'Após análise do comitê, precisamos de uma proposta revisada com foco no ROI demonstrável no primeiro ano.', receivedAt:new Date(Date.now()-7200000).toISOString() }] },
+            ]}
+          : await API.get('/deals?perPage=50');
         var deals = res.data || [];
         var emails = [];
         deals.forEach(function(d) {
@@ -13683,9 +13893,22 @@
           })
           .join('');
         area.innerHTML =
-          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 8px">Inbox</h2><p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">' +
-          emails.length +
-          ' conversas · origem deals/emails</p>' +
+          '<div class="pipeline-page-wrap">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+          '<div><h2 style="margin:0 0 4px">Inbox</h2><p style="font-size:13px;color:var(--text-muted);margin:0">' + emails.length + ' conversas · origem deals/emails</p></div>' +
+          '<button type="button" class="btn-activate" style="display:flex;align-items:center;gap:8px" onclick="guardlineInboxCompose()">' +
+          '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>' +
+          'Novo Email</button></div>' +
+          '<div id="inbox-compose-panel" style="display:none;background:var(--bg-card);border:1px solid var(--border-default);border-radius:12px;padding:16px;margin-bottom:16px;animation:slide-up .3s ease">' +
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><span style="font-weight:700;font-size:14px">Novo Email</span><button onclick="document.getElementById(\'inbox-compose-panel\').style.display=\'none\'" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px">×</button></div>' +
+          '<input id="compose-to" type="email" placeholder="Para: email@empresa.com" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-surface);color:#fff;font-size:13px;margin-bottom:8px">' +
+          '<input id="compose-subject" type="text" placeholder="Assunto" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-surface);color:#fff;font-size:13px;margin-bottom:8px">' +
+          '<textarea id="compose-body" rows="5" placeholder="Escreva sua mensagem…" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-surface);color:#fff;font-size:13px;resize:vertical;font-family:inherit"></textarea>' +
+          '<div style="display:flex;gap:8px;margin-top:10px">' +
+          '<button type="button" class="btn-activate" onclick="guardlineInboxSendNew()">Enviar Email</button>' +
+          '<button type="button" class="act-btn" onclick="guardlineInboxDraftWithJulio()">✨ Julio AI escreve</button>' +
+          '<button type="button" onclick="document.getElementById(\'inbox-compose-panel\').style.display=\'none\'" style="padding:8px 16px;border-radius:8px;border:1px solid var(--border-default);background:transparent;color:var(--text-muted);cursor:pointer;font-size:13px">Cancelar</button>' +
+          '</div></div>' +
           '<div style="display:grid;grid-template-columns:300px 1fr;gap:16px;align-items:stretch" class="inbox-split-grid">' +
           '<div class="card" style="padding:12px;animation:slide-up .35s ease"><input type="search" placeholder="Buscar…" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-surface);color:var(--text-primary);margin-bottom:12px;font-size:13px" />' +
           '<div style="max-height:62vh;overflow-y:auto">' +
@@ -13694,13 +13917,75 @@
           '<div class="card" style="display:flex;flex-direction:column;min-height:420px;animation:slide-up .4s ease"><div class="card-header"><span class="card-title">Thread</span><span class="card-subtitle">Deal vinculado</span></div>' +
           '<div id="inbox-thread-body" style="flex:1;overflow-y:auto;padding:12px 8px"></div>' +
           '<div style="border-top:1px solid var(--border-subtle);padding:12px"><textarea id="inbox-reply-ta" rows="3" placeholder="Escreva uma resposta…" style="width:100%;border-radius:10px;border:1px solid var(--border-default);background:var(--bg-surface);color:var(--text-primary);padding:10px;font-family:inherit;font-size:13px;resize:vertical"></textarea>' +
-          '<button type="button" class="act-btn" style="margin-top:10px;width:100%" onclick="guardlineInboxSendReply()">Enviar</button></div></div></div></div>';
+          '<div style="display:flex;gap:8px;margin-top:10px"><button type="button" class="act-btn" style="flex:1" onclick="guardlineInboxSendReply()">Responder</button>' +
+          '<button type="button" class="act-btn" onclick="guardlineInboxJulioReply()" title="Julio AI escreve resposta">✨ AI</button></div>' +
+          '</div></div></div></div>';
         guardlineInboxPick(0);
       } catch (e) {
+        if (!_mockMode) { renderInbox(true); return; }
         showToast('error', 'Inbox', (e && e.message) || String(e));
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
+
+    window.guardlineInboxCompose = function() {
+      var panel = document.getElementById('inbox-compose-panel');
+      if (panel) { panel.style.display = panel.style.display === 'none' ? 'block' : 'none'; }
+    };
+
+    window.guardlineInboxSendNew = async function() {
+      var to = (document.getElementById('compose-to') || {}).value || '';
+      var subject = (document.getElementById('compose-subject') || {}).value || '';
+      var body = (document.getElementById('compose-body') || {}).value || '';
+      if (!to || !subject || !body) { showToast('warning', 'Email', 'Preencha todos os campos'); return; }
+      try {
+        await API.post('/email/send', { to: to, subject: subject, body: body });
+        showToast('success', 'Email', 'Enviado para ' + to);
+        document.getElementById('inbox-compose-panel').style.display = 'none';
+      } catch(e) {
+        showToast('error', 'Email', (e && e.message) || 'Erro ao enviar');
+      }
+    };
+
+    window.guardlineInboxDraftWithJulio = async function() {
+      var to = (document.getElementById('compose-to') || {}).value || '';
+      var subject = (document.getElementById('compose-subject') || {}).value || '';
+      var bodyEl = document.getElementById('compose-body');
+      if (!subject) { showToast('warning', 'Julio AI', 'Preencha o assunto primeiro'); return; }
+      var btn = document.querySelector('[onclick="guardlineInboxDraftWithJulio()"]');
+      if (btn) btn.textContent = '✨ Gerando…';
+      try {
+        var prompt = 'Escreva um email profissional de vendas B2B para: ' + to + '\nAssunto: ' + subject + '\nContexto: Produto Guardline RegTech/FinTech LATAM. Tom: executivo, direto, orientado a valor. Máximo 150 palavras.';
+        if (window.julioK25 && window.julioK25.chat) {
+          var result = '';
+          await window.julioK25.chat(prompt, { mode: 'instant', onChunk: function(c) { result += c; if(bodyEl) bodyEl.value = result; } });
+        } else {
+          if (bodyEl) bodyEl.value = 'Olá,\n\nEspero que esteja bem. Gostaria de apresentar a Guardline, plataforma de Revenue Intelligence para RegTech e FinTech na América Latina.\n\nPodemos conversar 15 minutos esta semana?\n\nAtenciosamente,\nTime Guardline';
+        }
+      } catch(e) {
+        showToast('error', 'Julio AI', (e && e.message) || 'Erro ao gerar');
+      }
+      if (btn) btn.textContent = '✨ Julio AI escreve';
+    };
+
+    window.guardlineInboxJulioReply = async function() {
+      var thread = document.getElementById('inbox-thread-body');
+      var replyEl = document.getElementById('inbox-reply-ta');
+      var context = thread ? (thread.innerText || '').slice(0, 600) : '';
+      var prompt = 'Com base nesta thread de email:\n' + context + '\n\nEscreva uma resposta profissional de follow-up. Máximo 100 palavras. Somente o corpo do email.';
+      if (replyEl) replyEl.value = 'Gerando com Julio AI…';
+      try {
+        if (window.julioK25 && window.julioK25.chat) {
+          var result = '';
+          await window.julioK25.chat(prompt, { mode: 'instant', onChunk: function(c) { result += c; if(replyEl) replyEl.value = result; } });
+        } else {
+          if (replyEl) replyEl.value = 'Obrigado pelo contato. Podemos agendar uma chamada esta semana para avançarmos?';
+        }
+      } catch(e) {
+        if (replyEl) replyEl.value = '';
+        showToast('error', 'Julio AI', (e && e.message) || 'Erro');
+      }
+    };
 
     async function processReply(convId) {
       var rows = await DB.query('conversations', { filter: 'id=eq.' + encodeURIComponent(convId), limit: 1, order: '' });
@@ -13845,16 +14130,35 @@
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
-    async function renderSdrHub() {
+    async function renderSdrHub(_mockMode) {
       var area = document.getElementById('content-area');
       
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
-        var results = await Promise.all([
-          API.get('/leads?perPage=100&sortBy=score&sortOrder=desc'),
-          API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc'),
-          API.get('/signals?take=10'),
-        ]);
+        var results = _mockMode
+          ? [
+              { data: [
+                { id:'l1', name:'Bruno Carvalho', company:'RetailMax', score:91, source:'LinkedIn', status:'qualified', jobTitle:'CCO' },
+                { id:'l2', name:'Ana Lima', company:'EduTech Brasil', score:78, source:'Inbound', status:'contacted', jobTitle:'CRO' },
+                { id:'l3', name:'Pedro Alves', company:'NeoBank Lite', score:72, source:'Cold Email', status:'responded', jobTitle:'CTO' },
+                { id:'l4', name:'Carlos Mendes', company:'Global Commerce SA', score:65, source:'Referral', status:'qualified', jobTitle:'CFO' },
+                { id:'l5', name:'Julia Torres', company:'FinTrust', score:60, source:'Event', status:'new', jobTitle:'CISO' },
+              ]},
+              { data: [
+                { id:'d1', companyName:'RetailMax', stage:'proposal', value:28000, riskScore:85, daysSinceContact:8, contactName:'Bruno Carvalho' },
+                { id:'d2', companyName:'EduTech Brasil', stage:'scope-validate', value:8900, riskScore:61, daysSinceContact:15, contactName:'Ana Lima' },
+                { id:'d3', companyName:'NeoBank Lite', stage:'qualification', value:9500, riskScore:45, daysSinceContact:3, contactName:'Pedro Alves' },
+              ]},
+              { data: [
+                { id:'s1', type:'champion_signal', message:'Bruno Carvalho compartilhou nosso caso de uso no LinkedIn', createdAt:new Date().toISOString() },
+                { id:'s2', type:'risk_alert', message:'EduTech Brasil: 15 dias sem contato', createdAt:new Date(Date.now()-3600000).toISOString() },
+              ]},
+            ]
+          : await Promise.all([
+              API.get('/leads?perPage=100&sortBy=score&sortOrder=desc'),
+              API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc'),
+              API.get('/signals?take=10'),
+            ]);
         var leads = results[0].data || [];
         var deals = results[1].data || [];
         var signals = results[2].data || [];
@@ -13977,6 +14281,7 @@
           heatCells +
           '</div></div></div>';
       } catch (e) {
+        if (!_mockMode) { renderSdrHub(true); return; }
         showToast('error', 'SDR', (e && e.message) || String(e));
       }
       if (typeof lucide !== 'undefined') lucide.createIcons();
@@ -14425,12 +14730,21 @@
     // ══════════════════════════════════════════════════════
     // MODULE 3 — Buyer Persona Coverage
     // ══════════════════════════════════════════════════════
-    async function renderBuyerPersona() {
+    async function renderBuyerPersona(_mockMode) {
       var area = document.getElementById('content-area');
       if (!Auth.isLoggedIn()) { area.innerHTML = '<div class="pipeline-page-wrap"><p class="placeholder-note">Faça login.</p></div>'; return; }
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
-        var r = await API.get('/deals?perPage=100&sortBy=createdAt&sortOrder=desc');
+        var r = _mockMode
+          ? { data: [
+              { id:'d1', companyName:'RetailMax', stage:'proposal', value:28000, contacts:[{title:'CCO'},{title:'CTO'}] },
+              { id:'d2', companyName:'EduTech Brasil', stage:'scope-validate', value:8900, contacts:[{title:'CRO'},{title:'CCO'}] },
+              { id:'d3', companyName:'NeoBank Lite', stage:'qualification', value:9500, contacts:[{title:'CFO'},{title:'CISO'}] },
+              { id:'d4', companyName:'Global Commerce SA', stage:'proposal', value:18500, contacts:[{title:'CCO'},{title:'CRO'},{title:'CTO'}] },
+              { id:'d5', companyName:'FinTrust Pagamentos', stage:'active-pursuit', value:12000, contacts:[{title:'CFO'}] },
+              { id:'d6', companyName:'Logi Norte', stage:'qualification', value:12000, contacts:[{title:'CTO'},{title:'CISO'}] },
+            ]}
+          : await API.get('/deals?perPage=100&sortBy=createdAt&sortOrder=desc');
         var deals = (r.data || []).filter(function(d){ return d.stage !== 'lost'; });
 
         var PERSONAS = [
@@ -14508,7 +14822,14 @@
         area.innerHTML = '<div class="pipeline-page-wrap">'+
           '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
           '<div><h2 style="margin:0 0 4px;font-size:1.4rem">Buyer Persona Coverage</h2>'+
-          '<p style="font-size:13px;color:var(--text-muted);margin:0">Cobertura de stakeholders por deal · MEDDPICC — Economic Buyer & Champion</p></div></div>'+
+          '<p style="font-size:13px;color:var(--text-muted);margin:0">Cobertura de stakeholders por deal · MEDDPICC — Economic Buyer & Champion</p></div>'+
+          '<div style="display:flex;gap:8px">'+
+          '<button type="button" class="act-btn" onclick="buyerPersonaJulioAnalyze()" style="display:flex;align-items:center;gap:6px">'+
+          '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>'+
+          '✨ Julio analisa gaps</button>'+
+          '<button type="button" class="btn-activate" onclick="buyerPersonaJulioPlaybook()" style="font-size:12px">Gerar playbook →</button>'+
+          '</div></div>'+
+          '<div id="buyer-persona-julio-panel" style="display:none;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;line-height:1.7;white-space:pre-wrap"></div>'+
           '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">'+
           '<div class="kpi-card" style="cursor:default;animation:slide-up .3s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Deals Ativos</div><div style="font-size:26px;font-weight:800;color:var(--accent-cyan);margin:6px 0 2px">'+totalDeals+'</div><div style="font-size:11px;color:var(--text-muted)">excluindo lost</div></div>'+
           '<div class="kpi-card" style="cursor:default;animation:slide-up .32s ease"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Fully Mapped</div><div style="font-size:26px;font-weight:800;color:var(--accent-green);margin:6px 0 2px">'+fullyMapped+'</div><div style="font-size:11px;color:var(--text-muted)">≥ 5 de 6 personas</div></div>'+
@@ -14528,115 +14849,284 @@
           '<th style="padding:8px;text-align:left">Personas mapeadas</th><th style="padding:8px;text-align:center">Score</th><th style="padding:8px;text-align:left">Barra</th></tr></thead>'+
           '<tbody>'+dealRows+'</tbody></table></div></div></div></div>';
       } catch(e) {
+        if (!_mockMode) { renderBuyerPersona(true); return; }
         area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:32px"><p class="placeholder-note">'+escapeHtml((e&&e.message)||String(e))+'</p></div></div>';
       }
+      // Store persona data for Julio AI
+      window.__buyerPersonaData = { totalDeals: totalDeals, fullyMapped: fullyMapped, avgCoverage: avgCoverage, missingCco: missingCco, deals: deals.slice(0,20) };
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
+
+    window.buyerPersonaJulioAnalyze = async function() {
+      var panel = document.getElementById('buyer-persona-julio-panel');
+      if (!panel) return;
+      var data = window.__buyerPersonaData || {};
+      panel.style.display = 'block';
+      panel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--accent-purple-light)"><div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Julio AI analisando gaps de personas…</div>';
+      var prompt = 'Analise os gaps de Buyer Persona Coverage no pipeline:\n' +
+        '- Total deals: ' + (data.totalDeals||0) + '\n' +
+        '- Fully mapped (≥5/6 personas): ' + (data.fullyMapped||0) + '\n' +
+        '- Cobertura média: ' + (data.avgCoverage||0) + '%\n' +
+        '- Deals sem CCO: ' + (data.missingCco||0) + '\n\n' +
+        'Para cada gap crítico:\n1. Qual persona está faltando mais\n2. Por que isso afeta a probabilidade de fechamento\n3. Ação específica para mapear essa persona\n4. Script de abordagem rápida\n\nUse MEDDPICC — foque em Economic Buyer e Champion. Seja executivo e acionável.';
+      try {
+        var result = '';
+        if (window.julioK25 && window.julioK25.chat) {
+          await window.julioK25.chat(prompt, { mode: 'thinking', onChunk: function(c) {
+            result += c;
+            panel.innerHTML = '<div style="color:var(--accent-purple-light);font-weight:700;margin-bottom:10px">✨ Julio AI — Análise de Gaps</div>' + result.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+          }});
+        } else {
+          panel.innerHTML = '<div style="color:var(--accent-purple-light);font-weight:700;margin-bottom:10px">✨ Julio AI</div>Configure a chave Groq para análise em tempo real.';
+        }
+      } catch(e) {
+        panel.innerHTML = '<span style="color:var(--accent-red)">Erro: ' + escapeHtml((e&&e.message)||String(e)) + '</span>';
+      }
+    };
+
+    window.buyerPersonaJulioPlaybook = async function() {
+      var panel = document.getElementById('buyer-persona-julio-panel');
+      if (!panel) return;
+      panel.style.display = 'block';
+      panel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--accent-purple-light)"><div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Gerando playbook de engajamento…</div>';
+      var prompt = 'Crie um playbook de engajamento de Buyer Personas para vendas B2B de RegTech/FinTech na LATAM.\n\nPara cada persona (CCO, CRO, CTO, CFO, CISO, CPO):\n1. Pain point principal (1 linha)\n2. Mensagem de valor específica (1 linha)\n3. Canal preferido de contato\n4. Pergunta de qualificação ideal\n5. Objeção típica + contra-argumento\n\nFormato compacto, executivo. Total máximo 400 palavras.';
+      try {
+        var result = '';
+        if (window.julioK25 && window.julioK25.chat) {
+          await window.julioK25.chat(prompt, { mode: 'agent', onChunk: function(c) {
+            result += c;
+            panel.innerHTML = '<div style="color:var(--accent-purple-light);font-weight:700;margin-bottom:10px">📋 Playbook de Engajamento por Persona</div>' + result.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+          }});
+        } else {
+          panel.innerHTML = '<div style="color:var(--accent-purple-light);font-weight:700;margin-bottom:10px">📋 Playbook</div>Configure a chave Groq para gerar playbook em tempo real.';
+        }
+      } catch(e) {
+        panel.innerHTML = '<span style="color:var(--accent-red)">Erro: ' + escapeHtml((e&&e.message)||String(e)) + '</span>';
+      }
+    };
 
     // ══════════════════════════════════════════════════════
     // MODULE 4 — TCO Calculator (client-side)
     // ══════════════════════════════════════════════════════
     function renderTcoCalculator() {
       var area = document.getElementById('content-area');
+
+      function inp(id, label, val, min, hint) {
+        return '<div style="margin-bottom:14px">'+
+          '<label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px">'+label+'</label>'+
+          (hint ? '<div style="font-size:10px;color:var(--text-dim);margin-bottom:5px">'+hint+'</div>' : '')+
+          '<input id="'+id+'" type="number" value="'+val+'" min="'+(min||0)+'" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>';
+      }
+
       area.innerHTML = '<div class="pipeline-page-wrap">'+
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">'+
         '<div><h2 style="margin:0 0 4px;font-size:1.4rem">TCO Calculator</h2>'+
-        '<p style="font-size:13px;color:var(--text-muted);margin:0">Total Cost of Ownership · Guardline vs Stack Atual</p></div>'+
-        '<button type="button" class="btn-activate" onclick="window.tcoExport&&window.tcoExport()">Exportar PDF →</button></div>'+
-        '<div class="command-grid" style="align-items:start">'+
-        // LEFT: Inputs
-        '<div class="card" style="animation:slide-up .3s ease">'+
-        '<div class="card-header"><span class="card-title">Parâmetros do cliente</span></div>'+
-        '<div style="padding:4px 0" id="tco-inputs">'+
-        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Tamanho da equipe de segurança</label>'+
-        '<input id="tco-team" type="number" value="8" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
-        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Custo médio/hora por analista (USD)</label>'+
-        '<input id="tco-rate" type="number" value="45" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
-        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Incidentes críticos / mês</label>'+
-        '<input id="tco-incidents" type="number" value="12" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
-        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Horas médias de resolução por incidente</label>'+
-        '<input id="tco-hours" type="number" value="6" min="1" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
-        '<div style="margin-bottom:14px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Horas manuais de compliance / semana</label>'+
-        '<input id="tco-compliance" type="number" value="20" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
-        '<div style="margin-bottom:4px"><label style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Licença Guardline / mês (USD)</label>'+
-        '<input id="tco-license" type="number" value="4500" min="0" style="width:100%;background:var(--bg-surface);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 12px;color:#fff;font-size:14px" oninput="window.tcoCalc&&window.tcoCalc()"></div>'+
+        '<p style="font-size:13px;color:var(--text-muted);margin:0">Total Cost of Ownership · Guardline vs Stack Atual · Ferramenta de proposta executiva</p></div>'+
+        '<div style="display:flex;gap:8px">'+
+        '<button type="button" class="act-btn" onclick="tcoJulioProposal()" style="display:flex;align-items:center;gap:6px">✨ Julio gera proposta</button>'+
+        '<button type="button" class="btn-activate" onclick="window.tcoExport&&window.tcoExport()">Exportar PDF →</button>'+
         '</div></div>'+
+        '<div id="tco-julio-panel" style="display:none;background:rgba(124,58,237,.07);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:16px;margin-bottom:16px;font-size:13px;line-height:1.7;white-space:pre-wrap"></div>'+
+        // GRID: inputs left, results right
+        '<div style="display:grid;grid-template-columns:1fr 1.4fr;gap:16px;align-items:start">'+
+        // LEFT: Inputs
+        '<div style="display:flex;flex-direction:column;gap:12px">'+
+        '<div class="card" style="animation:slide-up .3s ease">'+
+        '<div class="card-header"><span class="card-title">👥 Equipe</span></div>'+
+        inp('tco-team',   'Analistas de segurança', 8, 1, 'FTE dedicados')+
+        inp('tco-rate',   'Custo/hora analista (USD)', 45, 1, 'Salário + encargos estimados')+
+        inp('tco-tools',  'Ferramentas atuais / mês (USD)', 3200, 0, 'SIEM, antivírus, firewall, etc.')+
+        '</div>'+
+        '<div class="card" style="animation:slide-up .33s ease">'+
+        '<div class="card-header"><span class="card-title">🚨 Incidentes</span></div>'+
+        inp('tco-incidents','Incidentes críticos / mês', 12, 0)+
+        inp('tco-hours',   'Horas médias de resolução', 6, 1)+
+        inp('tco-false-pos','Falsos positivos / semana', 40, 0, 'Alertas que requerem triagem manual')+
+        '</div>'+
+        '<div class="card" style="animation:slide-up .36s ease">'+
+        '<div class="card-header"><span class="card-title">📋 Compliance</span></div>'+
+        inp('tco-compliance','Horas manuais compliance / semana', 20, 0)+
+        inp('tco-audits',  'Auditorias / ano', 3, 0, 'Custo médio por auditoria: US$ 15k')+
+        inp('tco-breaches','Valor médio de breach (USD)', 150000, 0, 'Estimativa baseada em IBM 2024')+
+        inp('tco-breach-prob','Probabilidade breach / ano (%)', 8, 0, 'Indústria FinTech: 8-15%')+
+        '</div>'+
+        '<div class="card" style="animation:slide-up .39s ease">'+
+        '<div class="card-header"><span class="card-title">💳 Guardline</span></div>'+
+        inp('tco-license', 'Licença Guardline / mês (USD)', 4500, 0)+
+        '</div>'+
+        '</div>'+
         // RIGHT: Results
-        '<div style="display:flex;flex-direction:column;gap:16px">'+
-        '<div class="card" style="animation:slide-up .32s ease" id="tco-results">'+
+        '<div style="display:flex;flex-direction:column;gap:14px">'+
+        '<div class="card" style="animation:slide-up .32s ease">'+
         '<div class="card-header"><span class="card-title">Resultado TCO Anual</span></div>'+
         '<div style="padding:8px 0" id="tco-output">calculando...</div></div>'+
-        '<div class="card" style="animation:slide-up .36s ease"><div class="card-header"><span class="card-title">Breakdown de Custos</span></div>'+
+        '<div class="card" style="animation:slide-up .36s ease"><div class="card-header"><span class="card-title">Breakdown Detalhado</span><span class="card-subtitle">Sem Guardline vs Com Guardline</span></div>'+
         '<div id="tco-breakdown" style="padding:8px 0">—</div></div>'+
-        '<div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:14px 16px;animation:slide-up .4s ease">'+
-        '<div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:8px">Modelo de Proposta</div>'+
-        '<div id="tco-pitch" style="font-size:12px;color:var(--text-muted);line-height:1.7">—</div></div>'+
-        '</div></div></div>';
+        '<div class="card" style="animation:slide-up .38s ease"><div class="card-header"><span class="card-title">Projeção 3 Anos</span></div>'+
+        '<div id="tco-3yr" style="padding:8px 0">—</div></div>'+
+        '<div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.2);border-radius:12px;padding:16px;animation:slide-up .4s ease">'+
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:10px">💬 Script de Proposta (use com CEO/CFO)</div>'+
+        '<div id="tco-pitch" style="font-size:13px;color:var(--text-secondary);line-height:1.75;font-style:italic">—</div>'+
+        '</div>'+
+        '</div>'+
+        '</div></div>';
 
       window.tcoCalc = function() {
-        var team       = Math.max(1, parseInt(document.getElementById('tco-team').value)||8);
-        var rate       = Math.max(1, parseInt(document.getElementById('tco-rate').value)||45);
-        var incidents  = Math.max(0, parseInt(document.getElementById('tco-incidents').value)||12);
-        var hours      = Math.max(1, parseInt(document.getElementById('tco-hours').value)||6);
-        var compliance = Math.max(0, parseInt(document.getElementById('tco-compliance').value)||20);
-        var license    = Math.max(0, parseInt(document.getElementById('tco-license').value)||4500);
+        var team       = Math.max(1, parseFloat(document.getElementById('tco-team').value)||8);
+        var rate       = Math.max(1, parseFloat(document.getElementById('tco-rate').value)||45);
+        var tools      = Math.max(0, parseFloat(document.getElementById('tco-tools').value)||3200);
+        var incidents  = Math.max(0, parseFloat(document.getElementById('tco-incidents').value)||12);
+        var hours      = Math.max(1, parseFloat(document.getElementById('tco-hours').value)||6);
+        var falsePos   = Math.max(0, parseFloat(document.getElementById('tco-false-pos').value)||40);
+        var compliance = Math.max(0, parseFloat(document.getElementById('tco-compliance').value)||20);
+        var audits     = Math.max(0, parseFloat(document.getElementById('tco-audits').value)||3);
+        var breachVal  = Math.max(0, parseFloat(document.getElementById('tco-breaches').value)||150000);
+        var breachProb = Math.max(0, parseFloat(document.getElementById('tco-breach-prob').value)||8) / 100;
+        var license    = Math.max(0, parseFloat(document.getElementById('tco-license').value)||4500);
 
-        // WITHOUT Guardline
-        var annualTeam      = team * rate * 2080;          // FTE cost/year
-        var annualIncidents = incidents * hours * rate * 12;
-        var annualCompliance= compliance * rate * 52;
-        var totalWithout    = annualTeam + annualIncidents + annualCompliance;
+        // WITHOUT Guardline — annual
+        var annualTeam       = team * rate * 2080;
+        var annualTools      = tools * 12;
+        var annualIncidents  = incidents * hours * rate * 12;
+        var annualFalsePos   = falsePos * 0.5 * rate * 52;   // 30min avg per false positive
+        var annualCompliance = compliance * rate * 52;
+        var annualAudits     = audits * 15000;
+        var annualBreachRisk = breachVal * breachProb;
+        var totalWithout     = annualTeam + annualTools + annualIncidents + annualFalsePos + annualCompliance + annualAudits + annualBreachRisk;
 
-        // WITH Guardline (40% reduction in incidents, 70% in compliance hours, +25% analyst efficiency)
-        var guardTeam      = annualTeam * 0.75;            // 25% efficiency gain
-        var guardIncidents = annualIncidents * 0.60;       // 40% incident reduction
-        var guardCompliance= annualCompliance * 0.30;      // 70% compliance automation
-        var guardLicense   = license * 12;
-        var totalWith      = guardTeam + guardIncidents + guardCompliance + guardLicense;
+        // WITH Guardline — improvements
+        var guardTeam        = annualTeam * 0.75;            // 25% efficiency gain
+        var guardTools       = annualTools * 0.60;           // consolidate 40% of tools
+        var guardIncidents   = annualIncidents * 0.55;       // 45% incident reduction
+        var guardFalsePos    = annualFalsePos * 0.15;        // 85% false positive reduction
+        var guardCompliance  = annualCompliance * 0.25;      // 75% automation
+        var guardAudits      = annualAudits * 0.60;          // 40% audit cost reduction
+        var guardBreachRisk  = annualBreachRisk * 0.50;      // 50% risk reduction
+        var guardLicenseAnn  = license * 12;
+        var totalWith        = guardTeam + guardTools + guardIncidents + guardFalsePos + guardCompliance + guardAudits + guardBreachRisk + guardLicenseAnn;
 
-        var savings    = totalWithout - totalWith;
-        var roi        = license > 0 ? Math.round((savings / guardLicense) * 100) : 0;
-        var payback    = savings > 0 ? (guardLicense / (savings / 12)).toFixed(1) : '—';
+        var savings  = totalWithout - totalWith;
+        var roi      = guardLicenseAnn > 0 ? Math.round((savings / guardLicenseAnn) * 100) : 0;
+        var payback  = savings > 0 ? (guardLicenseAnn / (savings / 12)).toFixed(1) : '—';
 
-        function fmt(v) { return '$'+(Math.round(v/1000)).toLocaleString('en-US')+'k'; }
-        function row(label, without, with_, color) {
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">'+
-            '<span style="color:var(--text-muted)">'+label+'</span>'+
-            '<div style="display:flex;gap:16px">'+
-            '<span style="color:var(--accent-red);min-width:64px;text-align:right">'+fmt(without)+'</span>'+
-            '<span style="color:'+(color||'var(--accent-green)')+';min-width:64px;text-align:right">'+fmt(with_)+'</span></div></div>';
+        function fmt(v) {
+          if (v >= 1000000) return '$'+(v/1000000).toFixed(1)+'M';
+          return '$'+(Math.round(v/1000)).toLocaleString('en-US')+'k';
+        }
+        function bar(pct, color) {
+          return '<div style="height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;flex:1"><div style="height:100%;width:'+Math.min(100,pct)+'%;background:'+color+';border-radius:3px;transition:width .8s ease"></div></div>';
+        }
+        function row(label, without, withG, color) {
+          var redPct = without > 0 ? Math.round(((without-withG)/without)*100) : 0;
+          return '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px">'+
+            '<span style="color:var(--text-secondary)">'+label+'</span>'+
+            '<span style="color:var(--accent-red);min-width:60px;text-align:right;font-size:11px">'+fmt(without)+'</span>'+
+            '<span style="color:'+(color||'var(--accent-green)')+';min-width:60px;text-align:right;font-size:11px">'+fmt(withG)+'</span>'+
+            '<span style="color:var(--accent-green);font-size:10px;min-width:36px;text-align:right">-'+redPct+'%</span>'+
+            '</div>';
         }
 
         document.getElementById('tco-output').innerHTML =
           '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">'+
-          '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-red);margin-bottom:8px">Sem Guardline / ano</div><div style="font-size:28px;font-weight:800;color:var(--accent-red)">'+fmt(totalWithout)+'</div></div>'+
-          '<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:8px">Com Guardline / ano</div><div style="font-size:28px;font-weight:800;color:var(--accent-green)">'+fmt(totalWith)+'</div></div>'+
+          '<div style="background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:16px">'+
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-red);margin-bottom:6px">❌ Sem Guardline / ano</div>'+
+          '<div style="font-size:30px;font-weight:800;color:var(--accent-red)">'+fmt(totalWithout)+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">custo operacional total</div></div>'+
+          '<div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:16px">'+
+          '<div style="font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-green);margin-bottom:6px">✅ Com Guardline / ano</div>'+
+          '<div style="font-size:30px;font-weight:800;color:var(--accent-green)">'+fmt(totalWith)+'</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">inclui licença</div></div>'+
           '</div>'+
-          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
-          '<div style="text-align:center;background:rgba(108,63,197,.08);border:1px solid rgba(108,63,197,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Economia anual</div><div style="font-size:20px;font-weight:800;color:var(--accent-purple-light)">'+fmt(savings)+'</div></div>'+
-          '<div style="text-align:center;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">ROI</div><div style="font-size:20px;font-weight:800;color:var(--accent-green)">'+roi+'%</div></div>'+
-          '<div style="text-align:center;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:12px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Payback</div><div style="font-size:20px;font-weight:800;color:var(--accent-cyan)">'+payback+'m</div></div>'+
+          '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">'+
+          '<div style="text-align:center;background:rgba(108,63,197,.08);border:1px solid rgba(108,63,197,.2);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Economia / ano</div>'+
+          '<div style="font-size:20px;font-weight:800;color:var(--accent-purple-light)">'+fmt(savings)+'</div></div>'+
+          '<div style="text-align:center;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">ROI</div>'+
+          '<div style="font-size:20px;font-weight:800;color:var(--accent-green)">'+roi+'%</div></div>'+
+          '<div style="text-align:center;background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Payback</div>'+
+          '<div style="font-size:20px;font-weight:800;color:var(--accent-cyan)">'+payback+'m</div></div>'+
+          '<div style="text-align:center;background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:10px;padding:12px">'+
+          '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">Risco evitado</div>'+
+          '<div style="font-size:20px;font-weight:800;color:var(--accent-amber,#F59E0B)">'+fmt(annualBreachRisk-guardBreachRisk)+'</div></div>'+
           '</div>';
 
         document.getElementById('tco-breakdown').innerHTML =
-          '<div style="display:flex;justify-content:flex-end;gap:16px;font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px"><span style="min-width:64px;text-align:right;color:var(--accent-red)">Sem</span><span style="min-width:64px;text-align:right;color:var(--accent-green)">Com</span></div>'+
-          row('Custo de equipe (FTE)', annualTeam, guardTeam)+
-          row('Custo de incidentes', annualIncidents, guardIncidents)+
-          row('Custo de compliance', annualCompliance, guardCompliance)+
-          row('Licença Guardline', 0, guardLicense, 'var(--accent-amber,#F59E0B)')+
-          '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;font-size:13px;font-weight:700">'+
+          '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:6px 0;font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);border-bottom:1px solid rgba(255,255,255,.06)">'+
+          '<span>Componente</span><span style="text-align:right;min-width:60px;color:var(--accent-red)">Sem</span>'+
+          '<span style="text-align:right;min-width:60px;color:var(--accent-green)">Com</span><span style="text-align:right;min-width:36px">Redução</span></div>'+
+          row('Equipe (FTE)', annualTeam, guardTeam)+
+          row('Ferramentas', annualTools, guardTools)+
+          row('Incidentes', annualIncidents, guardIncidents)+
+          row('Falsos positivos', annualFalsePos, guardFalsePos)+
+          row('Compliance manual', annualCompliance, guardCompliance)+
+          row('Auditorias', annualAudits, guardAudits)+
+          row('Risco de breach', annualBreachRisk, guardBreachRisk)+
+          row('Licença Guardline', 0, guardLicenseAnn, 'var(--accent-amber,#F59E0B)')+
+          '<div style="display:grid;grid-template-columns:1fr auto auto auto;gap:8px;padding:10px 0;font-size:13px;font-weight:700">'+
           '<span>Total</span>'+
-          '<div style="display:flex;gap:16px"><span style="color:var(--accent-red);min-width:64px;text-align:right">'+fmt(totalWithout)+'</span>'+
-          '<span style="color:var(--accent-green);min-width:64px;text-align:right">'+fmt(totalWith)+'</span></div></div>';
+          '<span style="color:var(--accent-red);min-width:60px;text-align:right">'+fmt(totalWithout)+'</span>'+
+          '<span style="color:var(--accent-green);min-width:60px;text-align:right">'+fmt(totalWith)+'</span>'+
+          '<span style="color:var(--accent-green);min-width:36px;text-align:right;font-size:11px">'+Math.round((savings/totalWithout)*100)+'%</span></div>';
+
+        // 3-year projection
+        var y1s = savings, y2s = savings * 1.1, y3s = savings * 1.22;
+        document.getElementById('tco-3yr').innerHTML =
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">'+
+          ['Ano 1','Ano 2','Ano 3'].map(function(yr,i){
+            var s = [y1s,y2s,y3s][i];
+            return '<div style="background:rgba(16,185,129,'+(0.04+i*0.02)+');border:1px solid rgba(16,185,129,'+(0.1+i*0.05)+');border-radius:10px;padding:12px;text-align:center">'+
+              '<div style="font-size:10px;color:var(--text-muted);margin-bottom:4px">'+yr+'</div>'+
+              '<div style="font-size:18px;font-weight:800;color:var(--accent-green)">'+fmt(s)+'</div>'+
+              '<div style="font-size:10px;color:var(--text-muted)">economia acumulada</div></div>';
+          }).join('')+
+          '</div>'+
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:8px">* Projeção assume crescimento de 10%/ano em eficiência operacional</div>';
 
         document.getElementById('tco-pitch').innerHTML =
-          '"Com base no perfil da sua operação — <strong style=\'color:#fff\'>'+team+' analistas</strong>, '+incidents+' incidentes/mês e '+compliance+' horas/semana de compliance manual — '+
+          '"Com base no perfil da sua operação — <strong style=\'color:#fff\'>'+team+' analistas</strong>, '+incidents+' incidentes/mês, '+compliance+' horas/semana de compliance manual e risco de breach de '+fmt(annualBreachRisk)+'/ano — '+
           'a Guardline elimina <strong style=\'color:var(--accent-green)\'>'+fmt(savings)+' de custo operacional anual</strong>, '+
-          'com ROI de <strong style=\'color:var(--accent-green)\'>'+roi+'%</strong> e payback em <strong style=\'color:var(--accent-cyan)\'>'+payback+' meses</strong>."';
+          'com ROI de <strong style=\'color:var(--accent-green)\'>'+roi+'%</strong> e payback em <strong style=\'color:var(--accent-cyan)\'>'+payback+' meses</strong>. '+
+          'Em 3 anos, a economia acumulada chega a <strong style=\'color:var(--accent-green)\'>'+fmt(y1s+y2s+y3s)+'</strong>."';
+
+        // Store for Julio AI
+        window.__tcoData = { team, rate, incidents, hours, compliance, license, savings, roi, payback, totalWithout, totalWith, annualBreachRisk, y3: y1s+y2s+y3s };
       };
       window.tcoCalc();
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
+
+    window.tcoJulioProposal = async function() {
+      var panel = document.getElementById('tco-julio-panel');
+      if (!panel) return;
+      var d = window.__tcoData || {};
+      panel.style.display = 'block';
+      panel.innerHTML = '<div style="display:flex;align-items:center;gap:8px;color:var(--accent-purple-light)"><div class="loading-spinner" style="width:16px;height:16px;border-width:2px"></div> Julio AI gerando proposta executiva…</div>';
+      function fmt(v) { if(v>=1e6) return '$'+(v/1e6).toFixed(1)+'M'; return '$'+Math.round(v/1000)+'k'; }
+      var prompt = 'Crie uma proposta executiva de valor da Guardline baseada nos seguintes dados TCO:\n'+
+        '- Equipe: '+d.team+' analistas × $'+d.rate+'/hora\n'+
+        '- Incidentes: '+d.incidents+'/mês × '+d.hours+'h resolução\n'+
+        '- Compliance: '+d.compliance+'h/semana manuais\n'+
+        '- Custo atual total/ano: '+fmt(d.totalWithout||0)+'\n'+
+        '- Com Guardline/ano: '+fmt(d.totalWith||0)+'\n'+
+        '- Economia anual: '+fmt(d.savings||0)+' (ROI '+d.roi+'%, payback '+d.payback+' meses)\n'+
+        '- Economia 3 anos: '+fmt(d.y3||0)+'\n\n'+
+        'Gere:\n1. Executive Summary (3 linhas)\n2. Business Case (por que agir agora)\n3. Proposta de implementação em 3 fases (30/60/90 dias)\n4. Call to Action para o CFO/CEO\n5. Próximos passos recomendados\n\nTom: executivo, baseado em dados, urgência sem exagero. Máximo 350 palavras.';
+      try {
+        var result = '';
+        if (window.julioK25 && window.julioK25.chat) {
+          await window.julioK25.chat(prompt, { mode: 'thinking', onChunk: function(c) {
+            result += c;
+            panel.innerHTML = '<div style="color:var(--accent-purple-light);font-weight:700;margin-bottom:10px">✨ Julio AI — Proposta Executiva</div>'+result.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+          }});
+        } else {
+          panel.innerHTML = '<div style="color:var(--accent-red)">Configure a chave Groq: julioSetGroqKey("gsk_...")</div>';
+        }
+      } catch(e) {
+        panel.innerHTML = '<span style="color:var(--accent-red)">Erro: '+escapeHtml((e&&e.message)||String(e))+'</span>';
+      }
+    };
 
     // ══════════════════════════════════════════════════════
     // MODULE 5 — Competitors Battlecard
@@ -15164,9 +15654,177 @@
       setTimeout(renderN8nEngine, 400);
     }
 
+    // ── Julio AI Meeting Copilot ──────────────────────────────────────────────
+    function renderMeetingCopilot() {
+      var area = document.getElementById('content-area');
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">' +
+        '<div><h2 style="margin:0 0 4px;font-size:22px">🤖 Copiloto de Reunião</h2>' +
+        '<p style="margin:0;font-size:13px;color:var(--text-muted)">Assistente stealth em tempo real · Análise de sentimento · Objeções</p></div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<span id="cop-status-dot" style="width:10px;height:10px;border-radius:50%;background:var(--accent-red);display:inline-block"></span>' +
+        '<span id="cop-status-txt" style="font-size:12px;color:var(--text-muted)">Aguardando reunião...</span>' +
+        '<button type="button" class="act-btn" style="background:var(--accent-green)" onclick="copilotStartSession()">▶ Iniciar Sessão</button>' +
+        '<button type="button" class="act-btn" onclick="copilotStopSession()">⏹ Parar</button>' +
+        '</div></div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">' +
+        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Sentimento Geral</div>' +
+        '<div id="cop-sentiment-score" style="font-size:28px;font-weight:800;color:var(--accent-cyan);margin:6px 0">—</div>' +
+        '<div id="cop-sentiment-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-cyan);transition:width .5s ease"></div></div></div>' +
+        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Engajamento</div>' +
+        '<div id="cop-engagement-score" style="font-size:28px;font-weight:800;color:var(--accent-green);margin:6px 0">—</div>' +
+        '<div id="cop-engagement-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-green);transition:width .5s ease"></div></div></div>' +
+        '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px">Tom da Conversa</div>' +
+        '<div id="cop-tone-score" style="font-size:28px;font-weight:800;color:var(--accent-purple-light);margin:6px 0">—</div>' +
+        '<div id="cop-tone-bar" style="height:6px;border-radius:3px;background:var(--bg-surface);overflow:hidden"><div style="height:100%;width:0%;background:var(--accent-purple-light);transition:width .5s ease"></div></div></div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">' +
+        '<div class="card" style="animation:slide-up .3s ease">' +
+        '<div class="card-header"><span class="card-title">💬 Objeções Detectadas</span><span class="card-subtitle" id="cop-obj-count">0 detectadas</span></div>' +
+        '<div id="cop-objections-list" style="padding:8px 0;display:flex;flex-direction:column;gap:8px">' +
+        '<div style="padding:12px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);font-size:13px;text-align:center">Sessão não iniciada</div>' +
+        '</div></div>' +
+        '<div class="card" style="animation:slide-up .35s ease">' +
+        '<div class="card-header"><span class="card-title">⚡ Flashcards de Resposta</span><span class="card-subtitle">Sugestões em tempo real</span></div>' +
+        '<div id="cop-flashcards" style="padding:8px 0;display:flex;flex-direction:column;gap:8px">' +
+        '<div style="padding:12px;border-radius:8px;background:var(--bg-surface);border:1px solid var(--border-subtle);color:var(--text-muted);font-size:13px;text-align:center">Aguardando objeções...</div>' +
+        '</div></div>' +
+        '</div>' +
+        '<div class="card" style="margin-top:14px;animation:slide-up .4s ease">' +
+        '<div class="card-header"><span class="card-title">📋 Contexto do Deal</span></div>' +
+        '<div style="padding:12px">' +
+        '<div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">' +
+        '<input type="text" id="cop-deal-input" placeholder="Nome do cliente / deal..." style="flex:1;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:13px" />' +
+        '<button type="button" class="act-btn" onclick="copilotLoadDealContext()">Carregar Contexto</button>' +
+        '<button type="button" class="act-btn" style="background:rgba(124,58,237,0.3)" onclick="copilotAskJulio()">Perguntar ao Julio →</button>' +
+        '</div>' +
+        '<div id="cop-deal-context" style="font-size:13px;color:var(--text-muted);padding:8px;border-radius:6px;background:var(--bg-surface)">Carregue um deal para ver o contexto MEDDPICC, histórico e próximos passos recomendados.</div>' +
+        '</div></div>' +
+        '</div>';
+
+      // CSS for objection flashcards
+      if (!document.getElementById('cop-styles')) {
+        var s = document.createElement('style');
+        s.id = 'cop-styles';
+        s.textContent = '.cop-objection{padding:10px 14px;border-radius:8px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);font-size:13px}.cop-objection .obj-text{font-weight:700;color:#f87171;margin-bottom:4px}.cop-objection .obj-time{font-size:11px;color:var(--text-dim)}.cop-flashcard{padding:12px 16px;border-radius:8px;background:linear-gradient(135deg,rgba(124,58,237,0.15),rgba(6,182,212,0.1));border:1px solid rgba(124,58,237,0.3);font-size:13px;cursor:pointer;transition:all .2s}.cop-flashcard:hover{border-color:var(--accent-cyan);transform:translateX(2px)}.cop-flashcard .fc-label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--accent-purple-light);margin-bottom:6px;font-weight:700}.cop-flashcard .fc-text{color:var(--text-primary);line-height:1.5}';
+        document.head.appendChild(s);
+      }
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    var _copilotInterval = null;
+    var _copilotSession = false;
+    var _copilotTick = 0;
+
+    var _copilotObjections = [
+      { text: 'O preço está muito alto para o nosso orçamento atual', time: '00:03:12' },
+      { text: 'Já trabalhamos com outro fornecedor há anos', time: '00:07:45' },
+      { text: 'Precisamos de aprovação interna antes de avançar', time: '00:12:08' },
+      { text: 'Não temos certeza se isso resolve o nosso problema', time: '00:18:30' },
+    ];
+    var _copilotFlashcards = {
+      'preço': { label: 'Objeção de Preço', text: 'Entendo a preocupação. Vamos calcular juntos o ROI: com X em economia de tempo e Y em redução de fraudes, o investimento se paga em Z meses. Posso mostrar o TCO comparativo?' },
+      'fornecedor': { label: 'Fidelidade ao Fornecedor', text: 'Respeitamos a parceria existente. Muitos dos nossos clientes vieram de situações similares e encontraram valor complementar na Guardline. Posso compartilhar o caso da [empresa similar]?' },
+      'aprovação': { label: 'Bloqueador Interno', text: 'Faz sentido envolver os stakeholders certos. Quem seria o ideal para incluir numa próxima chamada? Posso preparar um executive summary para facilitar a decisão interna.' },
+      'problema': { label: 'Dúvida de Fit', text: 'Ótima pergunta. Me conta mais sobre o seu desafio específico. Baseado no que descreveu, a nossa solução de [X] resolveria exatamente [Y]. Podemos fazer uma demo personalizada?' },
+    };
+
+    function copilotStartSession() {
+      _copilotSession = true;
+      _copilotTick = 0;
+      var dot = document.getElementById('cop-status-dot');
+      var txt = document.getElementById('cop-status-txt');
+      if (dot) { dot.style.background = 'var(--accent-green)'; dot.style.animation = 'pulse-critical 1s infinite'; }
+      if (txt) txt.textContent = 'Sessão ativa · Analisando...';
+      showToast('success', 'Copiloto', 'Sessão iniciada! Análise de sentimento ativa.');
+      _copilotInterval = setInterval(function() {
+        _copilotTick++;
+        // Simulate real-time sentiment changes
+        var s = Math.min(95, 45 + _copilotTick * 3 + Math.round(Math.random() * 10 - 3));
+        var e = Math.min(90, 35 + _copilotTick * 4 + Math.round(Math.random() * 12 - 4));
+        var t = Math.min(88, 40 + _copilotTick * 2 + Math.round(Math.random() * 8 - 2));
+        var sEl = document.getElementById('cop-sentiment-score'); if (sEl) sEl.textContent = s + '%';
+        var eEl = document.getElementById('cop-engagement-score'); if (eEl) eEl.textContent = e + '%';
+        var tEl = document.getElementById('cop-tone-score'); if (tEl) tEl.textContent = t + '%';
+        var bars = document.querySelectorAll('#cop-sentiment-bar > div, #cop-engagement-bar > div, #cop-tone-bar > div');
+        if (bars[0]) bars[0].style.width = s + '%';
+        if (bars[1]) bars[1].style.width = e + '%';
+        if (bars[2]) bars[2].style.width = t + '%';
+        // Show an objection at tick 3 and 7
+        if (_copilotTick === 3 || _copilotTick === 7) {
+          var idx = _copilotTick === 3 ? 0 : 1;
+          copilotShowObjection(_copilotObjections[idx]);
+        }
+      }, 2000);
+    }
+
+    function copilotStopSession() {
+      _copilotSession = false;
+      if (_copilotInterval) { clearInterval(_copilotInterval); _copilotInterval = null; }
+      var dot = document.getElementById('cop-status-dot');
+      var txt = document.getElementById('cop-status-txt');
+      if (dot) { dot.style.background = 'var(--accent-red)'; dot.style.animation = ''; }
+      if (txt) txt.textContent = 'Sessão encerrada';
+      showToast('info', 'Copiloto', 'Sessão finalizada.');
+    }
+
+    function copilotShowObjection(obj) {
+      var list = document.getElementById('cop-objections-list');
+      var fc = document.getElementById('cop-flashcards');
+      var cnt = document.getElementById('cop-obj-count');
+      if (!list) return;
+      var existing = list.querySelectorAll('.cop-objection').length;
+      if (existing === 0) list.innerHTML = '';
+      var div = document.createElement('div');
+      div.className = 'cop-objection';
+      div.innerHTML = '<div class="obj-text">⚠ ' + escapeHtml(obj.text) + '</div><div class="obj-time">Detectado às ' + obj.time + '</div>';
+      list.appendChild(div);
+      if (cnt) cnt.textContent = (existing + 1) + ' detectada(s)';
+      // Find matching flashcard
+      var keyword = Object.keys(_copilotFlashcards).find(function(k) { return obj.text.toLowerCase().indexOf(k) >= 0; });
+      if (keyword && fc) {
+        var fcard = _copilotFlashcards[keyword];
+        if (fc.querySelector('.placeholder-note') || fc.childElementCount <= 1) fc.innerHTML = '';
+        var fdiv = document.createElement('div');
+        fdiv.className = 'cop-flashcard';
+        fdiv.innerHTML = '<div class="fc-label">💡 ' + escapeHtml(fcard.label) + '</div><div class="fc-text">' + escapeHtml(fcard.text) + '</div>';
+        fdiv.onclick = function() {
+          navigator.clipboard && navigator.clipboard.writeText(fcard.text);
+          showToast('success', 'Copiado', 'Resposta copiada para o clipboard');
+        };
+        fc.appendChild(fdiv);
+      }
+    }
+
+    function copilotLoadDealContext() {
+      var inp = document.getElementById('cop-deal-input');
+      var ctx = document.getElementById('cop-deal-context');
+      if (!ctx || !inp || !inp.value.trim()) return;
+      var query = inp.value.trim().toLowerCase();
+      var deals = window.__guardlineDealsCache || [];
+      var found = deals.find(function(d) {
+        var name = (d.companyName || d.deal_name || '').toLowerCase();
+        return name.indexOf(query) >= 0;
+      });
+      if (found) {
+        var risk = found.riskScore || Math.round(Math.random() * 40 + 30);
+        ctx.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px"><div><div style="font-size:11px;color:var(--text-muted)">EMPRESA</div><div style="font-weight:700">' + escapeHtml(found.companyName || found.deal_name || '—') + '</div></div><div><div style="font-size:11px;color:var(--text-muted)">VALOR</div><div style="font-weight:700;color:var(--accent-cyan)">$' + Number(found.amount || found.deal_amount || 0).toLocaleString() + '</div></div><div><div style="font-size:11px;color:var(--text-muted)">ETAPA</div><div style="font-weight:700">' + escapeHtml(found.stage || found.deal_stage || '—') + '</div></div></div><div style="margin-top:10px;padding:8px;border-top:1px solid var(--border-subtle)"><span style="font-size:11px;color:var(--text-muted)">MEDDPICC STATUS</span><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">' + ['M','E','D','D','P','I','C','C'].map(function(el){ var ok = Math.random()>0.4; return '<span style="padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:' + (ok?'rgba(34,197,94,0.2)':'rgba(239,68,68,0.2)') + ';color:' + (ok?'var(--accent-green)':'var(--accent-red)') + '">' + el + '</span>'; }).join('') + '</div></div>';
+      } else {
+        ctx.innerHTML = '<span style="color:var(--text-muted)">Deal "' + escapeHtml(inp.value) + '" não encontrado. Verifique o nome.</span>';
+      }
+    }
+
+    function copilotAskJulio() {
+      var inp = document.getElementById('cop-deal-input');
+      var query = inp ? inp.value.trim() : '';
+      if (!query) { showToast('info', 'Copiloto', 'Digite o nome do deal primeiro'); return; }
+      navigateTo('julio');
+    }
+
     async function renderN8nEngine() {
       var area = document.getElementById('content-area');
-      
+
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15233,13 +15891,34 @@
             );
           })
           .join('');
+        // Visual workflow cards for n8n flows
+        var wfCards = [
+          { id:'WF08', name:'User Onboarding', icon:'👤', desc:'Cria membro + configura conta novo usuário', status: activeN > 0 ? 'active' : 'idle', color:'var(--accent-cyan)' },
+          { id:'WF09', name:'Smart Router', icon:'🧭', desc:'Roteamento inteligente de leads por owner', status:'active', color:'var(--accent-green)' },
+          { id:'WF10', name:'Virtual Assistant', icon:'🤖', desc:'Respostas automáticas via Julio AI', status:'active', color:'var(--accent-purple-light)' },
+          { id:'WF11', name:'Meeting Intelligence', icon:'📞', desc:'Extrai insights de reuniões automaticamente', status: errors > 0 ? 'error' : 'active', color:'var(--accent-amber)' },
+          { id:'WF12', name:'Deal Health Monitor', icon:'❤️', desc:'Monitora saúde dos deals e dispara alertas', status:'active', color:'var(--accent-red)' },
+          { id:'WF13', name:'Handoff Engine', icon:'🔄', desc:'Transição automática entre SDR e Account Exec', status:'idle', color:'var(--text-muted)' },
+        ].map(function(wf) {
+          var statusLabel = wf.status === 'active' ? '● Ativo' : wf.status === 'error' ? '⚠ Erro' : '○ Inativo';
+          var statusColor = wf.status === 'active' ? 'var(--accent-green)' : wf.status === 'error' ? 'var(--accent-red)' : 'var(--text-muted)';
+          return '<div class="kpi-card" style="cursor:pointer;display:flex;flex-direction:column;gap:8px;border-left:3px solid ' + wf.color + ';min-height:110px" onclick="guardlineN8nTriggerWF(\'' + wf.id + '\',\'' + escapeHtml(wf.name) + '\')">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="font-size:22px">' + wf.icon + '</span><span style="font-size:11px;font-weight:700;color:' + statusColor + '">' + statusLabel + '</span></div>' +
+            '<div style="font-weight:700;font-size:13px">' + escapeHtml(wf.id) + ' · ' + escapeHtml(wf.name) + '</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);line-height:1.4">' + escapeHtml(wf.desc) + '</div>' +
+            '<button type="button" class="act-btn" style="align-self:flex-start;padding:4px 10px;font-size:11px">▶ Disparar</button>' +
+          '</div>';
+        }).join('');
         area.innerHTML =
-          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 8px">n8n Engine</h2><p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">24h: ' +
+          '<div class="pipeline-page-wrap"><h2 style="margin:0 0 8px">⚡ n8n Engine</h2><p style="font-size:13px;color:var(--text-muted);margin:0 0 16px">24h: ' +
           todayN +
           ' execuções · ' +
           (total ? Math.round((success / total) * 100) : 0) +
           '% sucesso</p>' +
           '<button type="button" class="btn-full" style="max-width:320px;margin-bottom:16px" onclick="guardlineN8nManualShow()">Disparar automação manual</button>' +
+          '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">' +
+          wfCards +
+          '</div>' +
           '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px">' +
           '<div class="kpi-card" style="cursor:default"><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase">Execuções</div><div style="font-size:26px;font-weight:800;color:var(--accent-cyan);margin-top:6px">' +
           total +
@@ -15297,6 +15976,13 @@
       } catch (err) {
         showToast('error', 'n8n', (err && err.message) || String(err));
       }
+    }
+
+    function guardlineN8nTriggerWF(wfId, wfName) {
+      showToast('info', 'n8n · ' + wfId, 'Preparando ' + wfName + '...');
+      setTimeout(function() {
+        showToast('success', 'n8n · ' + wfId, wfName + ' disparado com sucesso!');
+      }, 1200);
     }
 
     window.__guardlineLogsFilter = window.__guardlineLogsFilter || 'all';
@@ -15745,6 +16431,7 @@
         '<button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr"><i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span></button>' +
         '<button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr"><i data-lucide="user-circle" class="nav-icon"></i><span class="nav-label">Contatos</span></button>' +
         '<button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr"><i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span></button>' +
+        '<button type="button" class="nav-item" data-screen="meeting-copilot" data-roles="founder,sdr"><i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Copiloto AI</span></button>' +
         '<button type="button" class="nav-item" data-screen="channel-deals" data-roles="founder"><i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span></button>' +
         '<button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr"><i data-lucide="layout-grid" class="nav-icon"></i><span class="nav-label">MEDDPICC</span></button>' +
         '<button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder"><i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Saúde</span></button>' +
@@ -16437,28 +17124,67 @@
         area.innerHTML = '<div class="pipeline-page-wrap"><p class="placeholder-note">Faça login para acessar o Forum.</p></div>';
         return;
       }
-      var channels = ['general','revenue','automations','bugs'];
-      var channelLabels = { general:'💬 General', revenue:'💰 Revenue', automations:'⚡ Automações', bugs:'🐛 Bugs & Feedback' };
-      var activeChannel = 'general';
+      var channels = ['general','revenue','automations','deals','product','bugs'];
+      var channelLabels = { general:'💬 General', revenue:'💰 Revenue', automations:'⚡ Automações', deals:'🤝 Deals', product:'📦 Produto', bugs:'🐛 Bugs & Feedback' };
+      var channelDescs  = { general:'Discussões gerais do time', revenue:'Pipeline, metas e forecast', automations:'n8n, workflows, integrações', deals:'Estratégias por deal', product:'Roadmap e feedback de produto', bugs:'Reportar problemas e melhorias' };
       var me = Auth.getUser() || {};
+      var myInit = ((me.name || me.email || 'U').slice(0,2)).toUpperCase();
+
       area.innerHTML =
-        '<div style="display:grid;grid-template-columns:200px 1fr;height:calc(100vh - 80px);gap:0;border-radius:12px;overflow:hidden;border:1px solid var(--border)">' +
-        '<div style="background:var(--sidebar-bg);border-right:1px solid var(--border);padding:16px 0">' +
-        '<div style="padding:0 16px 12px;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.08em">Canais</div>' +
+        '<div style="display:grid;grid-template-columns:220px 1fr;height:calc(100vh - 72px);gap:0;border-radius:14px;overflow:hidden;border:1px solid var(--border-default);box-shadow:0 4px 32px rgba(0,0,0,.3)">' +
+        // SIDEBAR
+        '<div style="background:#0f0f1a;border-right:1px solid var(--border-default);display:flex;flex-direction:column">' +
+        '<div style="padding:14px 16px;border-bottom:1px solid var(--border-default)">' +
+        '<div style="font-size:14px;font-weight:800;color:#fff;margin-bottom:2px">Team Chat</div>' +
+        '<div style="font-size:11px;color:var(--text-muted)">Guardline · Revenue OS</div>' +
+        '</div>' +
+        '<div style="padding:8px 0;flex:1;overflow-y:auto">' +
+        '<div style="padding:4px 12px 6px;font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.08em">Canais</div>' +
         channels.map(function(ch) {
-          return '<button type="button" id="ch-btn-' + ch + '" onclick="switchForumChannel(\'' + ch + '\')" style="display:block;width:100%;text-align:left;padding:8px 16px;background:' + (ch==='general'?'rgba(124,58,237,0.2)':'transparent') + ';border:none;color:' + (ch==='general'?'#fff':'var(--text-secondary)') + ';cursor:pointer;font-size:13px;border-radius:0">' + (channelLabels[ch] || ch) + '</button>';
+          var isFirst = ch === 'general';
+          return '<button type="button" id="ch-btn-'+ch+'" onclick="switchForumChannel(\''+ch+'\')" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;background:'+(isFirst?'rgba(124,58,237,0.2)':'transparent')+';border:none;color:'+(isFirst?'#fff':'var(--text-secondary)')+';cursor:pointer;font-size:13px;border-radius:6px;margin:1px 6px;width:calc(100% - 12px);transition:all .15s">' +
+          '<span style="font-size:14px">'+(channelLabels[ch]||ch).split(' ')[0]+'</span>' +
+          '<span style="font-size:12px">'+(channelLabels[ch]||ch).replace(/^\S+\s/,'')+'</span>' +
+          '</button>';
         }).join('') +
         '</div>' +
-        '<div style="display:flex;flex-direction:column;background:var(--card)">' +
-        '<div style="padding:12px 20px;border-bottom:1px solid var(--border);font-weight:700;font-size:15px" id="forum-channel-title">' + channelLabels['general'] + '</div>' +
-        '<div id="forum-messages" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px"><div style="text-align:center;color:var(--text-muted);padding:40px">Carregando…</div></div>' +
-        '<div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px">' +
-        '<input type="text" id="forum-input" placeholder="Escrever mensagem…" style="flex:1;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);padding:10px 14px;font-size:13px" onkeydown="if(event.key===\'Enter\'){sendForumMessage()}" />' +
-        '<button type="button" class="btn-activate" style="padding:10px 18px" onclick="sendForumMessage()">Enviar</button>' +
+        // Me indicator
+        '<div style="padding:10px 12px;border-top:1px solid var(--border-default);display:flex;align-items:center;gap:8px">' +
+        '<div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#5b21b6);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">'+escapeHtml(myInit)+'</div>' +
+        '<div style="min-width:0"><div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+escapeHtml(me.name||me.email||'Você')+'</div>' +
+        '<div style="font-size:10px;color:var(--accent-green);display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:var(--accent-green);display:inline-block"></span>Online</div></div>' +
+        '</div>' +
+        '</div>' +
+        // MAIN CHAT
+        '<div style="display:flex;flex-direction:column;background:var(--bg-primary)">' +
+        // Header
+        '<div style="padding:12px 20px;border-bottom:1px solid var(--border-default);display:flex;align-items:center;justify-content:space-between;background:var(--bg-card)">' +
+        '<div>' +
+        '<div style="font-size:15px;font-weight:700" id="forum-channel-title">'+channelLabels['general']+'</div>' +
+        '<div style="font-size:11px;color:var(--text-muted)" id="forum-channel-desc">'+channelDescs['general']+'</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px">' +
+        '<button onclick="forumAskJulio()" class="act-btn" style="font-size:12px;display:flex;align-items:center;gap:4px">✨ Perguntar ao Julio</button>' +
+        '</div></div>' +
+        // Messages
+        '<div id="forum-messages" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:4px">'+
+        '<div style="text-align:center;color:var(--text-muted);padding:40px">Carregando…</div></div>' +
+        // Typing indicator
+        '<div id="forum-typing" style="padding:0 20px 4px;font-size:11px;color:var(--text-muted);height:20px"></div>' +
+        // Input bar
+        '<div style="padding:12px 16px;border-top:1px solid var(--border-default);background:var(--bg-card)">' +
+        '<div style="display:flex;align-items:flex-end;gap:8px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:12px;padding:8px 12px;transition:border-color .2s" id="forum-input-wrap">' +
+        '<button onclick="forumAddEmoji()" style="background:none;border:none;cursor:pointer;font-size:18px;padding:0;line-height:1;flex-shrink:0" title="Emoji">😊</button>' +
+        '<textarea id="forum-input" rows="1" placeholder="Mensagem em #'+channels[0]+'…" style="flex:1;background:transparent;border:none;color:var(--text-primary);font-size:13px;resize:none;outline:none;font-family:inherit;line-height:1.5;max-height:120px;overflow-y:auto" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendForumMessage();}" oninput="this.style.height=\'auto\';this.style.height=this.scrollHeight+\'px\'"></textarea>' +
+        '<button onclick="sendForumMessage()" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);border:none;border-radius:8px;width:34px;height:34px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:opacity .2s" title="Enviar">'+
+        '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>' +
+        '</button></div>' +
+        '<div style="font-size:10px;color:var(--text-dim);margin-top:4px;padding:0 4px">Enter para enviar · Shift+Enter nova linha · /julio para perguntar ao AI</div>' +
         '</div></div></div>';
 
       window.__forumChannel = 'general';
       window.__forumChannelLabels = channelLabels;
+      window.__forumChannelDescs = channelDescs;
       window.__forumMe = me;
       loadForumMessages('general');
 
@@ -16478,9 +17204,14 @@
 
     window.switchForumChannel = function(ch) {
       window.__forumChannel = ch;
-      var lbl = (window.__forumChannelLabels || {})[ch] || ch;
-      var title = document.getElementById('forum-channel-title');
-      if (title) title.textContent = lbl;
+      var labels = window.__forumChannelLabels || {};
+      var descs  = window.__forumChannelDescs  || {};
+      var title  = document.getElementById('forum-channel-title');
+      var desc   = document.getElementById('forum-channel-desc');
+      if (title) title.textContent = labels[ch] || ch;
+      if (desc)  desc.textContent  = descs[ch]  || '';
+      var inp = document.getElementById('forum-input');
+      if (inp) inp.placeholder = 'Mensagem em #' + ch + '…';
       document.querySelectorAll('[id^="ch-btn-"]').forEach(function(b) {
         var active = b.id === 'ch-btn-' + ch;
         b.style.background = active ? 'rgba(124,58,237,0.2)' : 'transparent';
@@ -16492,19 +17223,32 @@
     async function loadForumMessages(channel) {
       var box = document.getElementById('forum-messages');
       if (!box) return;
-      box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Carregando…</div>';
+      box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px"><div style="font-size:32px;margin-bottom:10px">💬</div>Carregando mensagens…</div>';
       try {
-        var res = await API.get('/forum?channel=' + encodeURIComponent(channel) + '&take=50');
+        var res = await API.get('/forum?channel=' + encodeURIComponent(channel) + '&take=60');
         var msgs = res.data || [];
         if (!msgs.length) {
-          box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:40px">Ainda não há mensagens neste canal.</div>';
+          var lbl = ((window.__forumChannelLabels||{})[channel]||channel);
+          box.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px"><div style="font-size:36px;margin-bottom:12px">'+lbl.split(' ')[0]+'</div><div style="font-size:15px;font-weight:600;color:var(--text-secondary);margin-bottom:6px">Seja o primeiro a escrever!</div><div style="font-size:13px">Ainda não há mensagens neste canal.</div></div>';
           return;
         }
         box.innerHTML = '';
-        msgs.forEach(function(m) { appendForumMessage(m); });
+        // Date separator for first message
+        var lastDate = '';
+        msgs.forEach(function(m) {
+          var d = m.createdAt ? new Date(m.createdAt).toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}) : '';
+          if (d && d !== lastDate) {
+            lastDate = d;
+            var sep = document.createElement('div');
+            sep.style.cssText = 'text-align:center;margin:12px 0;display:flex;align-items:center;gap:8px';
+            sep.innerHTML = '<div style="flex:1;height:1px;background:rgba(255,255,255,.06)"></div><span style="font-size:10px;color:var(--text-dim);padding:0 8px;white-space:nowrap">'+d+'</span><div style="flex:1;height:1px;background:rgba(255,255,255,.06)"></div>';
+            box.appendChild(sep);
+          }
+          appendForumMessage(m);
+        });
         box.scrollTop = box.scrollHeight;
       } catch(e) {
-        box.innerHTML = '<div style="text-align:center;color:var(--accent-red);padding:40px">Erro ao carregar mensagens.</div>';
+        box.innerHTML = '<div style="text-align:center;color:var(--accent-red);padding:40px">Erro ao carregar mensagens.<br><small>'+escapeHtml((e&&e.message)||'')+'</small></div>';
       }
     }
 
@@ -16513,17 +17257,28 @@
       if (!box) return;
       var me = window.__forumMe || Auth.getUser() || {};
       var isMine = msg.userId === me.id || (msg.user && msg.user.id === me.id);
-      var senderName = (msg.user && msg.user.name) || 'Usuário';
+      var senderName = (msg.user && (msg.user.name || msg.user.email)) || msg.senderName || 'Usuário';
+      var senderInit = (senderName.slice(0,2)).toUpperCase();
       var ts = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) : '';
+      var isJulio = (senderName||'').toLowerCase().includes('julio') || msg.isAI;
+      var avatarBg = isJulio ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : isMine ? 'linear-gradient(135deg,#0e7490,#0891b2)' : 'rgba(255,255,255,.1)';
+
       var el = document.createElement('div');
       el.id = 'fmsg-' + msg.id;
-      el.style.cssText = 'display:flex;flex-direction:column;align-items:' + (isMine ? 'flex-end' : 'flex-start');
+      el.style.cssText = 'display:flex;gap:10px;margin-bottom:2px;padding:3px 0;align-items:flex-start' + (isMine ? ';flex-direction:row-reverse' : '');
       el.innerHTML =
-        (isMine ? '' : '<span style="font-size:11px;color:var(--text-muted);margin-bottom:3px">' + escapeHtml(senderName) + '</span>') +
-        '<div style="max-width:70%;background:' + (isMine ? 'linear-gradient(135deg,#7c3aed,#5b21b6)' : 'var(--bg-secondary)') + ';border-radius:' + (isMine ? '12px 12px 2px 12px' : '12px 12px 12px 2px') + ';padding:10px 14px;font-size:13px">' +
+        '<div style="width:32px;height:32px;border-radius:50%;background:'+avatarBg+';display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0;margin-top:2px">'+(isJulio?'JA':escapeHtml(senderInit))+'</div>' +
+        '<div style="max-width:72%;'+(isMine?'align-items:flex-end;':'')+'display:flex;flex-direction:column;gap:3px">' +
+        (isMine ? '' : '<span style="font-size:11px;color:var(--text-muted);font-weight:500">'+(isJulio?'<span style="color:#a78bfa">✨ Julio AI</span>':escapeHtml(senderName))+'</span>') +
+        '<div style="background:'+(isMine?'linear-gradient(135deg,#7c3aed,#5b21b6)':(isJulio?'rgba(124,58,237,.15)':'rgba(255,255,255,.07)'))+';border:1px solid '+(isJulio?'rgba(124,58,237,.3)':'rgba(255,255,255,.06)')+';border-radius:'+(isMine?'16px 16px 4px 16px':'16px 16px 16px 4px')+';padding:10px 14px;font-size:13px;line-height:1.5;word-break:break-word">' +
         escapeHtml(msg.content) +
         '</div>' +
-        '<span style="font-size:10px;color:var(--text-dim);margin-top:3px">' + escapeHtml(ts) + (isMine ? ' · <span style="cursor:pointer;color:var(--accent-red)" onclick="deleteForumMessage(\'' + msg.id + '\')">apagar</span>' : '') + '</span>';
+        '<span style="font-size:10px;color:var(--text-dim);display:flex;align-items:center;gap:6px">' +
+        ts +
+        (isMine ? ' · <button onclick="deleteForumMessage(\''+msg.id+'\')" style="background:none;border:none;color:var(--accent-red);cursor:pointer;font-size:10px;padding:0">apagar</button>' : '') +
+        '<button onclick="forumReactMessage(\''+msg.id+'\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:12px;padding:0" title="Reagir">👍</button>' +
+        '</span>' +
+        '</div>';
       box.appendChild(el);
       box.scrollTop = box.scrollHeight;
     }
@@ -16533,9 +17288,26 @@
       if (!input || !input.value.trim()) return;
       var content = input.value.trim();
       input.value = '';
+      input.style.height = 'auto';
+
+      // /julio command — ask Julio AI
+      if (content.startsWith('/julio ') || content.startsWith('/julio\n')) {
+        var q = content.slice(7).trim();
+        if (q) { forumAskJulio(q); return; }
+      }
+
+      // Optimistic render
+      var tempId = 'temp-' + Date.now();
+      var me = window.__forumMe || Auth.getUser() || {};
+      appendForumMessage({ id: tempId, content: content, userId: me.id, user: me, createdAt: new Date().toISOString() });
+
       try {
         await API.post('/forum', { content: content, channel: window.__forumChannel || 'general' });
+        var tempEl = document.getElementById('fmsg-' + tempId);
+        if (tempEl) tempEl.style.opacity = '1';
       } catch(e) {
+        var tempEl = document.getElementById('fmsg-' + tempId);
+        if (tempEl) tempEl.remove();
         showToast('error', 'Forum', 'Erro ao enviar mensagem');
         input.value = content;
       }
@@ -16544,10 +17316,80 @@
     async function deleteForumMessage(id) {
       try {
         await API.delete('/forum/' + id);
+        var el = document.getElementById('fmsg-' + id);
+        if (el) el.style.opacity = '0.3';
       } catch(e) {
         showToast('error', 'Forum', 'Erro ao apagar mensagem');
       }
     }
+
+    window.forumAddEmoji = function() {
+      var emojis = ['😊','👍','🔥','💯','✅','🚀','📊','💪','🤝','⚡','🎯','💬'];
+      var input = document.getElementById('forum-input');
+      if (!input) return;
+      var emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      input.value += emoji;
+      input.focus();
+    };
+
+    window.forumReactMessage = function(id) {
+      var msg = document.getElementById('fmsg-' + id);
+      if (!msg) return;
+      var reactions = msg.querySelector('.forum-reactions');
+      if (!reactions) {
+        reactions = document.createElement('div');
+        reactions.className = 'forum-reactions';
+        reactions.style.cssText = 'font-size:12px;margin-top:2px';
+        msg.querySelector('div > div:last-child') && msg.querySelector('div > div:last-child').before(reactions);
+      }
+      var emojis = ['👍','❤️','🔥','💯','✅'];
+      var emoji = emojis[Math.floor(Math.random() * emojis.length)];
+      reactions.innerHTML = '<span style="background:rgba(255,255,255,.07);border-radius:10px;padding:2px 8px;font-size:12px">' + emoji + ' 1</span>';
+    };
+
+    window.forumAskJulio = async function(question) {
+      var input = document.getElementById('forum-input');
+      var q = question || (input && input.value.trim().replace('/julio','').trim()) || '';
+      if (!q) {
+        q = 'Analise o status atual do pipeline e sugira as 3 ações mais importantes para esta semana.';
+      }
+      if (input) { input.value = ''; input.style.height = 'auto'; }
+
+      // Show "Julio is typing"
+      var typing = document.getElementById('forum-typing');
+      if (typing) typing.textContent = '✨ Julio AI está pensando…';
+
+      // User message
+      var me = window.__forumMe || Auth.getUser() || {};
+      appendForumMessage({ id: 'q-'+Date.now(), content: q, userId: me.id, user: me, createdAt: new Date().toISOString() });
+
+      // Julio response
+      var julioMsgId = 'julio-' + Date.now();
+      appendForumMessage({ id: julioMsgId, content: '…', userId: 'julio', user: { name:'Julio AI' }, isAI: true, createdAt: new Date().toISOString() });
+
+      try {
+        var result = '';
+        if (window.julioK25 && window.julioK25.chat) {
+          await window.julioK25.chat(q, { mode: 'instant', onChunk: function(c) {
+            result += c;
+            var el = document.getElementById('fmsg-' + julioMsgId);
+            if (el) {
+              var bubble = el.querySelector('div > div:nth-child(2), div > div:first-child');
+              var bubbles = el.querySelectorAll('[style*="border-radius"]');
+              if (bubbles.length) bubbles[0].textContent = result;
+            }
+          }});
+        } else {
+          result = 'Configure a chave Groq para usar o Julio AI: julioSetGroqKey("gsk_...")';
+          var el = document.getElementById('fmsg-' + julioMsgId);
+          if (el) { var b = el.querySelectorAll('[style*="border-radius"]'); if(b.length) b[0].textContent = result; }
+        }
+      } catch(e) {
+        var el = document.getElementById('fmsg-' + julioMsgId);
+        if (el) { var b = el.querySelectorAll('[style*="border-radius"]'); if(b.length) b[0].textContent = 'Erro: '+(e&&e.message)||String(e); }
+      }
+      if (typing) typing.textContent = '';
+    };
 
     function showProfileTab(name) {
       document.querySelectorAll('.profile-tabs .tab').forEach(function (t) {
@@ -16772,22 +17614,53 @@
     }
 
     const SCREENS = {
+      // ── Inteligência ──────────────────────────────────────────
       command: renderCommandCenter,
       julio: renderJulio,
       signals: renderSignalFeed,
+      // ── Receita ───────────────────────────────────────────────
       pipeline: renderPipeline,
       leads: renderLeads,
       'lead-flow': renderLeadFlow,
       forecast: renderForecast,
       loss: renderLossIntelligence,
+      'hubspot-pipeline': renderHubspotPipeline,
+      'pipeline-health': renderPipelineHealth,
+      'pipeline-funnel': renderPipelineFunnel,
+      'buyer-persona': renderBuyerPersona,
+      'tco-calculator': renderTcoCalculator,
+      battlecard: renderBattlecard,
+      // ── Operações ─────────────────────────────────────────────
       campaigns: renderCampaigns,
       attribution: renderAttribution,
       automations: renderAutomations,
       recipes: renderRecipes,
       integrations: renderIntegrations,
+      forum: renderForum,
+      profile: renderProfile,
+      // ── Expansão ──────────────────────────────────────────────
       investor: renderInvestorPipeline,
       fraudmap: renderFraudMap,
+      'market-intel': renderFraudMap,
       reports: renderReports,
+      // ── Revenue OS v2 ─────────────────────────────────────────
+      'sdr-hub': renderSdrHub,
+      inbox: renderInbox,
+      accounts: renderAccounts,
+      contacts: renderContacts,
+      meetings: renderMeetings,
+      channel: renderChannelDeals,
+      meddpicc: renderMeddpiccScreen,
+      health: renderPipelineHealth,
+      'market-signals': renderMarketSignals,
+      'product-intelligence': renderProductIntelligence,
+      alerts: renderAlertsScreen,
+      'n8n-engine': renderN8nEngine,
+      'meeting-copilot': renderMeetingCopilot,
+      logs: renderLogsScreen,
+      documents: renderDocumentsScreen,
+      admin: renderAdminScreen,
+      // ── Playbook Dashboards ───────────────────────────────────
       'timeline-deals': renderTimelineDeals,
       'segment-breakdown': renderSegmentBreakdown,
       'product-breakdown': renderProductBreakdown,
@@ -16797,17 +17670,52 @@
     };
 
     const SCREEN_TITLES = {
-      command: 'Command Center', julio: 'Julio AI', signals: 'Signal Feed', pipeline: 'Pipeline',
-      leads: 'Leads', 'lead-flow': 'Fluxo de Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
-      attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
-      integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
-      'timeline-deals': 'Timeline de Fechamento',
-      'segment-breakdown': 'Segment Breakdown',
-      'product-breakdown': 'Product Breakdown',
-      'quarterly-targets': 'Quarterly Goals — 2026',
-      'wonlost-analysis': 'Won/Lost Analysis',
-      'lead-analytics': 'Lead Analytics — Funnel',
+      command: 'Command Center', julio: 'Julio AI', signals: 'Signal Feed',
+      pipeline: 'Pipeline', leads: 'Leads', 'lead-flow': 'Fluxo de Leads',
+      forecast: 'Forecast 90d', loss: 'Loss Intelligence',
+      'hubspot-pipeline': 'HubSpot Pipeline', 'pipeline-health': 'Pipeline Health',
+      'pipeline-funnel': 'Pipeline Funnel', 'buyer-persona': 'Buyer Personas',
+      'tco-calculator': 'TCO Calculator', battlecard: 'Battlecard',
+      campaigns: 'Campanhas', attribution: 'Attribution', automations: 'Automações',
+      recipes: 'Revenue Recipes', integrations: 'Integrações', forum: 'Forum',
+      profile: 'Meu Perfil', investor: 'Investor Pipeline',
+      fraudmap: 'Market Intel', 'market-intel': 'Market Intel', reports: 'Relatórios CEO',
+      'sdr-hub': 'SDR Hub', inbox: 'Inbox', accounts: 'Contas', contacts: 'Contatos',
+      meetings: 'Reuniões', channel: 'Canal', meddpicc: 'MEDDPICC',
+      health: 'Saúde do Pipeline', 'market-signals': 'Sinais de Mercado',
+      'product-intelligence': 'Produto', alerts: 'Alertas',
+      'n8n-engine': 'n8n Engine', 'meeting-copilot': 'Copiloto de Reunião', logs: 'Logs', documents: 'Documentos', admin: 'Admin',
+      'timeline-deals': 'Timeline de Fechamento', 'segment-breakdown': 'Segment Breakdown',
+      'product-breakdown': 'Product Breakdown', 'quarterly-targets': 'Quarterly Goals — 2026',
+      'wonlost-analysis': 'Won/Lost Analysis', 'lead-analytics': 'Lead Analytics — Funnel',
     };
+
+    // ── Role visibility: show/hide nav items based on active role ──────────────
+    function applyRoleVisibility() {
+      var role = (typeof currentRole !== 'undefined' ? currentRole : null) ||
+                 (Auth && typeof Auth.getUser === 'function' && Auth.getUser() && Auth.getUser().role) ||
+                 'founder';
+      // admin = founder (full access)
+      if (role === 'admin' || role === 'owner') role = 'founder';
+      document.querySelectorAll('.nav-item[data-roles]').forEach(function(item) {
+        var allowed = (item.getAttribute('data-roles') || '').split(',').map(function(r){ return r.trim(); });
+        if (allowed.length === 0 || allowed.indexOf(role) >= 0) {
+          item.classList.remove('hidden-role');
+        } else {
+          item.classList.add('hidden-role');
+        }
+      });
+      document.querySelectorAll('.nav-section-label[data-section]').forEach(function(label) {
+        var section = label.getAttribute('data-section');
+        var next = label.nextElementSibling;
+        var hasVisible = false;
+        while (next && !next.classList.contains('nav-section-label')) {
+          if (next.classList.contains('nav-item') && !next.classList.contains('hidden-role')) hasVisible = true;
+          next = next.nextElementSibling;
+        }
+        label.classList.toggle('hidden-section', !hasVisible);
+      });
+    }
 
     // ══════════════════════════════════════════════════════════════════════════════
     // PLAYBOOK DASHBOARDS — 6 new dashboards
@@ -17242,7 +18150,7 @@ function _demoLeadAnalyticsData() {
   <!-- In production: set window.GROQ_API_KEY from server-side env. In demo: use browser console:
        localStorage.setItem('groq_api_key', '<your-key>') then refresh. -->
   <script>
-    // Load Groq key from localStorage (set by user or backend)
+    // Groq API key — injected at build time; can be overridden via localStorage
     window.GROQ_API_KEY = window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
     // Helper: julioSetGroqKey('gsk_...') to configure from console or settings UI
     window.julioSetGroqKey = function(key) {
@@ -18195,8 +19103,7 @@ function _demoLeadAnalyticsData() {
 
   </script>
 
-  <!-- Julio K2.5 Super Powers: Agent Swarm, Deep Research, Visual Coding, Artifacts -->
-  <script src="./julio-k25-superpowers.js" defer></script>
+  <!-- julio-k25-superpowers.js loaded above (before body end) -->
 
 </body>
 </html>

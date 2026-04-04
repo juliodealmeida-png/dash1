@@ -18,7 +18,9 @@
   // CONFIG
   // ═══════════════════════════════════════════════════════════════════
 
-  var GROQ_KEY   = window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
+  // Dynamic getter — always reads the latest key (set after page load)
+  function getGroqKey() { return window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || ''; }
+  var GROQ_KEY = getGroqKey();
   var GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
   var MODEL_FAST = 'llama-3.3-70b-versatile';   // ⚡ Instant + Agent
   var MODEL_DEEP = 'llama-3.3-70b-versatile';   // 🧠 Thinking + Research
@@ -238,7 +240,7 @@
 
   async function groqStream(messages, opts) {
     opts = opts || {};
-    var key = GROQ_KEY;
+    var key = getGroqKey();
     if (!key) {
       if (opts.onError) opts.onError('Groq API key não configurada. Adicione GROQ_API_KEY ao localStorage.');
       return { ok: false, text: '', thinking: '' };
@@ -576,7 +578,7 @@
    */
   window.julioK25FloatSend = function(message, panelEl) {
     if (!message || !message.trim()) return;
-    if (!GROQ_KEY) {
+    if (!getGroqKey()) {
       console.warn('[Julio K2.5] GROQ_API_KEY não configurada');
       return false;
     }
@@ -730,7 +732,7 @@
         var msg = inputEl.value.trim();
         if (!msg) return;
         // Use Groq directly always (fast, no backend needed)
-        if (GROQ_KEY) {
+        if (getGroqKey()) {
           e.preventDefault();
           e.stopPropagation();
           inputEl.value = '';
@@ -764,7 +766,7 @@
     var hasBackend = typeof Auth !== 'undefined' && Auth.isLoggedIn && Auth.isLoggedIn() &&
       Auth.getToken && Auth.getToken() !== 'guardline-demo-session';
 
-    if (hasBackend || !GROQ_KEY) {
+    if (hasBackend || !getGroqKey()) {
       if (typeof _origSendJulioMessage === 'function') return _origSendJulioMessage(raw);
       return;
     }
@@ -848,6 +850,6 @@
     setTimeout(function() { window.julioK25.initUI(); }, 200);
   };
 
-  console.log('[Julio K2.5 v2.0] carregado ✓ | key:', GROQ_KEY ? 'configurada' : 'AUSENTE — configure window.GROQ_API_KEY');
+  console.log('[Julio K2.5 v2.0] carregado ✓ | key:', getGroqKey() ? 'configurada' : 'AUSENTE — configure window.GROQ_API_KEY');
   console.log('[Julio K2.5] Modos disponíveis:', Object.keys(MODES).join(', '));
 })();
