@@ -36,7 +36,7 @@ export function leadsRoutes(env: Env, supabase: SupabaseClient) {
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ leads: data ?? [], count });
+    res.json({ success: true, data: { leads: data ?? [], count } });
   });
 
   r.post('/batch', async (req, res) => {

@@ -39,7 +39,7 @@ export function dealsRoutes(env: Env, supabase: SupabaseClient) {
       by_stage[s].push(d);
     }
 
-    res.json({ deals, by_stage });
+    res.json({ success: true, data: deals, deals, by_stage });
   });
 
   r.post('/', async (req, res) => {

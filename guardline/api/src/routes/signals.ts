@@ -16,7 +16,7 @@ export function signalsRoutes(_env: unknown, supabase: SupabaseClient) {
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ signals: data ?? [] });
+    res.json({ success: true, data: { signals: data ?? [] } });
   });
 
   r.post('/', async (req, res) => {

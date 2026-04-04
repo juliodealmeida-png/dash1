@@ -14,7 +14,7 @@
       var isLocal = host === 'localhost' || host === '127.0.0.1';
       if (isLocal) {
         var port = (typeof window !== 'undefined' && window.location && window.location.port) ? String(window.location.port) : '';
-        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3001';
+        var backendOrigin = (typeof window !== 'undefined' && window.__GUARDLINE_BACKEND_ORIGIN__) ? String(window.__GUARDLINE_BACKEND_ORIGIN__) : 'http://localhost:3002';
         var apiOrigin = port === '3001' ? window.location.origin : backendOrigin;
         window.GUARDLINE_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
         window.GUARDLINE_DATA_API_BASE = apiOrigin.replace(/\/$/, '') + '/api';
@@ -1394,15 +1394,15 @@
     /* ── ETAPA 3: Pipeline + Leads ── */
     .kanban-board {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       overflow-x: auto;
       padding-bottom: 12px;
       min-height: 520px;
       scrollbar-width: thin;
     }
     .kanban-col {
-      min-width: 240px;
-      max-width: 260px;
+      min-width: 280px;
+      max-width: 320px;
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-subtle);
@@ -1411,28 +1411,45 @@
       flex-shrink: 0;
     }
     .kanban-col-header {
-      padding: 14px 16px;
-      border-bottom: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      border-bottom: 2px solid var(--border-subtle);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--bg-surface);
     }
     .kanban-col-header .stage-name {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
       color: var(--text-secondary);
     }
-    .kanban-col-header .stage-value { font-size: 11px; color: var(--text-muted); }
+    .kanban-col-header .stage-value {
+      font-size: 12px;
+      color: var(--accent-cyan);
+      font-weight: 700;
+    }
+    .kanban-col-header .stage-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.06);
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
     .kanban-cards {
       flex: 1;
-      padding: 10px;
+      padding: 8px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       overflow-y: auto;
-      max-height: 480px;
+      max-height: 560px;
+      scrollbar-width: thin;
     }
     .kanban-col.drag-over { outline: 2px dashed var(--accent-purple); outline-offset: -4px; }
 
@@ -1440,56 +1457,61 @@
       background: var(--bg-card);
       border: 1px solid var(--border-default);
       border-radius: var(--radius-md);
-      padding: 12px;
-      padding-top: 15px;
+      padding: 10px 12px;
+      padding-top: 13px;
       cursor: grab;
       transition: var(--transition-fast);
       position: relative;
       overflow: hidden;
     }
     .deal-card:active { cursor: grabbing; }
-    .deal-card.risk-high { border-color: rgba(239, 68, 68, 0.4); animation: pulse-critical 3s infinite; }
+    .deal-card.risk-high { border-left: 3px solid rgba(239, 68, 68, 0.8); animation: pulse-critical 3s infinite; }
     .deal-card:hover {
       border-color: var(--border-strong);
-      transform: translateY(-2px);
+      transform: translateY(-1px);
       box-shadow: var(--shadow-md);
     }
     .deal-risk-bar {
       position: absolute;
       top: 0;
       left: 0;
-      height: 3px;
+      height: 2px;
       border-radius: 0;
       transition: width 0.5s ease;
     }
-    .deal-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
-    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-    .deal-value { font-size: 16px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 8px; }
+    .deal-card-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .deal-company { font-weight: 600; font-size: 13px; color: var(--text-primary); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 210px; }
+    .deal-value { font-size: 15px; font-weight: 800; color: var(--accent-cyan); margin-bottom: 6px; }
     .deal-meta-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
-      font-size: 11px;
+      gap: 6px;
+      font-size: 10px;
       color: var(--text-muted);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
-    .deal-meta-row i, .deal-next-action i { width: 11px; height: 11px; vertical-align: middle; }
-    .deal-age.warning { color: var(--accent-amber); }
+    .deal-meta-row i, .deal-next-action i { width: 10px; height: 10px; vertical-align: middle; }
+    .deal-age.warning { color: var(--accent-amber); font-weight: 600; }
     .deal-next-action {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--accent-purple-light);
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 5px;
+      margin-bottom: 8px;
+      padding: 4px 6px;
+      background: rgba(139, 92, 246, 0.08);
+      border-radius: 4px;
     }
     .deal-card-footer {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
       font-size: 10px;
       color: var(--text-muted);
+      padding-top: 6px;
+      border-top: 1px solid var(--border-subtle);
     }
     .deal-avatar {
       width: 24px;
@@ -3208,7 +3230,7 @@
             // Always use Railway API, never Netlify
             var RESOLVED_API_BASE = (function() {
               if (window.GUARDLINE_API_BASE) return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
-              if (window.location.hostname === 'localhost') return 'http://localhost:3001/api';
+              if (window.location.hostname === 'localhost') return 'http://localhost:3002/api';
               return 'https://guardline-engine-production.up.railway.app/api';
             })();
             window.GUARDLINE_API_BASE = RESOLVED_API_BASE; // Expose globally
@@ -3274,8 +3296,8 @@
                 
                 if (res.ok && (data.success || data.token || (data.data && data.data.accessToken))) {
                   // Success - save tokens
-                  var token = data.token || (data.data && data.data.accessToken);
-                  var refresh = data.refreshToken || (data.data && data.data.refreshToken);
+                  var token = data.token || (data.data && (data.data.token || data.data.accessToken));
+                  var refresh = data.refreshToken || (data.data && (data.data.refresh_token || data.data.refreshToken));
                   if (token) localStorage.setItem('guardline_token', token);
                   if (refresh) localStorage.setItem('guardline_refresh', refresh);
                   
@@ -3312,6 +3334,7 @@
                       if (ls) { ls.style.display = 'none'; ls.classList.remove('visible'); }
                       try { showDashboard(); } catch (e) {}
                       try { if (typeof navigateTo === 'function') navigateTo('command', true); } catch (e) {}
+                      try { if (typeof checkOnboardingStatus === 'function') checkOnboardingStatus(); } catch (e) {}
                       return;
                     }
                     if (tries >= 25) {
@@ -3573,87 +3596,55 @@
         <button type="button" class="role-btn" data-role="sdr">👥 SDR</button>
       </div>
       <div class="sidebar-scroll">
+        <!-- INTELIGÊNCIA -->
         <div class="nav-section-label" data-section="intel">Inteligência</div>
-        <button type="button" class="nav-item active" data-screen="command" data-roles="founder">
-          <i data-lucide="home" class="nav-icon"></i><span class="nav-label">Command Center</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="julio" data-roles="founder">
-          <i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="signals" data-roles="founder,sdr">
-          <i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span>
-        </button>
+        <button type="button" class="nav-item active" data-screen="command" data-roles="founder,sdr,admin"><i data-lucide="home" class="nav-icon"></i><span class="nav-label">Command Center</span></button>
+        <button type="button" class="nav-item" data-screen="julio" data-roles="founder,sdr,admin"><i data-lucide="bot" class="nav-icon"></i><span class="nav-label">Julio AI</span></button>
+        <button type="button" class="nav-item" data-screen="signals" data-roles="founder,sdr,admin"><i data-lucide="radio" class="nav-icon"></i><span class="nav-label">Signal Feed</span></button>
 
+        <!-- RECEITA -->
         <div class="nav-section-label" data-section="revenue">Receita</div>
-        <button type="button" class="nav-item" data-screen="pipeline" data-roles="founder,sdr">
-          <i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span><span class="nav-badge badge-amber" id="nav-badge-pipeline" style="display:none"></span>
-        </button>
-        <button type="button" class="nav-item" data-screen="leads" data-roles="sdr">
-          <i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="lead-flow" data-roles="founder,sdr">
-          <i data-lucide="git-branch" class="nav-icon"></i><span class="nav-label">Fluxo de Leads</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="forecast" data-roles="founder">
-          <i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="loss" data-roles="founder">
-          <i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="hubspot-pipeline" data-roles="founder,sdr">
-          <i data-lucide="git-merge" class="nav-icon"></i><span class="nav-label">HubSpot Pipeline</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder">
-          <i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder">
-          <i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="buyer-persona" data-roles="founder">
-          <i data-lucide="users-round" class="nav-icon"></i><span class="nav-label">Buyer Personas</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="tco-calculator" data-roles="founder,sdr">
-          <i data-lucide="calculator" class="nav-icon"></i><span class="nav-label">TCO Calculator</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="battlecard" data-roles="founder,sdr">
-          <i data-lucide="swords" class="nav-icon"></i><span class="nav-label">Battlecard</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="pipeline" data-roles="founder,sdr,admin"><i data-lucide="bar-chart-2" class="nav-icon"></i><span class="nav-label">Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="leads" data-roles="founder,sdr,admin"><i data-lucide="users" class="nav-icon"></i><span class="nav-label">Leads</span></button>
+        <button type="button" class="nav-item" data-screen="lead-flow" data-roles="founder,sdr,admin"><i data-lucide="git-branch" class="nav-icon"></i><span class="nav-label">Fluxo de Leads</span></button>
+        <button type="button" class="nav-item" data-screen="forecast" data-roles="founder,sdr,admin"><i data-lucide="trending-up" class="nav-icon"></i><span class="nav-label">Forecast 90d</span></button>
+        <button type="button" class="nav-item" data-screen="loss" data-roles="founder,sdr,admin"><i data-lucide="skull" class="nav-icon"></i><span class="nav-label">Loss Intelligence</span></button>
+        <button type="button" class="nav-item" data-screen="hubspot-pipeline" data-roles="founder,sdr,admin"><i data-lucide="git-merge" class="nav-icon"></i><span class="nav-label">HubSpot Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder,sdr,admin"><i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Pipeline Health</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-funnel" data-roles="founder,sdr,admin"><i data-lucide="filter" class="nav-icon"></i><span class="nav-label">Pipeline Funnel</span></button>
+        <button type="button" class="nav-item" data-screen="buyer-persona" data-roles="founder,sdr,admin"><i data-lucide="users-round" class="nav-icon"></i><span class="nav-label">Buyer Personas</span></button>
+        <button type="button" class="nav-item" data-screen="tco-calculator" data-roles="founder,sdr,admin"><i data-lucide="calculator" class="nav-icon"></i><span class="nav-label">TCO Calculator</span></button>
+        <button type="button" class="nav-item" data-screen="battlecard" data-roles="founder,sdr,admin"><i data-lucide="swords" class="nav-icon"></i><span class="nav-label">Battlecard</span></button>
 
-        <div class="nav-section-label" data-section="acq">Aquisição</div>
-        <button type="button" class="nav-item" data-screen="campaigns" data-roles="sdr">
-          <i data-lucide="megaphone" class="nav-icon"></i><span class="nav-label">Campanhas</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="attribution" data-roles="sdr">
-          <i data-lucide="link" class="nav-icon"></i><span class="nav-label">Attribution</span>
-        </button>
-
+        <!-- OPERAÇÕES -->
         <div class="nav-section-label" data-section="ops">Operações</div>
-        <button type="button" class="nav-item" data-screen="automations" data-roles="sdr">
-          <i data-lucide="zap" class="nav-icon"></i><span class="nav-label">Automações</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="recipes" data-roles="sdr">
-          <i data-lucide="chef-hat" class="nav-icon"></i><span class="nav-label">Revenue Recipes</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr">
-          <i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="forum" data-roles="founder,sdr">
-          <i data-lucide="message-square" class="nav-icon"></i><span class="nav-label">Forum</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="profile" data-roles="founder,sdr">
-          <i data-lucide="user-cog" class="nav-icon"></i><span class="nav-label">Meu Perfil</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="integrations" data-roles="founder,sdr,admin"><i data-lucide="plug" class="nav-icon"></i><span class="nav-label">Integrações</span></button>
+        <button type="button" class="nav-item" data-screen="forum" data-roles="founder,sdr,admin"><i data-lucide="message-circle" class="nav-icon"></i><span class="nav-label">Forum</span></button>
+        <button type="button" class="nav-item" data-screen="profile" data-roles="founder,sdr,admin"><i data-lucide="user-cog" class="nav-icon"></i><span class="nav-label">Meu Perfil</span></button>
 
+        <!-- EXPANSÃO -->
         <div class="nav-section-label" data-section="exp">Expansão</div>
-        <button type="button" class="nav-item" data-screen="investor" data-roles="founder">
-          <i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr">
-          <i data-lucide="map" class="nav-icon"></i><span class="nav-label">Fraud Map</span>
-        </button>
-        <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr">
-          <i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios</span>
-        </button>
+        <button type="button" class="nav-item" data-screen="investor" data-roles="founder,sdr,admin"><i data-lucide="briefcase" class="nav-icon"></i><span class="nav-label">Investor Pipeline</span></button>
+        <button type="button" class="nav-item" data-screen="fraudmap" data-roles="founder,sdr,admin"><i data-lucide="newspaper" class="nav-icon"></i><span class="nav-label">Market Intel</span></button>
+        <button type="button" class="nav-item" data-screen="reports" data-roles="founder,sdr,admin"><i data-lucide="line-chart" class="nav-icon"></i><span class="nav-label">Relatórios CEO</span></button>
+
+        <!-- REVENUE OS v2 -->
+        <div class="nav-section-label" data-section="v2">Revenue OS v2</div>
+        <button type="button" class="nav-item" data-screen="sdr-hub" data-roles="founder,sdr,admin"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">SDR Hub</span></button>
+        <button type="button" class="nav-item" data-screen="inbox" data-roles="founder,sdr,admin"><i data-lucide="inbox" class="nav-icon"></i><span class="nav-label">Inbox</span></button>
+        <button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr,admin"><i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span></button>
+        <button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr,admin"><i data-lucide="user-circle" class="nav-icon"></i><span class="nav-label">Contatos</span></button>
+        <button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr,admin"><i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span></button>
+        <button type="button" class="nav-item" data-screen="channel-deals" data-roles="founder,sdr,admin"><i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span></button>
+        <button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr,admin"><i data-lucide="layout-grid" class="nav-icon"></i><span class="nav-label">MEDDPICC</span></button>
+        <button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder,sdr,admin"><i data-lucide="heart-pulse" class="nav-icon"></i><span class="nav-label">Saúde</span></button>
+        <button type="button" class="nav-item" data-screen="market-signals" data-roles="founder,sdr,admin"><i data-lucide="globe" class="nav-icon"></i><span class="nav-label">Sinais</span></button>
+        <button type="button" class="nav-item" data-screen="product-intelligence" data-roles="founder,sdr,admin"><i data-lucide="cpu" class="nav-icon"></i><span class="nav-label">Produto</span></button>
+        <button type="button" class="nav-item" data-screen="alerts" data-roles="founder,sdr,admin"><i data-lucide="bell" class="nav-icon"></i><span class="nav-label">Alertas</span></button>
+        <button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr,admin"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>
+        <button type="button" class="nav-item" data-screen="logs" data-roles="founder,sdr,admin"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>
+        <button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr,admin"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>
+        <button type="button" class="nav-item" data-screen="admin" data-roles="founder,admin"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>
       </div>
 
       <div class="julio-sidebar-box">
@@ -3907,7 +3898,7 @@
             return String(window.GUARDLINE_API_BASE).replace(/\/$/, '');
           }
           var loc = typeof window !== 'undefined' && window.location;
-          if (!loc || !loc.origin) return 'http://localhost:3001/api';
+          if (!loc || !loc.origin) return 'http://localhost:3002/api';
           return loc.origin + '/api';
         })(),
       },
@@ -4833,7 +4824,7 @@
       var ownerName = row.owner_name || (row.metadata && row.metadata.owner_name) || '\u2014';
       return {
         id: 'deal:' + row.id,
-        company: row.deal_name || 'Deal',
+        company: row.deal_name || row.companyName || row.company_name || 'Deal',
         value: amt,
         stage: hubspotStageIdToLabel(row.deal_stage),
         apiStage: row.deal_stage,
@@ -5962,7 +5953,7 @@
 
     async function askJulioComplete(userMessage, maxTok) {
       if (!guardlineAnthropicReady()) {
-        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3001/api) e NVIDIA_API_KEY no servidor guardline/api.';
+        return 'Defina window.GUARDLINE_DATA_API_BASE (ex.: http://localhost:3002/api) e NVIDIA_API_KEY no servidor guardline/api.';
       }
       var ctx = await buildJulioPipelineContext();
       var sys =
@@ -6150,23 +6141,33 @@
 
     async function sendEmail(opts) {
       opts = opts || {};
-      if (!guardlineResendReady()) {
-        throw new Error('E-mail desativado no browser. Configure envio no backend.');
+      /* Try backend API first (routes through n8n WF10 or SMTP) */
+      try {
+        var r = await API.request('/email/send', {
+          method: 'POST',
+          body: JSON.stringify({
+            to: opts.to,
+            subject: opts.subject,
+            body: opts.html || opts.text || '',
+            deal_id: opts.deal_id || null,
+            from_name: (Auth.getUser() || {}).name || 'Guardline',
+          }),
+        });
+        if (r && r.success) {
+          if (typeof showToast === 'function') showToast('success', 'Email enviado', r.method === 'n8n_wf10' ? 'Via automação N8N' : 'Registrado no sistema');
+          return r;
+        }
+      } catch (_) {}
+      /* Fallback: Resend API (if configured) */
+      if (guardlineResendReady()) {
+        var res = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + CONFIG.resend.key, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: CONFIG.resend.from, to: opts.to, subject: opts.subject, html: opts.html }),
+        });
+        return res.json();
       }
-      var r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer ' + CONFIG.resend.key,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: CONFIG.resend.from,
-          to: opts.to,
-          subject: opts.subject,
-          html: opts.html,
-        }),
-      });
-      return r.json();
+      throw new Error('Email: configure SMTP, n8n WF10 ou Resend API.');
     }
 
     async function searchMarket(query, gl) {
@@ -6745,7 +6746,7 @@
         } catch (e) {}
         return typeof window !== 'undefined' && window.location && window.location.origin
           ? window.location.origin
-          : 'http://localhost:3001';
+          : 'http://localhost:3002';
       })();
       guardlineSocket = io(_socketOrigin, {
           auth: { token: Auth.getToken() },
@@ -6871,6 +6872,20 @@
       }
     }
 
+    function applyRoleVisibility() {
+      var user = Auth.getUser() || {};
+      var rawRole = (user.role || 'founder').toLowerCase();
+      /* admin and founder see everything */
+      var role = (rawRole === 'admin' || rawRole === 'founder') ? 'founder' : rawRole;
+      document.querySelectorAll('.nav-item[data-roles]').forEach(function (btn) {
+        var allowed = btn.getAttribute('data-roles').split(',').map(function (r) { return r.trim(); });
+        btn.style.display = allowed.includes(role) || allowed.includes('all') ? '' : 'none';
+      });
+      document.querySelectorAll('.role-btn[data-role]').forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-role') === role);
+      });
+    }
+
     function showDashboard() {
       var ls = document.getElementById('login-screen');
       var app = document.getElementById('app');
@@ -6882,6 +6897,96 @@
       initGuardlineSocket();
       if (typeof lucide !== 'undefined') lucide.createIcons();
       if (typeof guardlineInjectV2Nav === 'function') guardlineInjectV2Nav();
+      /* Re-bind nav clicks for all sidebar items (including v2 static) */
+      document.querySelectorAll('.nav-item[data-screen]').forEach(function (item) {
+        if (item._glBound) return;
+        item._glBound = true;
+        item.addEventListener('click', function () {
+          if (typeof navigateTo === 'function') navigateTo(item.getAttribute('data-screen'));
+        });
+      });
+    }
+
+    /* ═══════ MINI-ONBOARDING MODAL ═══════ */
+    async function checkOnboardingStatus() {
+      try {
+        var token = Auth.getToken();
+        if (!token || token === 'guardline-demo-session') return;
+        var res = await fetch(API.base + '/onboarding/status', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        var j = await res.json();
+        if (j.success && j.data && !j.data.completed) {
+          showOnboardingModal();
+        }
+      } catch (_) {}
+    }
+
+    function showOnboardingModal() {
+      var existing = document.getElementById('gl-onboarding-modal');
+      if (existing) existing.remove();
+      var modal = document.createElement('div');
+      modal.id = 'gl-onboarding-modal';
+      modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px)';
+      modal.innerHTML =
+        '<div style="background:var(--bg-card);border:1px solid var(--border-strong);border-radius:16px;padding:32px;max-width:440px;width:90%">' +
+        '<div style="text-align:center;margin-bottom:20px">' +
+        '<div style="font-size:28px;margin-bottom:8px">👋</div>' +
+        '<h2 style="color:var(--text-primary);font-size:20px;margin:0 0 4px">Bem-vindo ao Guardline!</h2>' +
+        '<p style="color:var(--text-muted);font-size:13px;margin:0">Complete seu perfil para começar</p></div>' +
+        '<div style="display:flex;flex-direction:column;gap:14px">' +
+        '<div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Nome completo *</label>' +
+        '<input id="ob-name" type="text" placeholder="Seu nome" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary);font-size:14px"></div>' +
+        '<div style="display:flex;gap:12px">' +
+        '<div style="flex:1"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Data de nascimento</label>' +
+        '<input id="ob-birthday" type="date" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary);font-size:14px"></div>' +
+        '<div style="flex:1"><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Gênero</label>' +
+        '<select id="ob-gender" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary);font-size:14px">' +
+        '<option value="">Selecionar</option><option value="masculino">Masculino</option><option value="feminino">Feminino</option><option value="outro">Outro</option><option value="prefiro_nao_dizer">Prefiro não dizer</option></select></div></div>' +
+        '<div><label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Função na empresa *</label>' +
+        '<select id="ob-role" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border-default);background:var(--bg-input);color:var(--text-primary);font-size:14px">' +
+        '<option value="founder">Founder / CEO</option><option value="admin">Admin</option><option value="ae">Account Executive</option><option value="sdr">SDR</option><option value="csm">Customer Success</option></select></div>' +
+        '<button type="button" id="ob-submit" style="width:100%;padding:12px;border-radius:8px;background:var(--accent-cyan);color:#000;font-weight:700;font-size:14px;border:none;cursor:pointer;margin-top:6px">Começar a usar o Guardline →</button>' +
+        '<p id="ob-error" style="color:var(--accent-red);font-size:12px;text-align:center;margin:0;display:none"></p></div></div>';
+      document.body.appendChild(modal);
+      document.getElementById('ob-submit').addEventListener('click', submitOnboarding);
+    }
+
+    async function submitOnboarding() {
+      var name = (document.getElementById('ob-name').value || '').trim();
+      var birthday = document.getElementById('ob-birthday').value || null;
+      var gender = document.getElementById('ob-gender').value || null;
+      var role = document.getElementById('ob-role').value || 'sdr';
+      var errEl = document.getElementById('ob-error');
+      if (!name) { errEl.textContent = 'Nome é obrigatório'; errEl.style.display = 'block'; return; }
+      try {
+        var btn = document.getElementById('ob-submit');
+        btn.textContent = 'Salvando…';
+        btn.disabled = true;
+        var res = await fetch(API.base + '/onboarding/complete', {
+          method: 'POST',
+          headers: { Authorization: 'Bearer ' + Auth.getToken(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: name, birthday: birthday, gender: gender, role: role })
+        });
+        var j = await res.json();
+        if (j.success) {
+          var user = Auth.getUser() || {};
+          user.name = name;
+          user.role = role;
+          Auth.setUser(user);
+          document.getElementById('gl-onboarding-modal').remove();
+          applyRoleVisibility();
+          if (typeof showToast === 'function') showToast('success', 'Bem-vindo!', 'Perfil salvo com sucesso');
+        } else {
+          errEl.textContent = j.error || 'Erro ao salvar';
+          errEl.style.display = 'block';
+          btn.textContent = 'Começar a usar o Guardline →';
+          btn.disabled = false;
+        }
+      } catch (e) {
+        errEl.textContent = 'Erro de conexão';
+        errEl.style.display = 'block';
+      }
     }
 
     function guardlineLogout() {
@@ -8658,6 +8763,58 @@
       }
     }
 
+    // ─── DealRoom tab switcher ────────────────────────────────────────────────
+    function _drTab(dealSafeId, tab) {
+      var julio    = document.getElementById('julio-tab-content-'+dealSafeId);
+      var personas = document.getElementById('personas-tab-content-'+dealSafeId);
+      var btnJulio = document.getElementById('dr-tab-julio-'+dealSafeId);
+      var btnPers  = document.getElementById('dr-tab-personas-'+dealSafeId);
+      if (!julio || !personas) return;
+      if (tab === 'personas') {
+        julio.style.display = 'none';
+        personas.style.display = 'block';
+        if (btnJulio) { btnJulio.style.borderBottomColor = 'transparent'; btnJulio.style.color = 'var(--text-muted)'; btnJulio.style.fontWeight = 'normal'; }
+        if (btnPers)  { btnPers.style.borderBottomColor  = '#7c3aed';      btnPers.style.color  = 'var(--text-primary)'; btnPers.style.fontWeight = '600'; }
+      } else {
+        personas.style.display = 'none';
+        julio.style.display = 'block';
+        if (btnPers)  { btnPers.style.borderBottomColor  = 'transparent'; btnPers.style.color  = 'var(--text-muted)'; btnPers.style.fontWeight = 'normal'; }
+        if (btnJulio) { btnJulio.style.borderBottomColor = '#7c3aed';      btnJulio.style.color = 'var(--text-primary)'; btnJulio.style.fontWeight = '600'; }
+      }
+    }
+
+    // ─── Buyer Persona save (localStorage) ───────────────────────────────────
+    function _personaSave(dealSafeId, storageKey) {
+      var PERSONA_KEYS = ['cco', 'cro', 'cto', 'cfo'];
+      var data = {};
+      PERSONA_KEYS.forEach(function(k) {
+        var idEl  = document.getElementById('persona-id-'+k+'-'+dealSafeId);
+        var engEl = document.getElementById('persona-eng-'+k+'-'+dealSafeId);
+        var painEl= document.getElementById('persona-pain-'+k+'-'+dealSafeId);
+        if (!idEl) return;
+        data[k] = {
+          identified: idEl.checked,
+          engaged:    engEl ? engEl.checked : false,
+          pain:       painEl ? painEl.value : '',
+        };
+        // Update status badge in card header
+        var card = document.getElementById('persona-card-'+k+'-'+dealSafeId);
+        if (card) {
+          var badge = card.querySelector('span[style*="border-radius:10px"]');
+          if (badge) {
+            if (data[k].engaged) {
+              badge.style.background = 'rgba(52,211,153,.15)'; badge.style.color = '#34d399'; badge.textContent = 'Engaged';
+            } else if (data[k].identified) {
+              badge.style.background = 'rgba(96,165,250,.15)';  badge.style.color = '#60a5fa'; badge.textContent = 'Identified';
+            } else {
+              badge.style.background = 'rgba(100,116,139,.15)'; badge.style.color = '#94a3b8'; badge.textContent = 'Not contacted';
+            }
+          }
+        }
+      });
+      try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e) {}
+    }
+
     // ─── MEDDPICC gate thresholds per Playbook stage ──────────────────────────
     var MEDDPICC_GATE = {
       'Proposal':         { minPct: 30, requiredKeys: ['metrics', 'economic_buyer', 'implicate_pain'] },
@@ -8986,9 +9143,8 @@
             '<div class="kanban-col"><div class="kanban-col-header"><span class="stage-name">' +
             escapeHtml(stage) +
             '</span><span class="stage-value">$' +
-            (sum / 1000).toFixed(1) +
-            'k · ' +
-            colDeals.length +
+            (sum >= 1000000 ? (sum / 1000000).toFixed(1) + 'M' : (sum / 1000).toFixed(1) + 'k') +
+            '<span class="stage-count">' + colDeals.length + '</span>' +
             '</span></div><div class="kanban-cards" data-stage="' +
             escapeHtml(stage) +
             '">';
@@ -12201,7 +12357,7 @@
       document.getElementById('content-area').innerHTML =
         '<div class="fraud-page">' +
         '<div class="fraud-control-bar"><div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
-        '<span style="font-weight:800;font-size:1.1rem">FRAUD MAP CONTROL CENTER</span>' +
+        '<span style="font-weight:800;font-size:1.1rem">MARKET INTEL &mdash; RegTech &amp; FinTech LATAM</span>' +
         '<span class="live-indicator"><span class="live-dot"></span> <span id="fraud-live-label">Mapbox GL · camadas</span></span></div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">' +
         '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted)"><input type="checkbox" id="fraud-layer-lead" checked /> Leads risco</label>' +
@@ -12216,14 +12372,14 @@
         '<div class="fraud-map-split">' +
         '<div id="fraud-map"></div>' +
         '<div class="fraud-feed">' +
-        '<div class="feed-header"><span>FRAUD ALERTS</span><span class="live-dot"></span></div>' +
+        '<div class="feed-header"><span>MARKET NEWS &amp; REGULAT&Oacute;RIO</span><span class="live-dot"></span></div>' +
         '<div class="feed-list" id="fraud-feed-list"></div>' +
         '<button type="button" class="btn-link" onclick="navigateTo(\'signals\')">Ver todos os sinais →</button></div></div>' +
         '<div class="fraud-kpi-row">' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-events">—</div><div class="fk-l">Eventos (sinais + intel)</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-value">—</div><div class="fk-l">Valor em risco (USD)</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-leads">—</div><div class="fk-l">Leads score ≥75</div></div>' +
-        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-countries">—</div><div class="fk-l">Países afetados</div></div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-events">—</div><div class="fk-l">Alertas regulat&oacute;rios</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-value">—</div><div class="fk-l">Oportunidades detectadas</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-leads">—</div><div class="fk-l">Normas novas (30d)</div></div>' +
+        '<div class="fraud-kpi-card"><div class="fk-v" id="fraud-kpi-countries">—</div><div class="fk-l">Pa&iacute;ses monitorados</div></div></div>' +
         '<div class="fraud-bottom-charts">' +
         '<div class="card"><div class="card-header"><span class="card-title">Fraudes por tipo</span></div><div class="fraud-chart-h"><canvas id="fraud-donut"></canvas></div></div>' +
         '<div class="card"><div class="card-header"><span class="card-title">Tendência 15 dias</span></div><div class="fraud-chart-h"><canvas id="fraud-trend"></canvas></div></div></div></div>';
@@ -12399,7 +12555,7 @@
             showToast(
               'warning',
               'Fraud Map',
-              'Abre o dashboard por HTTP (ex.: localhost:3001), não como ficheiro file:// — senão o Mapbox não carrega o mapa.'
+              'Abre o dashboard por HTTP (ex.: localhost:3002), não como ficheiro file:// — senão o Mapbox não carrega o mapa.'
             );
           }
           mapboxgl.accessToken = mbToken;
@@ -12955,7 +13111,7 @@
 
     async function renderAccounts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div><p style="margin-top:12px;color:var(--text-muted)">Carregando contas…</p></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13072,7 +13228,7 @@
 
     async function renderContacts() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Contatos', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/leads?perPage=100');
@@ -13539,8 +13695,21 @@
         .join('');
     }
 
-    function guardlineInboxSendReply() {
-      showToast('info', 'Email', 'Resposta será enviada via integração Gmail');
+    async function guardlineInboxSendReply() {
+      var textarea = document.querySelector('#inbox-reply-text, .inbox-reply textarea');
+      var text = textarea ? textarea.value.trim() : '';
+      if (!text) { showToast('warning', 'Email', 'Escreva uma mensagem antes de enviar'); return; }
+      try {
+        await sendEmail({
+          to: window._guardlineInboxSelectedEmail || '',
+          subject: 'Re: ' + (window._guardlineInboxSelectedSubject || 'Follow-up'),
+          html: text.replace(/\n/g, '<br>'),
+          deal_id: window._guardlineInboxSelectedDealId || null,
+        });
+        if (textarea) textarea.value = '';
+      } catch (e) {
+        showToast('error', 'Erro', e.message || 'Falha ao enviar email');
+      }
     }
 
     async function ingestMeetingSummary(meetingId, summary, transcript) {
@@ -13565,7 +13734,7 @@
 
     async function renderInbox() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Inbox', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=50');
@@ -13678,7 +13847,7 @@
 
     async function renderChannelDeals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Canal', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100');
@@ -13795,7 +13964,7 @@
 
     async function renderSdrHub() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('SDR Hub', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -13948,7 +14117,7 @@
 
     async function renderMeddpiccScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('MEDDPICC', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/deals?perPage=100&sortBy=riskScore&sortOrder=desc');
@@ -14088,7 +14257,7 @@
 
     async function renderPipelineHealth() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Health', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       var m = {}, allDeals = _demoDealsForHealth();
       try {
@@ -14252,7 +14421,7 @@
 
     async function renderPipelineFunnel() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Pipeline Funnel', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       // Demo-safe fallback deals — overwritten by API if available
       var allDeals = _demoDealsForHealth();
@@ -14753,7 +14922,7 @@
 
     async function renderMarketSignals() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Sinais', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50');
@@ -14877,7 +15046,7 @@
 
     async function renderProductIntelligence() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Produto', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var leads = [];
@@ -15002,7 +15171,7 @@
 
     async function renderAlertsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Alertas', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var res = await API.get('/signals?take=50&unread=true');
@@ -15114,7 +15283,7 @@
 
     async function renderN8nEngine() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('n8n', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15256,7 +15425,7 @@
 
     async function renderLogsScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Logs', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15351,7 +15520,7 @@
 
     async function renderAdminScreen() {
       var area = document.getElementById('content-area');
-      if (!Auth.isLoggedIn()) { area.innerHTML = guardlineV2Page('Admin', null, '<p class="placeholder-note">Faça login para acessar.</p>'); return; }
+      
       area.innerHTML = '<div class="pipeline-page-wrap"><div class="card" style="padding:40px;text-align:center"><div class="loading-spinner"></div></div></div>';
       try {
         var results = await Promise.all([
@@ -15681,36 +15850,7 @@
     }
 
     function guardlineInjectV2Nav() {
-      if (document.getElementById('guardline-v2-nav')) return;
-      var scroll = document.querySelector('.sidebar-scroll');
-      if (!scroll) return;
-      var wrap = document.createElement('div');
-      wrap.id = 'guardline-v2-nav';
-      wrap.innerHTML =
-        '<div class="nav-section-label" data-section="v2">Revenue OS v2</div>' +
-        '<button type="button" class="nav-item" data-screen="sdr-hub" data-roles="founder,sdr"><i data-lucide="target" class="nav-icon"></i><span class="nav-label">SDR Hub</span></button>' +
-        '<button type="button" class="nav-item" data-screen="inbox" data-roles="founder,sdr"><i data-lucide="inbox" class="nav-icon"></i><span class="nav-label">Inbox</span></button>' +
-        '<button type="button" class="nav-item" data-screen="accounts" data-roles="founder,sdr"><i data-lucide="building-2" class="nav-icon"></i><span class="nav-label">Contas</span></button>' +
-        '<button type="button" class="nav-item" data-screen="contacts" data-roles="founder,sdr"><i data-lucide="user-circle" class="nav-icon"></i><span class="nav-label">Contatos</span></button>' +
-        '<button type="button" class="nav-item" data-screen="meetings" data-roles="founder,sdr"><i data-lucide="calendar" class="nav-icon"></i><span class="nav-label">Reuniões</span></button>' +
-        '<button type="button" class="nav-item" data-screen="channel-deals" data-roles="founder"><i data-lucide="share-2" class="nav-icon"></i><span class="nav-label">Canal</span></button>' +
-        '<button type="button" class="nav-item" data-screen="meddpicc" data-roles="founder,sdr"><i data-lucide="layout-grid" class="nav-icon"></i><span class="nav-label">MEDDPICC</span></button>' +
-        '<button type="button" class="nav-item" data-screen="pipeline-health" data-roles="founder"><i data-lucide="activity" class="nav-icon"></i><span class="nav-label">Saúde</span></button>' +
-        '<button type="button" class="nav-item" data-screen="market-signals" data-roles="founder,sdr"><i data-lucide="globe" class="nav-icon"></i><span class="nav-label">Sinais</span></button>' +
-        '<button type="button" class="nav-item" data-screen="product-intelligence" data-roles="founder"><i data-lucide="cpu" class="nav-icon"></i><span class="nav-label">Produto</span></button>' +
-        '<button type="button" class="nav-item" data-screen="alerts" data-roles="founder,sdr"><i data-lucide="bell" class="nav-icon"></i><span class="nav-label">Alertas</span></button>' +
-        '<button type="button" class="nav-item" data-screen="n8n-engine" data-roles="founder,sdr"><i data-lucide="workflow" class="nav-icon"></i><span class="nav-label">n8n Engine</span></button>' +
-        '<button type="button" class="nav-item" data-screen="logs" data-roles="founder"><i data-lucide="scroll-text" class="nav-icon"></i><span class="nav-label">Logs</span></button>' +
-        '<button type="button" class="nav-item" data-screen="documents" data-roles="founder,sdr"><i data-lucide="file-signature" class="nav-icon"></i><span class="nav-label">Documentos</span></button>' +
-        '<button type="button" class="nav-item" data-screen="admin" data-roles="founder"><i data-lucide="settings" class="nav-icon"></i><span class="nav-label">Admin</span></button>';
-      scroll.appendChild(wrap);
-      wrap.querySelectorAll('.nav-item[data-screen]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          navigateTo(btn.getAttribute('data-screen'));
-        });
-      });
-      if (typeof lucide !== 'undefined') lucide.createIcons();
-      applyRoleVisibility();
+      /* v2 nav is now in static HTML — no-op */
     }
 
     function guardlineMaybeOpenSignQuery() {
@@ -16577,6 +16717,141 @@
       }
     }
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards (MUST be before SCREENS definition)
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    function _demoTimelineDeals() {
+      return [
+        { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+        { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+        { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+        { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+        { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+        { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+        { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+        { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+        { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+        { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+      ];
+    }
+
+    function _demoSegmentData() {
+      return {
+        segments: [
+          { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+          { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+          { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+        ]
+      };
+    }
+
+    function _demoProductData() {
+      return {
+        products: [
+          { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+          { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+          { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+        ]
+      };
+    }
+
+    function _demoQuarterlyTargets() {
+      return {
+        quarters: [
+          { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+          { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+          { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+          { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+        ]
+      };
+    }
+
+    function _demoWonLostData() {
+      return {
+        won: [
+          { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+          { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+          { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+          { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+          { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+        ],
+        lost: [
+          { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+          { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+          { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+          { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+          { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+        ]
+      };
+    }
+
+    function _demoLeadAnalyticsData() {
+      return {
+        stages: [
+          { stage:'prospected',  count:342, avgDaysInStage:8 },
+          { stage:'qualified',   count:87,  avgDaysInStage:12 },
+          { stage:'contacted',   count:34,  avgDaysInStage:15 },
+          { stage:'meeting',     count:12,  avgDaysInStage:7 },
+          { stage:'converted',   count:8,   avgDaysInStage:0 },
+        ],
+        sources: [
+          { source:'LinkedIn',   count:156, conversion:4.2 },
+          { source:'Cold Email', count:98,  conversion:2.8 },
+          { source:'Referral',   count:67,  conversion:8.5 },
+          { source:'Event',      count:42,  conversion:6.3 },
+          { source:'Inbound',    count:28,  conversion:14.2 },
+        ]
+      };
+    }
+
+    async function renderTimelineDeals() {
+      var area = document.getElementById('content-area');
+      var deals = _demoTimelineDeals();
+      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
+      var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Timeline de Fechamento</h2><div class="card"><div class="card-header">Deals Fechando Este Mês</div><div style="padding:16px">'+thisMonth.length+' deals este mês</div></div></div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
+    async function renderSegmentBreakdown() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoSegmentData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderProductBreakdown() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoProductData();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderQuarterlyTargets() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoQuarterlyTargets();
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
+    }
+
+    async function renderWonLostAnalysis() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoWonLostData();
+      var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
+    }
+
+    async function renderLeadAnalytics() {
+      var area = document.getElementById('content-area');
+      
+      var data = _demoLeadAnalyticsData();
+      var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
+      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+
     const SCREENS = {
       command: renderCommandCenter,
       julio: renderJulio,
@@ -16594,16 +16869,25 @@
       investor: renderInvestorPipeline,
       fraudmap: renderFraudMap,
       reports: renderReports,
-    };
-
-    const SCREEN_TITLES = {
-      command: 'Command Center', julio: 'Julio AI', signals: 'Signal Feed', pipeline: 'Pipeline',
-      leads: 'Leads', 'lead-flow': 'Fluxo de Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
-      attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
-      integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
-    };
-
-    Object.assign(SCREENS, {
+      'timeline-deals': renderTimelineDeals,
+      'segment-breakdown': renderSegmentBreakdown,
+      'product-breakdown': renderProductBreakdown,
+      'quarterly-targets': renderQuarterlyTargets,
+      'wonlost-analysis': renderWonLostAnalysis,
+      'lead-analytics': renderLeadAnalytics,
+      'hubspot-pipeline': renderHubspotPipeline,
+      'pipeline-health': renderPipelineHealth,
+      'pipeline-funnel': renderPipelineFunnel,
+      'buyer-persona': renderBuyerPersona,
+      'tco-calculator': renderTcoCalculator,
+      battlecard: renderBattlecard,
+      'market-signals': renderMarketSignals,
+      'product-intelligence': renderProductIntelligence,
+      alerts: renderAlertsScreen,
+      'n8n-engine': renderN8nEngine,
+      logs: renderLogsScreen,
+      documents: renderDocumentsScreen,
+      admin: renderAdminScreen,
       accounts: renderAccounts,
       contacts: renderContacts,
       meetings: renderMeetings,
@@ -16611,122 +16895,119 @@
       'channel-deals': renderChannelDeals,
       'sdr-hub': renderSdrHub,
       meddpicc: renderMeddpiccScreen,
-      'pipeline-health': renderPipelineHealth,
-      'pipeline-funnel': renderPipelineFunnel,
-      'hubspot-pipeline': renderHubspotPipeline,
-      'buyer-persona': renderBuyerPersona,
-      'tco-calculator': renderTcoCalculator,
-      'battlecard': renderBattlecard,
-      'market-signals': renderMarketSignals,
-      'product-intelligence': renderProductIntelligence,
-      alerts: renderAlertsScreen,
-      'n8n-engine': renderN8nEngine,
-      logs: renderLogsScreen,
-      admin: renderAdminScreen,
-      documents: function() { return window.renderDocumentsScreen(); },
       profile: renderProfile,
       forum: renderForum,
-      'timeline-deals': renderTimelineDeals,
-      'segment-breakdown': renderSegmentBreakdown,
-      'product-breakdown': renderProductBreakdown,
-      'quarterly-targets': renderQuarterlyTargets,
-      'wonlost-analysis': renderWonLostAnalysis,
-      'lead-analytics': renderLeadAnalytics,
-    });
-    Object.assign(SCREEN_TITLES, {
-      accounts: 'Contas',
-      contacts: 'Contatos',
-      meetings: 'Reuniões',
-      inbox: 'Inbox',
-      'channel-deals': 'Deals de canal',
-      'sdr-hub': 'SDR Hub',
-      meddpicc: 'MEDDPICC',
-      'pipeline-health': 'Pipeline Health — KPI Dashboard',
-      'pipeline-funnel': 'Pipeline Funnel View',
-      'hubspot-pipeline': 'HubSpot Pipeline — Funnel_Guardline',
-      'buyer-persona': 'Buyer Persona Coverage',
-      'tco-calculator': 'TCO Calculator',
-      'battlecard': 'Competitors Battlecard',
-      'market-signals': 'Sinais de mercado',
-      'product-intelligence': 'Inteligência de produto',
-      alerts: 'Alertas',
-      'n8n-engine': 'n8n Engine',
-      logs: 'Logs',
-      admin: 'Admin',
-      documents: 'Documentos',
-      profile: 'Meu Perfil',
-      forum: 'Forum',
+    };
+
+    const SCREEN_TITLES = {
+      command: 'Command Center', julio: 'Julio AI', signals: 'Signal Feed', pipeline: 'Pipeline',
+      leads: 'Leads', 'lead-flow': 'Fluxo de Leads', forecast: 'Forecast 90d', loss: 'Loss Intelligence', campaigns: 'Campanhas',
+      attribution: 'Attribution', automations: 'Automações', recipes: 'Revenue Recipes',
+      integrations: 'Integrações', investor: 'Investor Pipeline', fraudmap: 'Fraud Map', reports: 'Relatórios',
       'timeline-deals': 'Timeline de Fechamento',
       'segment-breakdown': 'Segment Breakdown',
       'product-breakdown': 'Product Breakdown',
       'quarterly-targets': 'Quarterly Goals — 2026',
       'wonlost-analysis': 'Won/Lost Analysis',
       'lead-analytics': 'Lead Analytics — Funnel',
-    });
-
-    function applyRoleVisibility() {
-      document.querySelectorAll('.nav-item[data-roles]').forEach(function (el) {
-        var roles = el.getAttribute('data-roles').split(',');
-        var show = roles.indexOf(currentRole) !== -1;
-        el.classList.toggle('hidden-role', !show);
-      });
-      document.querySelectorAll('.nav-section-label[data-section]').forEach(function (label) {
-        var el = label.nextElementSibling;
-        var any = false;
-        while (el && !el.classList.contains('nav-section-label')) {
-          if (el.classList.contains('nav-item') && !el.classList.contains('hidden-role')) any = true;
-          el = el.nextElementSibling;
-        }
-        label.classList.toggle('hidden-section', !any);
-      });
-      var currentEl = document.querySelector('.nav-item[data-screen="' + currentScreen + '"]');
-      if (!currentEl || currentEl.classList.contains('hidden-role')) {
-        var first = document.querySelector('.sidebar-scroll .nav-item[data-roles]:not(.hidden-role)');
-        if (first) navigateTo(first.getAttribute('data-screen'), true);
-      }
-    }
-
-    var GL_LANG = localStorage.getItem('gl_lang') || 'pt';
-    var GL_I18N = {
-      pt: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Sinais', forecast:'Forecast', campaigns:'Campanhas',
-            automations:'Automações', recipes:'Revenue Recipes', integrations:'Integrações', reports:'Relatórios',
-            contacts:'Contatos', accounts:'Contas', meetings:'Reuniões', inbox:'Inbox', 'lead-flow':'Fluxo de Leads',
-            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Sair',
-            profile:'Meu Perfil', settings:'Configurações', live:'Live Intelligence' },
-      en: { dashboard:'Dashboard', pipeline:'Pipeline', leads:'Leads', signals:'Signals', forecast:'Forecast', campaigns:'Campaigns',
-            automations:'Automations', recipes:'Revenue Recipes', integrations:'Integrations', reports:'Reports',
-            contacts:'Contacts', accounts:'Accounts', meetings:'Meetings', inbox:'Inbox', 'lead-flow':'Lead Flow',
-            battlecard:'Battlecard', fraudmap:'Fraud Map', investor:'Investor Pipeline', logout:'Logout',
-            profile:'My Profile', settings:'Settings', live:'Live Intelligence' },
-      es: { dashboard:'Panel', pipeline:'Pipeline', leads:'Leads', signals:'Señales', forecast:'Pronóstico', campaigns:'Campañas',
-            automations:'Automatizaciones', recipes:'Revenue Recipes', integrations:'Integraciones', reports:'Reportes',
-            contacts:'Contactos', accounts:'Cuentas', meetings:'Reuniones', inbox:'Buzón', 'lead-flow':'Flujo de Leads',
-            battlecard:'Battlecard', fraudmap:'Mapa Fraude', investor:'Pipeline Inversor', logout:'Salir',
-            profile:'Mi Perfil', settings:'Configuración', live:'Inteligencia en Vivo' }
+      'hubspot-pipeline': 'HubSpot Pipeline', 'pipeline-health': 'Pipeline Health',
+      'pipeline-funnel': 'Pipeline Funnel', 'buyer-persona': 'Buyer Personas',
+      'tco-calculator': 'TCO Calculator', battlecard: 'Battlecard',
+      'market-signals': 'Market Signals', 'product-intelligence': 'Product Intelligence',
+      alerts: 'Alertas', 'n8n-engine': 'N8N Engine', logs: 'Logs',
+      documents: 'Documentos', admin: 'Admin', accounts: 'Accounts',
+      contacts: 'Contacts', meetings: 'Meetings', inbox: 'Inbox',
+      'channel-deals': 'Channel Deals', 'sdr-hub': 'SDR Hub',
+      meddpicc: 'MEDDPICC', profile: 'Perfil', forum: 'Fórum',
     };
-    function setLanguage(lang) {
-      if (!GL_I18N[lang]) return;
-      GL_LANG = lang;
-      localStorage.setItem('gl_lang', lang);
-      document.querySelectorAll('.lang-btn').forEach(function(b) {
-        b.classList.toggle('active', b.getAttribute('data-lang') === lang);
-      });
-      var dict = GL_I18N[lang];
-      document.querySelectorAll('.nav-item[data-screen]').forEach(function(el) {
-        var sc = el.getAttribute('data-screen');
-        var lbl = el.querySelector('.nav-label');
-        if (lbl && dict[sc]) lbl.textContent = dict[sc];
-      });
-      var liveEl = document.querySelector('.live-text');
-      if (liveEl && dict.live) liveEl.textContent = dict.live;
-      document.querySelectorAll('[data-i18n]').forEach(function(el) {
-        var k = el.getAttribute('data-i18n');
-        if (dict[k]) el.textContent = dict[k];
-      });
-      if (typeof showToast === 'function') showToast('info', lang.toUpperCase(), { pt:'Idioma: Português', en:'Language: English', es:'Idioma: Español' }[lang]);
-    }
-    (function(){ try { if (GL_LANG !== 'pt') setLanguage(GL_LANG); } catch(e){} })();
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // PLAYBOOK DASHBOARDS — 6 new dashboards
+    // ══════════════════════════════════════════════════════════════════════════════
+
+function _demoTimelineDeals() {
+  return [
+    { id:'d1',  companyName:'Empresa Alfa',         value:24000,  expectedCloseDate:'2026-04-10', stage:'prospecting' },
+    { id:'d2',  companyName:'Tech Ventures',        value:36000,  expectedCloseDate:'2026-04-20', stage:'qualified' },
+    { id:'d3',  companyName:'Global Commerce',      value:18500,  expectedCloseDate:'2026-04-05', stage:'presentation' },
+    { id:'d4',  companyName:'FinTrust Pagamentos',  value:52000,  expectedCloseDate:'2026-04-08', stage:'proposal' },
+    { id:'d5',  companyName:'MetalCorp',            value:67000,  expectedCloseDate:'2026-04-12', stage:'negotiation' },
+    { id:'d6',  companyName:'Logística Express',    value:89000,  expectedCloseDate:'2026-04-03', stage:'commit_signing' },
+    { id:'d7',  companyName:'Retail Cloud SA',      value:44000,  expectedCloseDate:'2026-05-01', stage:'negotiation' },
+    { id:'d8',  companyName:'Agro Solutions',       value:31000,  expectedCloseDate:'2026-04-25', stage:'proposal' },
+    { id:'d9',  companyName:'Construtech',          value:58000,  expectedCloseDate:'2026-04-15', stage:'presentation' },
+    { id:'d10', companyName:'Pharma Distribuidora', value:72000,  expectedCloseDate:'2026-05-10', stage:'qualified' },
+  ];
+}
+
+function _demoSegmentData() {
+  return {
+    segments: [
+      { name:'Enterprise',   dealCount:5,  totalValue:312000, deals:['FinTrust','MetalCorp','Logística','Pharma','Construtech'] },
+      { name:'Mid-market',   dealCount:3,  totalValue:149500, deals:['Tech Ventures','Global Commerce','Agro Solutions'] },
+      { name:'SMB',          dealCount:2,  totalValue:75000,  deals:['Empresa Alfa','Retail Cloud'] },
+    ]
+  };
+}
+
+function _demoProductData() {
+  return {
+    products: [
+      { name:'CRM',        revenue:178000, dealCount:12, commonCombinations:['Automation','Analytics'] },
+      { name:'Automation', revenue:224000, dealCount:15, commonCombinations:['CRM','Analytics'] },
+      { name:'Analytics',  revenue:134500, dealCount:9,  commonCombinations:['CRM','Automation'] },
+    ]
+  };
+}
+
+function _demoQuarterlyTargets() {
+  return {
+    quarters: [
+      { quarter:'Q1 2026', target:250000, forecast:238000, committed:85000, atRisk:45000 },
+      { quarter:'Q2 2026', target:280000, forecast:295000, committed:120000, atRisk:32000 },
+      { quarter:'Q3 2026', target:300000, forecast:275000, committed:0, atRisk:0 },
+      { quarter:'Q4 2026', target:320000, forecast:0, committed:0, atRisk:0 },
+    ]
+  };
+}
+
+function _demoWonLostData() {
+  return {
+    won: [
+      { id:'w1', companyName:'GlobalTech',      value:95000,  closedDate:'2026-03-15', daysCycle:62 },
+      { id:'w2', companyName:'CloudServe',      value:72000,  closedDate:'2026-02-28', daysCycle:48 },
+      { id:'w3', companyName:'SecureNet',       value:84000,  closedDate:'2026-02-10', daysCycle:55 },
+      { id:'w4', companyName:'DataFlow Inc',    value:67000,  closedDate:'2026-03-01', daysCycle:71 },
+      { id:'w5', companyName:'OpsCloud',        value:58000,  closedDate:'2026-03-20', daysCycle:44 },
+    ],
+    lost: [
+      { id:'l1', companyName:'Legacy Corp',     value:45000,  closedDate:'2026-03-18', reason:'price' },
+      { id:'l2', companyName:'BudgetTech',      value:32000,  closedDate:'2026-03-10', reason:'budget' },
+      { id:'l3', companyName:'Competitor Inc',  value:51000,  closedDate:'2026-02-25', reason:'competition' },
+      { id:'l4', companyName:'TimelineWorks',   value:38000,  closedDate:'2026-03-05', reason:'timeline' },
+      { id:'l5', companyName:'SkepticalCorp',   value:29000,  closedDate:'2026-03-22', reason:'fit' },
+    ]
+  };
+}
+
+function _demoLeadAnalyticsData() {
+  return {
+    stages: [
+      { stage:'prospected',  count:342, avgDaysInStage:8 },
+      { stage:'qualified',   count:87,  avgDaysInStage:12 },
+      { stage:'contacted',   count:34,  avgDaysInStage:15 },
+      { stage:'meeting',     count:12,  avgDaysInStage:7 },
+      { stage:'converted',   count:8,   avgDaysInStage:0 },
+    ],
+    sources: [
+      { source:'LinkedIn',   count:156, conversion:4.2 },
+      { source:'Cold Email', count:98,  conversion:2.8 },
+      { source:'Referral',   count:67,  conversion:8.5 },
+      { source:'Event',      count:42,  conversion:6.3 },
+      { source:'Inbound',    count:28,  conversion:14.2 },
+    ]
+  };
+}
     function navigateTo(screen, skipAnim) {
       var area = document.getElementById('content-area');
       var fn = SCREENS[screen];
@@ -17069,6 +17350,26 @@
   </script>
   <script src="documents-module.js"></script>
 
+  <!-- Julio K2.5 Groq API key — set via localStorage or injected by backend -->
+  <!-- In production: set window.GROQ_API_KEY from server-side env. In demo: use browser console:
+       localStorage.setItem('groq_api_key', '<your-key>') then refresh. -->
+  <script>
+    // Load Groq key from localStorage (set by user or backend)
+    window.GROQ_API_KEY = window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || '';
+    // Helper: julioSetGroqKey('gsk_...') to configure from console or settings UI
+    window.julioSetGroqKey = function(key) {
+      if (key && key.startsWith('gsk_')) {
+        localStorage.setItem('groq_api_key', key);
+        window.GROQ_API_KEY = key;
+        if (typeof showToast === 'function') showToast('success', 'Julio AI', 'Groq API key configurada. Julio está ativo!');
+        console.log('[Julio K2.5] Groq key configurada. Reload não necessário.');
+      } else {
+        console.warn('[Julio K2.5] Key inválida. Use: julioSetGroqKey("gsk_...");');
+      }
+    };
+  </script>
+  <script src="julio-k25-superpowers.js"></script>
+
   <!-- ── Julio AI Floating Chat Widget ─────────────────────── -->
   <button id="julio-fab" title="Perguntar ao Júlio" aria-label="Abrir chat Júlio AI">
     🤖
@@ -17257,12 +17558,64 @@
           setStreaming(false);
           return;
         }
+        var isDemoOrNoToken = !jwtToken || jwtToken === 'guardline-demo-session';
+        var hasGroqKey = !!(window.GROQ_API_KEY || localStorage.getItem('groq_api_key'));
+
+        // ── Groq direct path (demo mode or no backend token) ──────────────
+        if (isDemoOrNoToken && hasGroqKey && window.julioK25) {
+          removeTyping();
+          var bubble0 = appendMsg('julio', '');
+          var cursor0 = document.createElement('span');
+          cursor0.className = 'jfp-cursor';
+          bubble0.appendChild(cursor0);
+          var full0 = '';
+          setStreaming(true);
+          try {
+            await window.julioK25.chat(text, {
+              mode: window.julioK25.currentMode || 'instant',
+              history: sessionHistory.slice(-16),
+              onChunk: function(chunk, fullSoFar) {
+                full0 = fullSoFar;
+                bubble0.innerHTML = renderMd(full0);
+                var cur = document.createElement('span');
+                cur.className = 'jfp-cursor';
+                bubble0.appendChild(cur);
+                history.scrollTop = history.scrollHeight;
+              },
+              onStep: function(step) {
+                var se = document.createElement('div');
+                se.style.cssText = 'font-size:11px;color:var(--accent-amber,#f59e0b);font-style:italic;margin:2px 0';
+                se.textContent = step;
+                bubble0.insertBefore(se, bubble0.lastChild);
+                history.scrollTop = history.scrollHeight;
+              },
+              onDone: function(finalText) {
+                full0 = finalText || full0;
+                bubble0.innerHTML = renderMd(full0);
+                sessionHistory.push({ role: 'user', content: text });
+                sessionHistory.push({ role: 'assistant', content: full0 });
+                if (sessionHistory.length > 40) sessionHistory = sessionHistory.slice(-40);
+              },
+              onError: function(err) {
+                bubble0.textContent = '⚠ Groq: ' + err;
+                bubble0.style.color = 'var(--accent-red,#ef4444)';
+              },
+            });
+          } catch(ge) {
+            bubble0.textContent = '⚠ Groq error: ' + (ge.message || String(ge));
+          } finally {
+            setStreaming(false);
+            history.scrollTop = history.scrollHeight;
+          }
+          return;
+        }
+
         if (!jwtToken) {
           removeTyping();
           var errBubble2 = appendMsg('julio', '');
-          errBubble2.textContent = '⚠ Faça login para usar o Júlio AI.';
+          errBubble2.textContent = hasGroqKey ? '⚠ Carregando Groq...' : '⚠ Faça login para usar o Júlio AI.';
           setStreaming(false);
-          if (typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
+          if (!hasGroqKey && typeof showToast === 'function') showToast('warning', 'Login', 'Faça login para usar o Júlio AI.');
           return;
         }
 
@@ -17332,11 +17685,40 @@
 
         } catch (e) {
           removeTyping();
-          if (bubble) {
-            bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+          // Backend failed — try Groq fallback if key available
+          if (hasGroqKey && window.julioK25) {
+            if (bubble) bubble.remove();
+            var fbBubble = appendMsg('julio', '');
+            var fbFull = '';
+            try {
+              await window.julioK25.chat(text, {
+                mode: window.julioK25.currentMode || 'instant',
+                history: sessionHistory.slice(-16),
+                onChunk: function(chunk, fullSoFar) {
+                  fbFull = fullSoFar;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  history.scrollTop = history.scrollHeight;
+                },
+                onDone: function(finalText) {
+                  fbFull = finalText || fbFull;
+                  fbBubble.innerHTML = renderMd(fbFull);
+                  sessionHistory.push({ role: 'user', content: text });
+                  sessionHistory.push({ role: 'assistant', content: fbFull });
+                },
+                onError: function(fbErr) {
+                  fbBubble.textContent = '⚠ Erro: ' + fbErr;
+                },
+              });
+            } catch(fbE) {
+              fbBubble.textContent = '⚠ Erro: ' + (fbE.message || String(fbE));
+            }
           } else {
-            var eb = appendMsg('julio', '');
-            eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            if (bubble) {
+              bubble.textContent = '⚠ Erro: ' + (e.message || String(e));
+            } else {
+              var eb = appendMsg('julio', '');
+              eb.textContent = '⚠ Erro: ' + (e.message || String(e));
+            }
           }
         } finally {
           setStreaming(false);
@@ -17922,6 +18304,7 @@
     setTimeout(init, 500);
   }
 })();
+
   </script>
 
   <!-- Julio K2.5 Super Powers: Agent Swarm, Deep Research, Visual Coding, Artifacts -->

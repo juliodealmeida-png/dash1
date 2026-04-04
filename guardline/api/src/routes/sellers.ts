@@ -13,7 +13,7 @@ export function sellersRoutes(_env: unknown, supabase: SupabaseClient) {
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ sellers: data ?? [] });
+    res.json({ success: true, data: { sellers: data ?? [] } });
   });
 
   r.get('/:hubspot_owner_id', async (req, res) => {

@@ -45,7 +45,7 @@ export function dashboardRoutes(_env: unknown, supabase: SupabaseClient) {
     }).length;
     const criticalAlerts = signals.filter((s) => s.severity === 'critical').length;
 
-    res.json({
+    res.json({ success: true, data: {
       pipeline_total: pipelineTotal,
       active_deals: activeDeals.length,
       at_risk_count: atRisk,
@@ -55,7 +55,7 @@ export function dashboardRoutes(_env: unknown, supabase: SupabaseClient) {
       critical_alerts: criticalAlerts,
       hot_leads: leads.filter((l) => l.lead_temperature === 'hot').length,
       warm_leads: leads.filter((l) => l.lead_temperature === 'warm').length,
-    });
+    } });
   });
 
   r.get('/pipeline-health', async (_req, res) => {

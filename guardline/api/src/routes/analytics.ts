@@ -15,7 +15,7 @@ export function analyticsRoutes(_env: unknown, supabase: SupabaseClient) {
       res.status(500).json({ error: error.message });
       return;
     }
-    res.json({ campaigns: data ?? [] });
+    res.json({ success: true, data: { campaigns: data ?? [] } });
   });
 
   r.get('/pipeline', async (_req, res) => {
