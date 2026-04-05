@@ -29646,7 +29646,7 @@ function renderEWTemplates(){
     html += '<div class="ew-tmpl-cat">'+_h(cat)+'</div>';
     EMAIL_TEMPLATES.forEach(function(t,i){
       if(t.cat!==cat) return;
-      html += '<button class="ew-tmpl-btn'+(i===_ewActive?' active':'')+('" onclick="window.__glEW.pickTmpl('+i+')">'+_h(t.label)+'</button>';
+      html += '<button class="ew-tmpl-btn'+(i===_ewActive?' active':'')+'" onclick="window.__glEW.pickTmpl('+i+')">'+_h(t.label)+'</button>';
     });
   });
   list.innerHTML = html;
