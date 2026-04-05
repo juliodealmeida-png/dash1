@@ -32694,6 +32694,705 @@ else initBatch6();
 })();
 </script>
 
+<!-- ============================================================
+     BATCH 7: Quota Tracker, Deal Risk Radar, Email Sequence,
+               Account Canvas, Weekly Digest, ROI Calculator
+     ============================================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ─────────────────────────────────────────────
+   1. QUOTA TRACKER
+   ───────────────────────────────────────────── */
+var qtCSS = `
+#gl-qt-card {
+  background:#fff; border-radius:14px; border:1px solid #e5e7eb;
+  padding:20px 22px; grid-column: span 2;
+}
+.gl-dark #gl-qt-card { background:#161b22; border-color:#30363d; }
+.qt-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.qt-title { font-size:14px; font-weight:700; }
+.qt-period { font-size:11px; color:#94a3b8; padding:3px 10px; background:#f1f5f9; border-radius:8px; }
+.qt-team-row { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.qt-rep-name { width:120px; font-size:12px; font-weight:600; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.qt-bar-outer { flex:1; height:12px; background:#f1f5f9; border-radius:6px; overflow:visible; position:relative; }
+.qt-bar-fill { height:100%; border-radius:6px; transition:width 1s; position:relative; }
+.qt-bar-goal { position:absolute; right:0; top:-4px; width:2px; height:20px; background:#64748b; border-radius:1px; }
+.qt-pct { width:42px; text-align:right; font-size:12px; font-weight:700; flex-shrink:0; }
+.qt-attained { font-size:11px; color:#94a3b8; width:70px; text-align:right; flex-shrink:0; }
+.qt-total-row {
+  margin-top:14px; padding-top:14px; border-top:1px solid #f1f5f9;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark .qt-total-row { border-color:#30363d; }
+.qt-total-label { font-size:13px; font-weight:700; }
+.qt-total-val { font-size:22px; font-weight:900; color:#6366f1; }
+`;
+
+var QT_REPS=[
+  {name:'Camila Torres', attained:94, target:200000, achieved:188000, color:'#10b981'},
+  {name:'Luiza Carvalho', attained:85, target:180000, achieved:153000, color:'#6366f1'},
+  {name:'Pedro Monteiro', attained:72, target:160000, achieved:115200, color:'#f59e0b'},
+  {name:'Rafael Gomes', attained:61, target:150000, achieved:91500, color:'#ef4444'}
+];
+
+function buildQuotaTrackerCard(){
+  if(document.getElementById('gl-qt-card')) return;
+  var grid=document.getElementById('command-grid');
+  if(!grid) return;
+  var s=document.createElement('style'); s.textContent=qtCSS; document.head.appendChild(s);
+  var teamTotal=QT_REPS.reduce(function(a,r){ return a+r.achieved; },0);
+  var teamTarget=QT_REPS.reduce(function(a,r){ return a+r.target; },0);
+  var teamPct=Math.round((teamTotal/teamTarget)*100);
+  var card=document.createElement('div'); card.id='gl-qt-card';
+  card.innerHTML=
+    '<div class="qt-header">'+
+      '<div class="qt-title">🎯 Quota Tracker — Time Comercial</div>'+
+      '<div class="qt-period">Q'+getQ()+' / '+new Date().getFullYear()+'</div>'+
+    '</div>'+
+    QT_REPS.map(function(r){
+      var w=Math.min(r.attained,100);
+      return '<div class="qt-team-row">'+
+        '<div class="qt-rep-name">'+r.name+'</div>'+
+        '<div class="qt-bar-outer">'+
+          '<div class="qt-bar-fill" style="width:'+w+'%;background:'+r.color+';"></div>'+
+          '<div class="qt-bar-goal"></div>'+
+        '</div>'+
+        '<div class="qt-pct" style="color:'+r.color+'">'+r.attained+'%</div>'+
+        '<div class="qt-attained">R$'+(r.achieved/1000).toFixed(0)+'K</div>'+
+      '</div>';
+    }).join('')+
+    '<div class="qt-total-row">'+
+      '<div class="qt-total-label">🏆 Time Total</div>'+
+      '<div class="qt-total-val">'+teamPct+'% <span style="font-size:13px;color:#94a3b8;font-weight:400;">R$'+(teamTotal/1000).toFixed(0)+'K / R$'+(teamTarget/1000).toFixed(0)+'K</span></div>'+
+    '</div>';
+  grid.appendChild(card);
+  setTimeout(function(){
+    card.querySelectorAll('.qt-bar-fill').forEach(function(b){
+      var w=b.style.width; b.style.width='0'; setTimeout(function(){ b.style.width=w; },100);
+    });
+  },200);
+}
+
+function getQ(){ return Math.ceil((new Date().getMonth()+1)/3); }
+
+/* ─────────────────────────────────────────────
+   2. DEAL RISK RADAR
+   ───────────────────────────────────────────── */
+var riskCSS = `
+#gl-risk-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-risk-modal.open { display:flex; }
+#gl-risk-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-risk-box { background:#161b22; color:#e6edf3; }
+#gl-risk-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#7f1d1d,#dc2626); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-risk-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-risk-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.risk-deal-card {
+  border-radius:12px; padding:16px 18px; margin-bottom:12px;
+  border:1px solid transparent; transition:box-shadow .2s;
+}
+.risk-high { background:#fff5f5; border-color:#fca5a5; }
+.risk-med { background:#fffbeb; border-color:#fcd34d; }
+.risk-low { background:#f0fdf4; border-color:#86efac; }
+.gl-dark .risk-high { background:#450a0a; border-color:#dc2626; }
+.gl-dark .risk-med { background:#451a03; border-color:#f59e0b; }
+.gl-dark .risk-low { background:#052e16; border-color:#16a34a; }
+.risk-deal-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.risk-deal-name { font-weight:700; font-size:14px; }
+.risk-badge {
+  padding:3px 10px; border-radius:8px; font-size:11px; font-weight:700;
+}
+.risk-badge-high { background:#dc2626; color:#fff; }
+.risk-badge-med { background:#f59e0b; color:#fff; }
+.risk-badge-low { background:#16a34a; color:#fff; }
+.risk-signals { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.risk-signal {
+  padding:3px 8px; border-radius:6px; font-size:11px; background:#f1f5f9; color:#475569;
+}
+.gl-dark .risk-signal { background:#21262d; color:#94a3b8; }
+.risk-action {
+  margin-top:8px; font-size:12px; color:#64748b; line-height:1.6;
+  padding:8px 12px; background:#f8fafc; border-radius:8px; border-left:3px solid;
+}
+.risk-high .risk-action { border-color:#dc2626; }
+.risk-med .risk-action { border-color:#f59e0b; }
+.risk-low .risk-action { border-color:#16a34a; }
+.gl-dark .risk-action { background:#21262d; color:#8b949e; }
+`;
+
+var RISK_DEALS=[
+  {name:'Vivo Enterprise',value:'R$320K',risk:'high',stage:'Negociação',signals:['30+ dias sem atividade','Stakeholder mudou de cargo','Budget freeze rumored'],action:'🚨 Ação urgente: contate o novo stakeholder hoje. Prepare business case focado em ROI para reaprovação de budget.'},
+  {name:'Banco Modal',value:'R$185K',risk:'high',signals:['Concorrente apresentou proposta','Champion de férias por 2 semanas','Prazo de decisão vencendo'],stage:'Proposta',action:'🚨 Ação urgente: envolva o C-level do cliente agora. Use case study de banco similar como prova social.'},
+  {name:'Totvs Parceiro',value:'R$94K',risk:'med',signals:['2 follow-ups sem resposta','Proposta não foi aberta','Timeline indefinido'],stage:'Qualificação',action:'⚠️ Re-engage com nova abordagem. Tente canais diferentes (WhatsApp, LinkedIn). Ofereça demo ao vivo.'},
+  {name:'Magalu Digital',value:'R$67K',risk:'med',signals:['Budget não confirmado','Múltiplos decisores identificados','Processo longo'],stage:'Discovery',action:'⚠️ Mapeie todos os stakeholders e confirme budget antes de investir mais tempo.'},
+  {name:'Nubank Ventures',value:'R$52K',risk:'low',signals:['Engajamento alto','Reunião agendada para semana que vem'],stage:'Proposta',action:'✅ Deal saudável. Preparar proposta personalizada com pricing anual e case study fintech.'},
+  {name:'iFood Supply',value:'R$41K',risk:'low',signals:['Champion comprometido','Timeline claro'],stage:'Negociação',action:'✅ Em bom caminho. Foque em acelerar aprovação interna deles.'}
+];
+
+window.__glRisk = {
+  open: function(){
+    if(!document.getElementById('gl-risk-modal')) buildRiskModal();
+    document.getElementById('gl-risk-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-risk-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildRiskModal(){
+  var s=document.createElement('style'); s.textContent=riskCSS; document.head.appendChild(s);
+  var highs=RISK_DEALS.filter(function(d){ return d.risk==='high'; }).length;
+  var meds=RISK_DEALS.filter(function(d){ return d.risk==='med'; }).length;
+  var m=document.createElement('div'); m.id='gl-risk-modal';
+  m.innerHTML=
+    '<div id="gl-risk-box">'+
+      '<div id="gl-risk-head">'+
+        '<h2>🚨 Deal Risk Radar</h2>'+
+        '<button onclick="window.__glRisk.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fca5a5">✕</button>'+
+      '</div>'+
+      '<div id="gl-risk-body">'+
+        '<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">'+
+          '<div style="padding:10px 16px;background:#fee2e2;border-radius:10px;text-align:center;flex:1;min-width:100px;"><div style="font-size:24px;font-weight:800;color:#dc2626;">'+highs+'</div><div style="font-size:11px;color:#7f1d1d;">Alto Risco</div></div>'+
+          '<div style="padding:10px 16px;background:#fef3c7;border-radius:10px;text-align:center;flex:1;min-width:100px;"><div style="font-size:24px;font-weight:800;color:#d97706;">'+meds+'</div><div style="font-size:11px;color:#78350f;">Médio Risco</div></div>'+
+          '<div style="padding:10px 16px;background:#dcfce7;border-radius:10px;text-align:center;flex:1;min-width:100px;"><div style="font-size:24px;font-weight:800;color:#16a34a;">'+(RISK_DEALS.length-highs-meds)+'</div><div style="font-size:11px;color:#14532d;">Baixo Risco</div></div>'+
+          '<div style="padding:10px 16px;background:#eff6ff;border-radius:10px;text-align:center;flex:1;min-width:100px;"><div style="font-size:24px;font-weight:800;color:#1d4ed8;">R$759K</div><div style="font-size:11px;color:#1e40af;">Em Risco Total</div></div>'+
+        '</div>'+
+        RISK_DEALS.map(function(d){
+          return '<div class="risk-deal-card risk-'+d.risk+'">'+
+            '<div class="risk-deal-head">'+
+              '<div><div class="risk-deal-name">'+d.name+'</div><div style="font-size:12px;color:#64748b;">'+d.stage+' · '+d.value+'</div></div>'+
+              '<span class="risk-badge risk-badge-'+d.risk+'">'+(d.risk==='high'?'🔴 Alto':d.risk==='med'?'🟡 Médio':'🟢 Baixo')+'</span>'+
+            '</div>'+
+            '<div class="risk-signals">'+d.signals.map(function(s){ return '<span class="risk-signal">⚠ '+s+'</span>'; }).join('')+'</div>'+
+            '<div class="risk-action">'+d.action+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glRisk.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   3. EMAIL SEQUENCE BUILDER
+   ───────────────────────────────────────────── */
+var seqCSS = `
+#gl-seq-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-seq-modal.open { display:flex; }
+#gl-seq-box {
+  background:#fff; border-radius:16px; width:820px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-seq-box { background:#161b22; color:#e6edf3; }
+#gl-seq-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-seq-head { border-color:#30363d; }
+#gl-seq-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-seq-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.seq-step {
+  display:flex; gap:14px; margin-bottom:16px;
+}
+.seq-step-num {
+  width:32px; height:32px; border-radius:50%; background:#6366f1; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:700;
+  font-size:14px; flex-shrink:0; margin-top:4px;
+}
+.seq-step-content { flex:1; }
+.seq-step-header { display:flex; align-items:center; gap:10px; margin-bottom:8px; }
+.seq-step-day { font-size:12px; font-weight:700; color:#6366f1; }
+.seq-step-type {
+  padding:2px 8px; border-radius:6px; font-size:11px; font-weight:600;
+  background:#ede9fe; color:#6d28d9;
+}
+.seq-step-subj { font-size:13px; font-weight:700; margin-bottom:4px; }
+.seq-step-body {
+  font-size:12px; color:#64748b; line-height:1.8; padding:10px 14px;
+  background:#f9fafb; border-radius:8px; border-left:3px solid #6366f1;
+}
+.gl-dark .seq-step-body { background:#21262d; color:#8b949e; }
+.seq-connector {
+  width:2px; height:20px; background:#e5e7eb; margin-left:15px;
+}
+.gl-dark .seq-connector { background:#30363d; }
+.seq-template-btns { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+.seq-tpl-btn {
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:600;
+  cursor:pointer; border:1px solid #e5e7eb; background:#f8fafc; color:#64748b; transition:all .2s;
+}
+.seq-tpl-btn.active { background:#6366f1; color:#fff; border-color:#6366f1; }
+`;
+
+var SEQ_TEMPLATES={
+  cold: [
+    {day:1,type:'Email',subj:'[Nome], vimos que {empresa} está crescendo 🚀',body:'Oi [Nome], a {empresa} chamou nossa atenção — você dobrou o time de vendas em 6 meses. Empresas nesse ritmo geralmente enfrentam desafios com visibilidade de pipeline. Nós ajudamos empresas como a sua a ter forecast preciso em tempo real. Vale 15 minutos essa semana?'},
+    {day:3,type:'LinkedIn',subj:'Conexão + mensagem',body:'Oi [Nome]! Enviei um email segunda-feira sobre forecast de pipeline. Vi seu post sobre {tema_recente} — insights excelentes. Posso compartilhar um case de uma empresa similar que resolveu exatamente esse problema.'},
+    {day:5,type:'Email',subj:'Re: [Nome], vimos que {empresa} está crescendo 🚀',body:'[Nome], queria reforçar rapidamente. Temos um case de {segmento_similar} que aumentou win rate em 23% em 90 dias. Posso te enviar? Só precisa de 2 cliques para confirmar.'},
+    {day:8,type:'WhatsApp',subj:'Follow-up via WhatsApp',body:'Oi [Nome]! Tentei email e LinkedIn. Sei que a agenda está pesada — posso enviar um vídeo de 2 minutos explicando o que fazemos? Nenhum compromisso.'},
+    {day:12,type:'Email',subj:'Último contato — [Nome]',body:'[Nome], vou respeitar seu tempo. Esse é meu último email. Se o timing mudar, meu contato fica aqui. Deixo uma pergunta: o que impede seu time de ter visibilidade total do pipeline hoje?'}
+  ],
+  nurture: [
+    {day:1,type:'Email',subj:'Recurso exclusivo: Guia RevOps 2026',body:'[Nome], como você demonstrou interesse em revenue operations, preparei um guia exclusivo com as 10 métricas que os melhores CROs brasileiros monitoram diariamente. Posso enviar?'},
+    {day:7,type:'Email',subj:'Case: como {empresa_similar} triplicou pipeline visibility',body:'[Nome], caso de uma empresa do seu segmento que implementou forecast em tempo real e reduziu ciclo de vendas de 45 para 27 dias. Resultado: +R$2.1M em receita adicional no primeiro ano.'},
+    {day:14,type:'LinkedIn',subj:'Compartilhando insight relevante',body:'Vi que vocês abriram 3 vagas de AE — momento de crescimento! Empresas que escalam time comercial precisam de infrastructure sólida. Tenho uma ferramenta que garante que cada novo AE seja produtivo em 30 dias.'},
+    {day:21,type:'Email',subj:'[Nome], pronto para ver isso em ação?',body:'Após 3 semanas compartilhando conteúdo, gostaria de mostrar como tudo isso funciona na prática. Uma demo de 20 minutos pode mudar sua perspectiva sobre pipeline management. Qual horário funciona melhor?'}
+  ]
+};
+
+var activeSeqTpl='cold';
+window.__glSeq = {
+  open: function(){
+    if(!document.getElementById('gl-seq-modal')) buildSeqModal();
+    document.getElementById('gl-seq-modal').classList.add('open');
+    renderSeq('cold');
+  },
+  close: function(){ var m=document.getElementById('gl-seq-modal'); if(m) m.classList.remove('open'); },
+  switchTpl: function(tpl){
+    activeSeqTpl=tpl;
+    document.querySelectorAll('.seq-tpl-btn').forEach(function(b){ b.classList.toggle('active',b.dataset.tpl===tpl); });
+    renderSeq(tpl);
+  }
+};
+
+function buildSeqModal(){
+  var s=document.createElement('style'); s.textContent=seqCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-seq-modal';
+  m.innerHTML=
+    '<div id="gl-seq-box">'+
+      '<div id="gl-seq-head">'+
+        '<h2>📬 Email Sequence Builder</h2>'+
+        '<button onclick="window.__glSeq.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-seq-body">'+
+        '<div class="seq-template-btns">'+
+          '<button class="seq-tpl-btn active" data-tpl="cold" onclick="window.__glSeq.switchTpl(\'cold\')">❄️ Cold Outreach (5 steps)</button>'+
+          '<button class="seq-tpl-btn" data-tpl="nurture" onclick="window.__glSeq.switchTpl(\'nurture\')">🌱 Nurture Sequence (4 steps)</button>'+
+        '</div>'+
+        '<div id="gl-seq-steps"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glSeq.close(); });
+  document.body.appendChild(m);
+}
+
+function renderSeq(tpl){
+  var steps=SEQ_TEMPLATES[tpl]||[];
+  var el=document.getElementById('gl-seq-steps');
+  if(!el) return;
+  el.innerHTML=steps.map(function(step,i){
+    return (i>0?'<div class="seq-connector"></div>':'')+
+      '<div class="seq-step">'+
+        '<div class="seq-step-num">'+(i+1)+'</div>'+
+        '<div class="seq-step-content">'+
+          '<div class="seq-step-header">'+
+            '<span class="seq-step-day">Dia '+step.day+'</span>'+
+            '<span class="seq-step-type">'+step.type+'</span>'+
+          '</div>'+
+          '<div class="seq-step-subj">'+step.subj+'</div>'+
+          '<div class="seq-step-body">'+step.body+'</div>'+
+        '</div>'+
+      '</div>';
+  }).join('');
+}
+
+/* ─────────────────────────────────────────────
+   4. ROI CALCULATOR
+   ───────────────────────────────────────────── */
+var roiCSS = `
+#gl-roi-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-roi-modal.open { display:flex; }
+#gl-roi-box {
+  background:#fff; border-radius:16px; width:760px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-roi-box { background:#161b22; color:#e6edf3; }
+#gl-roi-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#064e3b,#059669); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-roi-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-roi-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.roi-input-group { margin-bottom:16px; }
+.roi-input-group label { display:block; font-size:12px; font-weight:600; color:#64748b; margin-bottom:6px; }
+.roi-input-group input {
+  width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px;
+  font-size:14px; font-weight:600; box-sizing:border-box;
+  background:#f9fafb; color:#1e293b;
+}
+.gl-dark .roi-input-group input { background:#21262d; border-color:#30363d; color:#e6edf3; }
+.roi-input-group input:focus { outline:none; border-color:#059669; box-shadow:0 0 0 3px rgba(5,150,105,.1); }
+.roi-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+.roi-result-card {
+  padding:18px 20px; border-radius:12px; text-align:center;
+}
+.roi-result-main { background:linear-gradient(135deg,#064e3b,#059669); color:#fff; }
+.roi-result-sec { background:#f0fdf4; border:1px solid #86efac; }
+.gl-dark .roi-result-sec { background:#052e16; border-color:#166534; }
+.roi-result-val { font-size:32px; font-weight:900; }
+.roi-result-main .roi-result-val { color:#fff; }
+.roi-result-sec .roi-result-val { color:#059669; }
+.roi-result-lbl { font-size:11px; margin-top:4px; opacity:.8; }
+.roi-result-main .roi-result-lbl { color:rgba(255,255,255,.8); }
+.roi-result-sec .roi-result-lbl { color:#065f46; }
+.gl-dark .roi-result-sec .roi-result-lbl { color:#6ee7b7; }
+.roi-calculate-btn {
+  width:100%; padding:12px; background:#059669; color:#fff; border:none;
+  border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-bottom:16px;
+  transition:opacity .2s;
+}
+.roi-calculate-btn:hover { opacity:.9; }
+`;
+
+window.__glROI = {
+  open: function(){
+    if(!document.getElementById('gl-roi-modal')) buildROIModal();
+    document.getElementById('gl-roi-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-roi-modal'); if(m) m.classList.remove('open'); },
+  calculate: calculateROI
+};
+
+function buildROIModal(){
+  var s=document.createElement('style'); s.textContent=roiCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-roi-modal';
+  m.innerHTML=
+    '<div id="gl-roi-box">'+
+      '<div id="gl-roi-head">'+
+        '<h2>💹 ROI Calculator</h2>'+
+        '<button onclick="window.__glROI.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6ee7b7">✕</button>'+
+      '</div>'+
+      '<div id="gl-roi-body">'+
+        '<div class="roi-grid">'+
+          '<div class="roi-input-group"><label>👥 Número de vendedores</label><input id="roi-reps" type="number" value="10" min="1"></div>'+
+          '<div class="roi-input-group"><label>💰 Ticket médio atual (R$)</label><input id="roi-ticket" type="number" value="45000" min="1000"></div>'+
+          '<div class="roi-input-group"><label>🎯 Win rate atual (%)</label><input id="roi-winrate" type="number" value="55" min="1" max="100"></div>'+
+          '<div class="roi-input-group"><label>⏱️ Ciclo de venda (dias)</label><input id="roi-cycle" type="number" value="35" min="1"></div>'+
+          '<div class="roi-input-group"><label>📊 Deals por vendedor/mês</label><input id="roi-deals" type="number" value="8" min="1"></div>'+
+          '<div class="roi-input-group"><label>💲 Investimento mensal (R$)</label><input id="roi-invest" type="number" value="5000" min="500"></div>'+
+        '</div>'+
+        '<button class="roi-calculate-btn" onclick="window.__glROI.calculate()">📊 Calcular ROI</button>'+
+        '<div id="gl-roi-results"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glROI.close(); });
+  document.body.appendChild(m);
+  setTimeout(calculateROI,200);
+}
+
+function calculateROI(){
+  var reps=parseFloat(document.getElementById('roi-reps').value)||10;
+  var ticket=parseFloat(document.getElementById('roi-ticket').value)||45000;
+  var wr=(parseFloat(document.getElementById('roi-winrate').value)||55)/100;
+  var cycle=parseFloat(document.getElementById('roi-cycle').value)||35;
+  var deals=parseFloat(document.getElementById('roi-deals').value)||8;
+  var invest=parseFloat(document.getElementById('roi-invest').value)||5000;
+  var currentRev=reps*deals*wr*ticket;
+  var newWR=Math.min(wr*1.15,0.95);
+  var newCycle=cycle*0.82;
+  var newDeals=deals*1.12;
+  var newRev=reps*newDeals*newWR*ticket;
+  var gain=newRev-currentRev;
+  var roi=Math.round(((gain-invest)/invest)*100);
+  var payback=Math.round(invest/((gain)/12));
+  var results=document.getElementById('gl-roi-results');
+  if(!results) return;
+  results.innerHTML=
+    '<div class="roi-grid">'+
+      '<div class="roi-result-card roi-result-main"><div class="roi-result-val">'+roi+'%</div><div class="roi-result-lbl">ROI Estimado (12 meses)</div></div>'+
+      '<div class="roi-result-card roi-result-main"><div class="roi-result-val">'+payback+'m</div><div class="roi-result-lbl">Payback Period</div></div>'+
+    '</div>'+
+    '<div class="roi-grid">'+
+      '<div class="roi-result-card roi-result-sec"><div class="roi-result-val">R$'+(gain/1000).toFixed(0)+'K</div><div class="roi-result-lbl">Receita Adicional/Ano</div></div>'+
+      '<div class="roi-result-card roi-result-sec"><div class="roi-result-val">+'+(Math.round((newWR-wr)*100))+'pp</div><div class="roi-result-lbl">Melhoria Win Rate</div></div>'+
+      '<div class="roi-result-card roi-result-sec"><div class="roi-result-val">-'+(Math.round((1-(newCycle/cycle))*100))+'%</div><div class="roi-result-lbl">Redução Ciclo Venda</div></div>'+
+      '<div class="roi-result-card roi-result-sec"><div class="roi-result-val">+'+(Math.round((newDeals-deals)*reps*12))+'</div><div class="roi-result-lbl">Deals Adicionais/Ano</div></div>'+
+    '</div>';
+}
+
+/* ─────────────────────────────────────────────
+   5. WEEKLY DIGEST
+   ───────────────────────────────────────────── */
+var digestCSS = `
+#gl-digest-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-digest-modal.open { display:flex; }
+#gl-digest-box {
+  background:#fff; border-radius:16px; width:760px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-digest-box { background:#161b22; color:#e6edf3; }
+#gl-digest-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-digest-head { border-color:#30363d; }
+#gl-digest-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-digest-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.digest-week-badge {
+  text-align:center; padding:10px; background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  border-radius:10px; color:#fff; margin-bottom:20px;
+}
+.digest-week-badge div:first-child { font-size:13px; opacity:.8; }
+.digest-week-badge div:last-child { font-size:18px; font-weight:800; margin-top:2px; }
+.digest-section { margin-bottom:20px; }
+.digest-section h3 { font-size:14px; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:6px; }
+.digest-item {
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+  background:#f9fafb; border-radius:8px; margin-bottom:8px; font-size:12px;
+}
+.gl-dark .digest-item { background:#21262d; }
+.digest-item-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.digest-item-text { line-height:1.6; color:#374151; }
+.gl-dark .digest-item-text { color:#d1d5db; }
+.digest-item-val { font-weight:700; color:#6366f1; }
+.digest-highlight {
+  padding:14px 18px; background:linear-gradient(135deg,#eff6ff,#eef2ff);
+  border-radius:10px; margin-bottom:20px; border:1px solid #c7d2fe;
+}
+.gl-dark .digest-highlight { background:linear-gradient(135deg,#1e3a5f22,#1e1b4b22); border-color:#4338ca; }
+.digest-highlight h4 { margin:0 0 6px; font-size:13px; color:#4338ca; }
+.gl-dark .digest-highlight h4 { color:#818cf8; }
+.digest-highlight p { margin:0; font-size:12px; color:#3730a3; line-height:1.7; }
+.gl-dark .digest-highlight p { color:#a5b4fc; }
+`;
+
+window.__glDigest = {
+  open: function(){
+    if(!document.getElementById('gl-digest-modal')) buildDigestModal();
+    document.getElementById('gl-digest-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-digest-modal'); if(m) m.classList.remove('open'); }
+};
+
+function getWeekRange(){
+  var now=new Date();
+  var day=now.getDay();
+  var monday=new Date(now); monday.setDate(now.getDate()-(day===0?6:day-1));
+  var friday=new Date(monday); friday.setDate(monday.getDate()+4);
+  var fmt=function(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); };
+  return fmt(monday)+' – '+fmt(friday);
+}
+
+function buildDigestModal(){
+  var s=document.createElement('style'); s.textContent=digestCSS; document.head.appendChild(s);
+  var deals=window.__guardlineDealsCache||[];
+  var m=document.createElement('div'); m.id='gl-digest-modal';
+  m.innerHTML=
+    '<div id="gl-digest-box">'+
+      '<div id="gl-digest-head">'+
+        '<h2>📰 Weekly Revenue Digest</h2>'+
+        '<button onclick="window.__glDigest.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-digest-body">'+
+        '<div class="digest-week-badge">'+
+          '<div>Semana de</div>'+
+          '<div>'+getWeekRange()+'</div>'+
+        '</div>'+
+        '<div class="digest-highlight">'+
+          '<h4>⭐ Destaque da Semana</h4>'+
+          '<p>Camila Torres fechou o maior deal do mês — R$188K com HealthTech SA. Win rate do time atingiu 67%, acima da meta de 60%. Pipeline total cresceu 14% vs. semana anterior.</p>'+
+        '</div>'+
+        '<div class="digest-section">'+
+          '<h3>✅ Wins da Semana</h3>'+
+          '<div class="digest-item"><div class="digest-item-icon">🏆</div><div class="digest-item-text"><span class="digest-item-val">HealthTech SA — R$188K</span> fechado por Camila Torres. Deal em negociação por 19 dias.</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">🏆</div><div class="digest-item-text"><span class="digest-item-val">TechCorp BR — R$94K</span> fechado por Luiza Carvalho. Upsell de plano básico para enterprise.</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">🏆</div><div class="digest-item-text"><span class="digest-item-val">EdTech BR — R$41K</span> fechado por Pedro Monteiro. Primeiro deal do mês para ele.</div></div>'+
+        '</div>'+
+        '<div class="digest-section">'+
+          '<h3>⚠️ Deals em Risco</h3>'+
+          '<div class="digest-item"><div class="digest-item-icon">🚨</div><div class="digest-item-text"><span class="digest-item-val">Vivo Enterprise (R$320K)</span> sem atividade há 30 dias. Champion trocou de cargo.</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">⚠️</div><div class="digest-item-text"><span class="digest-item-val">Banco Modal (R$185K)</span> concorrente apresentou proposta. Ação urgente necessária.</div></div>'+
+        '</div>'+
+        '<div class="digest-section">'+
+          '<h3>📊 Métricas da Semana</h3>'+
+          '<div class="digest-item"><div class="digest-item-icon">📞</div><div class="digest-item-text"><span class="digest-item-val">142 calls</span> realizadas (+18% vs. semana anterior)</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">📧</div><div class="digest-item-text"><span class="digest-item-val">87 emails</span> enviados · 34% taxa de abertura</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">🤝</div><div class="digest-item-text"><span class="digest-item-val">12 reuniões</span> agendadas · 8 realizadas</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">➕</div><div class="digest-item-text"><span class="digest-item-val">5 novos deals</span> adicionados ao pipeline</div></div>'+
+        '</div>'+
+        '<div class="digest-section">'+
+          '<h3>🎯 Próxima Semana</h3>'+
+          '<div class="digest-item"><div class="digest-item-icon">🔥</div><div class="digest-item-text">Reengajar <span class="digest-item-val">Vivo Enterprise</span> com novo champion</div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">🔥</div><div class="digest-item-text">Apresentar contra-proposta para <span class="digest-item-val">Banco Modal</span></div></div>'+
+          '<div class="digest-item"><div class="digest-item-icon">📅</div><div class="digest-item-text">Forecast review com o time na segunda às 9h</div></div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glDigest.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   6. EXPANSION REVENUE TRACKER
+   ───────────────────────────────────────────── */
+var expCSS = `
+#gl-exp-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-exp-modal.open { display:flex; }
+#gl-exp-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-exp-box { background:#161b22; color:#e6edf3; }
+#gl-exp-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#0c4a6e,#0369a1); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-exp-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-exp-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.exp-summary-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.exp-summary-kpi {
+  flex:1; min-width:120px; padding:14px 16px; border-radius:10px;
+  background:#f0f9ff; border:1px solid #bae6fd; text-align:center;
+}
+.gl-dark .exp-summary-kpi { background:#0c4a6e22; border-color:#0369a1; }
+.exp-summary-kpi-val { font-size:24px; font-weight:800; color:#0369a1; }
+.exp-summary-kpi-lbl { font-size:11px; color:#64748b; margin-top:2px; }
+.exp-account {
+  padding:16px 18px; background:#f9fafb; border:1px solid #e5e7eb;
+  border-radius:12px; margin-bottom:10px;
+}
+.gl-dark .exp-account { background:#21262d; border-color:#30363d; }
+.exp-account-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.exp-account-name { font-weight:700; font-size:14px; }
+.exp-account-type {
+  padding:2px 10px; border-radius:8px; font-size:11px; font-weight:600;
+}
+.exp-type-upsell { background:#dcfce7; color:#15803d; }
+.exp-type-cross { background:#dbeafe; color:#1d4ed8; }
+.exp-type-renew { background:#ede9fe; color:#6d28d9; }
+.exp-opp-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.exp-opp-lbl { font-size:12px; color:#64748b; width:120px; flex-shrink:0; }
+.exp-opp-val { font-size:13px; font-weight:700; }
+.exp-action-hint { font-size:12px; color:#64748b; margin-top:8px; padding:8px 12px; background:#f1f5f9; border-radius:6px; }
+.gl-dark .exp-action-hint { background:#21262d; color:#8b949e; }
+`;
+
+var EXP_ACCOUNTS=[
+  {name:'TechCorp BR',type:'upsell',typeLbl:'Upsell',mrr:3800,opp:8500,seats:12,maxSeats:30,renewal:'Mar/27',action:'Oferecer upgrade para Enterprise (30 seats). Potencial: +R$8.5K/mês.'},
+  {name:'Fintech Solutions',type:'cross',typeLbl:'Cross-sell',mrr:5200,opp:2800,seats:20,maxSeats:20,renewal:'Jun/27',action:'Módulo de analytics avançado não está ativado. Demo personalizado para CFO pode gerar +R$2.8K.'},
+  {name:'HealthTech SA',type:'renew',typeLbl:'Renovação',mrr:7100,opp:7100,seats:25,maxSeats:25,renewal:'Abr/27',action:'Renovação em 30 dias. Preparar proposta 2 anos com desconto 15% para garantir expansão de seats.'},
+  {name:'Varejo Digital',type:'upsell',typeLbl:'Upsell',mrr:2200,opp:4400,seats:8,maxSeats:20,renewal:'Jul/27',action:'Time cresceu para 18 pessoas mas só 8 têm acesso. Expansão natural de +10 seats.'},
+  {name:'EdTech BR',type:'cross',typeLbl:'Cross-sell',mrr:1800,opp:1200,seats:6,maxSeats:6,renewal:'Set/27',action:'Integração com HubSpot não foi implementada. Ativação pode aumentar NPS e reduzir churn.'}
+];
+
+window.__glExp = {
+  open: function(){
+    if(!document.getElementById('gl-exp-modal')) buildExpModal();
+    document.getElementById('gl-exp-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-exp-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildExpModal(){
+  var s=document.createElement('style'); s.textContent=expCSS; document.head.appendChild(s);
+  var totalMRR=EXP_ACCOUNTS.reduce(function(a,x){ return a+x.mrr; },0);
+  var totalOpp=EXP_ACCOUNTS.reduce(function(a,x){ return a+x.opp; },0);
+  var ndr=Math.round(((totalMRR+totalOpp)/totalMRR)*100);
+  var m=document.createElement('div'); m.id='gl-exp-modal';
+  m.innerHTML=
+    '<div id="gl-exp-box">'+
+      '<div id="gl-exp-head">'+
+        '<h2>📈 Expansion Revenue Tracker</h2>'+
+        '<button onclick="window.__glExp.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#bae6fd">✕</button>'+
+      '</div>'+
+      '<div id="gl-exp-body">'+
+        '<div class="exp-summary-row">'+
+          '<div class="exp-summary-kpi"><div class="exp-summary-kpi-val">R$'+(totalMRR/1000).toFixed(1)+'K</div><div class="exp-summary-kpi-lbl">MRR Atual</div></div>'+
+          '<div class="exp-summary-kpi"><div class="exp-summary-kpi-val">R$'+(totalOpp/1000).toFixed(1)+'K</div><div class="exp-summary-kpi-lbl">Oportunidade Expansão</div></div>'+
+          '<div class="exp-summary-kpi"><div class="exp-summary-kpi-val">'+ndr+'%</div><div class="exp-summary-kpi-lbl">Net Dollar Retention</div></div>'+
+          '<div class="exp-summary-kpi"><div class="exp-summary-kpi-val">'+EXP_ACCOUNTS.length+'</div><div class="exp-summary-kpi-lbl">Contas Ativas</div></div>'+
+        '</div>'+
+        EXP_ACCOUNTS.map(function(acc){
+          return '<div class="exp-account">'+
+            '<div class="exp-account-head">'+
+              '<div class="exp-account-name">'+acc.name+'</div>'+
+              '<span class="exp-account-type exp-type-'+acc.type+'">'+acc.typeLbl+'</span>'+
+            '</div>'+
+            '<div class="exp-opp-row"><span class="exp-opp-lbl">MRR Atual:</span><span class="exp-opp-val">R$'+acc.mrr.toLocaleString('pt-BR')+'/mês</span></div>'+
+            '<div class="exp-opp-row"><span class="exp-opp-lbl">Potencial:</span><span class="exp-opp-val" style="color:#059669;">+R$'+acc.opp.toLocaleString('pt-BR')+'/mês</span></div>'+
+            '<div class="exp-opp-row"><span class="exp-opp-lbl">Seats:</span><span class="exp-opp-val">'+acc.seats+' / '+acc.maxSeats+'</span></div>'+
+            '<div class="exp-opp-row"><span class="exp-opp-lbl">Renovação:</span><span class="exp-opp-val">'+acc.renewal+'</span></div>'+
+            '<div class="exp-action-hint">💡 '+acc.action+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glExp.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   BATCH 7 INIT
+   ───────────────────────────────────────────── */
+function addBatch7Buttons(){
+  var dock=document.getElementById('gl-quick-dock');
+  if(!dock||dock.dataset.batch7) return;
+  dock.dataset.batch7='1';
+  var extras=document.createElement('div');
+  extras.style.display='contents';
+  extras.innerHTML=
+    '<button class="qad-btn" title="Deal Risk Radar" onclick="window.__glRisk.open()"><span class="qad-ico">🚨</span><span>Risco</span></button>'+
+    '<button class="qad-btn" title="Email Sequences" onclick="window.__glSeq.open()"><span class="qad-ico">📬</span><span>Sequence</span></button>'+
+    '<button class="qad-btn" title="ROI Calculator" onclick="window.__glROI.open()"><span class="qad-ico">💹</span><span>ROI</span></button>'+
+    '<button class="qad-btn" title="Weekly Digest" onclick="window.__glDigest.open()"><span class="qad-ico">📰</span><span>Digest</span></button>'+
+    '<button class="qad-btn" title="Expansion Revenue" onclick="window.__glExp.open()"><span class="qad-ico">📈</span><span>Expansão</span></button>';
+  var seps=dock.querySelectorAll('.qad-sep');
+  var lastSep=seps[seps.length-1];
+  if(lastSep) dock.insertBefore(extras,lastSep); else dock.appendChild(extras);
+}
+
+function initBatch7(){
+  addBatch7Buttons();
+  var tries=0;
+  var wait=setInterval(function(){
+    tries++;
+    var grid=document.getElementById('command-grid');
+    if(grid||tries>80){
+      clearInterval(wait);
+      if(grid) buildQuotaTrackerCard();
+    }
+  },200);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBatch7);
+else initBatch7();
+
+})();
+</script>
+
 </body>
 </html>
 
