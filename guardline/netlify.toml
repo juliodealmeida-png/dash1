@@ -4,6 +4,12 @@
   command = "echo 'Static dashboard — no build'"
 
 [[redirects]]
+  from = "/api/*"
+  to = "https://guardline-engine-production.up.railway.app/api/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
   from = "/"
   to = "/guardline.html"
   status = 302
