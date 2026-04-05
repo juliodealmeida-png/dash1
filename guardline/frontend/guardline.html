@@ -33393,6 +33393,763 @@ else initBatch7();
 })();
 </script>
 
+<!-- ============================================================
+     BATCH 8: Contract Renewal, MEDDIC Scorecard, Revenue Thermometer,
+               Forecast Call Prep, Commission Calc, CS Handoff
+     ============================================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ─────────────────────────────────────────────
+   1. CONTRACT RENEWAL TRACKER
+   ───────────────────────────────────────────── */
+var renewCSS = `
+#gl-renew-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-renew-modal.open { display:flex; }
+#gl-renew-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-renew-box { background:#161b22; color:#e6edf3; }
+#gl-renew-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#4a1d96,#7c3aed); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-renew-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-renew-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.renew-kpi-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+.renew-kpi { flex:1; min-width:110px; padding:12px; background:#faf5ff; border:1px solid #ddd6fe; border-radius:10px; text-align:center; }
+.gl-dark .renew-kpi { background:#2e106522; border-color:#7c3aed; }
+.renew-kpi-val { font-size:22px; font-weight:800; color:#7c3aed; }
+.renew-kpi-lbl { font-size:10px; color:#94a3b8; margin-top:2px; }
+.renew-account {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:10px;
+}
+.gl-dark .renew-account { background:#21262d; border-color:#30363d; }
+.renew-countdown {
+  min-width:64px; text-align:center; padding:8px; border-radius:10px;
+  flex-shrink:0;
+}
+.renew-cd-urgent { background:#fee2e2; color:#dc2626; }
+.renew-cd-soon { background:#fef3c7; color:#d97706; }
+.renew-cd-ok { background:#dcfce7; color:#15803d; }
+.renew-cd-days { font-size:22px; font-weight:900; line-height:1; }
+.renew-cd-lbl { font-size:9px; font-weight:600; }
+.renew-info { flex:1; }
+.renew-name { font-weight:700; font-size:14px; }
+.renew-meta { font-size:11px; color:#64748b; margin-top:2px; }
+.renew-action-tag {
+  padding:3px 10px; border-radius:8px; font-size:11px; font-weight:600;
+  background:#ede9fe; color:#7c3aed;
+}
+`;
+
+var RENEW_ACCOUNTS=[
+  {name:'HealthTech SA',mrr:7100,seats:25,days:30,status:'urgent',action:'Enviar proposta renovação hoje'},
+  {name:'TechCorp BR',mrr:3800,seats:12,days:62,status:'soon',action:'Agendar reunião de QBR'},
+  {name:'Fintech Solutions',mrr:5200,seats:20,days:91,status:'soon',action:'Preparar upsell deck'},
+  {name:'Varejo Digital',mrr:2200,seats:8,days:152,status:'ok',action:'NPS check-in em 60 dias'},
+  {name:'EdTech BR',mrr:1800,seats:6,days:185,status:'ok',action:'Enviar relatório de uso mensal'}
+];
+
+window.__glRenew = {
+  open: function(){
+    if(!document.getElementById('gl-renew-modal')) buildRenewModal();
+    document.getElementById('gl-renew-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-renew-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildRenewModal(){
+  var s=document.createElement('style'); s.textContent=renewCSS; document.head.appendChild(s);
+  var total=RENEW_ACCOUNTS.reduce(function(a,x){ return a+x.mrr; },0);
+  var urgent=RENEW_ACCOUNTS.filter(function(x){ return x.status==='urgent'; }).length;
+  var m=document.createElement('div'); m.id='gl-renew-modal';
+  m.innerHTML=
+    '<div id="gl-renew-box">'+
+      '<div id="gl-renew-head">'+
+        '<h2>📋 Contract Renewal Tracker</h2>'+
+        '<button onclick="window.__glRenew.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#c4b5fd">✕</button>'+
+      '</div>'+
+      '<div id="gl-renew-body">'+
+        '<div class="renew-kpi-row">'+
+          '<div class="renew-kpi"><div class="renew-kpi-val">R$'+(total/1000).toFixed(1)+'K</div><div class="renew-kpi-lbl">MRR em Renovação</div></div>'+
+          '<div class="renew-kpi"><div class="renew-kpi-val" style="color:#dc2626;">'+urgent+'</div><div class="renew-kpi-lbl">Urgente (≤30d)</div></div>'+
+          '<div class="renew-kpi"><div class="renew-kpi-val">'+RENEW_ACCOUNTS.length+'</div><div class="renew-kpi-lbl">Contratos Ativos</div></div>'+
+          '<div class="renew-kpi"><div class="renew-kpi-val">94%</div><div class="renew-kpi-lbl">Renewal Rate (YTD)</div></div>'+
+        '</div>'+
+        RENEW_ACCOUNTS.map(function(acc){
+          var cdClass='renew-cd-'+(acc.status==='urgent'?'urgent':acc.status==='soon'?'soon':'ok');
+          return '<div class="renew-account">'+
+            '<div class="renew-countdown '+cdClass+'"><div class="renew-cd-days">'+acc.days+'</div><div class="renew-cd-lbl">DIAS</div></div>'+
+            '<div class="renew-info">'+
+              '<div class="renew-name">'+acc.name+'</div>'+
+              '<div class="renew-meta">R$'+acc.mrr.toLocaleString('pt-BR')+'/mês · '+acc.seats+' seats</div>'+
+            '</div>'+
+            '<span class="renew-action-tag">'+acc.action+'</span>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glRenew.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   2. MEDDIC SCORECARD
+   ───────────────────────────────────────────── */
+var medCSS = `
+#gl-meddic-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-meddic-modal.open { display:flex; }
+#gl-meddic-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-meddic-box { background:#161b22; color:#e6edf3; }
+#gl-meddic-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-meddic-head { border-color:#30363d; }
+#gl-meddic-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-meddic-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.meddic-deal-select {
+  width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px;
+  font-size:13px; margin-bottom:16px; background:#f9fafb;
+}
+.gl-dark .meddic-deal-select { background:#21262d; border-color:#30363d; color:#e6edf3; }
+.meddic-overall { display:flex; align-items:center; gap:16px; margin-bottom:20px; }
+.meddic-score-ring {
+  width:80px; height:80px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:28px; font-weight:900; color:#fff;
+}
+.meddic-score-high { background:linear-gradient(135deg,#059669,#10b981); }
+.meddic-score-med { background:linear-gradient(135deg,#d97706,#f59e0b); }
+.meddic-score-low { background:linear-gradient(135deg,#dc2626,#f87171); }
+.meddic-criteria { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.meddic-criterion {
+  padding:14px 16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px;
+}
+.gl-dark .meddic-criterion { background:#21262d; border-color:#30363d; }
+.meddic-c-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.meddic-c-letter { font-size:22px; font-weight:900; color:#6366f1; }
+.meddic-c-score { font-size:13px; font-weight:700; padding:2px 8px; border-radius:6px; }
+.meddic-c-score-ok { background:#dcfce7; color:#15803d; }
+.meddic-c-score-partial { background:#fef3c7; color:#b45309; }
+.meddic-c-score-missing { background:#fee2e2; color:#b91c1c; }
+.meddic-c-name { font-size:12px; font-weight:700; margin-bottom:4px; }
+.meddic-c-status { font-size:11px; color:#64748b; line-height:1.5; }
+.gl-dark .meddic-c-status { color:#8b949e; }
+`;
+
+var MEDDIC_DEALS=[
+  {name:'Vivo Enterprise',score:72,criteria:[
+    {letter:'M',name:'Metrics',status:'ok',text:'ROI de 3.2x em 12 meses quantificado'},
+    {letter:'E',name:'Economic Buyer',status:'partial',text:'Identificado (CFO) mas sem acesso direto ainda'},
+    {letter:'D',name:'Decision Criteria',status:'ok',text:'3 critérios mapeados: integração, suporte BR, IA'},
+    {letter:'D',name:'Decision Process',status:'partial',text:'Comitê de 4 pessoas, prazo Q2 ainda não confirmado'},
+    {letter:'I',name:'Identify Pain',status:'ok',text:'Forecast impreciso causando miss de quota de 35%'},
+    {letter:'C',name:'Champion',status:'missing',text:'Champion anterior saiu. Novo não identificado'}
+  ]},
+  {name:'Banco Modal',score:58,criteria:[
+    {letter:'M',name:'Metrics',status:'partial',text:'ROI aproximado estimado, não formalizado'},
+    {letter:'E',name:'Economic Buyer',status:'missing',text:'Desconhecido — acesso bloqueado pelo champion'},
+    {letter:'D',name:'Decision Criteria',status:'ok',text:'Segurança, LGPD e integração core banking'},
+    {letter:'D',name:'Decision Process',status:'partial',text:'Processo RFP ativo com 3 competidores'},
+    {letter:'I',name:'Identify Pain',status:'ok',text:'Sem visibilidade de pipeline entre 8 agências'},
+    {letter:'C',name:'Champion',status:'partial',text:'Gerente TI comprometido mas baixa influência'}
+  ]}
+];
+
+window.__glMEDDIC = {
+  open: function(){
+    if(!document.getElementById('gl-meddic-modal')) buildMEDDICModal();
+    document.getElementById('gl-meddic-modal').classList.add('open');
+    renderMEDDIC(0);
+  },
+  close: function(){ var m=document.getElementById('gl-meddic-modal'); if(m) m.classList.remove('open'); },
+  select: function(i){ renderMEDDIC(parseInt(i)); }
+};
+
+function buildMEDDICModal(){
+  var s=document.createElement('style'); s.textContent=medCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-meddic-modal';
+  m.innerHTML=
+    '<div id="gl-meddic-box">'+
+      '<div id="gl-meddic-head">'+
+        '<h2>🔬 MEDDIC Scorecard</h2>'+
+        '<button onclick="window.__glMEDDIC.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-meddic-body">'+
+        '<select class="meddic-deal-select" onchange="window.__glMEDDIC.select(this.value)">'+
+          MEDDIC_DEALS.map(function(d,i){ return '<option value="'+i+'">'+d.name+'</option>'; }).join('')+
+        '</select>'+
+        '<div id="gl-meddic-content"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glMEDDIC.close(); });
+  document.body.appendChild(m);
+}
+
+function renderMEDDIC(i){
+  var deal=MEDDIC_DEALS[i];
+  if(!deal) return;
+  var content=document.getElementById('gl-meddic-content');
+  if(!content) return;
+  var ringClass=deal.score>=75?'meddic-score-high':deal.score>=50?'meddic-score-med':'meddic-score-low';
+  var label=deal.score>=75?'Qualificado':deal.score>=50?'Parcial':'Não Qualificado';
+  content.innerHTML=
+    '<div class="meddic-overall">'+
+      '<div class="meddic-score-ring '+ringClass+'">'+deal.score+'</div>'+
+      '<div><div style="font-size:18px;font-weight:800;">'+label+'</div><div style="font-size:13px;color:#64748b;margin-top:4px;">Score MEDDIC: '+deal.score+'/100</div><div style="font-size:12px;color:#94a3b8;margin-top:4px;">'+deal.name+'</div></div>'+
+    '</div>'+
+    '<div class="meddic-criteria">'+
+      deal.criteria.map(function(c){
+        var sc=c.status==='ok'?'ok':c.status==='partial'?'partial':'missing';
+        var lbl=c.status==='ok'?'✓ Completo':c.status==='partial'?'~ Parcial':'✗ Faltando';
+        return '<div class="meddic-criterion">'+
+          '<div class="meddic-c-head">'+
+            '<span class="meddic-c-letter">'+c.letter+'</span>'+
+            '<span class="meddic-c-score meddic-c-score-'+sc+'">'+lbl+'</span>'+
+          '</div>'+
+          '<div class="meddic-c-name">'+c.name+'</div>'+
+          '<div class="meddic-c-status">'+c.text+'</div>'+
+        '</div>';
+      }).join('')+
+    '</div>';
+}
+
+/* ─────────────────────────────────────────────
+   3. REVENUE THERMOMETER (command-center widget)
+   ───────────────────────────────────────────── */
+var thermoCSS = `
+#gl-thermo-card {
+  background:#fff; border-radius:14px; border:1px solid #e5e7eb;
+  padding:20px 22px; display:flex; flex-direction:column; align-items:center;
+}
+.gl-dark #gl-thermo-card { background:#161b22; border-color:#30363d; }
+.thermo-title { font-size:14px; font-weight:700; margin-bottom:14px; align-self:flex-start; }
+.thermo-body { display:flex; gap:20px; align-items:flex-end; width:100%; }
+.thermo-tube-wrap { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.thermo-tube {
+  width:28px; height:160px; background:#f1f5f9; border-radius:14px;
+  position:relative; overflow:hidden; border:2px solid #e2e8f0;
+}
+.gl-dark .thermo-tube { background:#21262d; border-color:#374151; }
+.thermo-fill {
+  position:absolute; bottom:0; left:0; right:0; border-radius:12px;
+  transition:height 1.2s cubic-bezier(.34,1.56,.64,1);
+}
+.thermo-pct-lbl { font-size:14px; font-weight:800; }
+.thermo-bulb {
+  width:36px; height:36px; border-radius:50%; margin-top:-2px;
+  border:2px solid #e2e8f0;
+}
+.gl-dark .thermo-bulb { border-color:#374151; }
+.thermo-stats { flex:1; }
+.thermo-stat-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f1f5f9; font-size:12px; }
+.gl-dark .thermo-stat-row { border-color:#30363d; }
+.thermo-stat-row:last-child { border-bottom:none; }
+.thermo-stat-lbl { color:#64748b; }
+.thermo-stat-val { font-weight:700; }
+.thermo-milestone {
+  position:absolute; right:-2px; height:2px; background:#94a3b8;
+  display:flex; align-items:center;
+}
+.thermo-milestone-lbl {
+  position:absolute; right:6px; font-size:8px; white-space:nowrap;
+  color:#94a3b8; top:-8px;
+}
+`;
+
+function buildThermoCard(){
+  if(document.getElementById('gl-thermo-card')) return;
+  var grid=document.getElementById('command-grid');
+  if(!grid) return;
+  var s=document.createElement('style'); s.textContent=thermoCSS; document.head.appendChild(s);
+  var goal=2000000, current=1340000;
+  var pct=Math.round((current/goal)*100);
+  var fill=pct>100?100:pct;
+  var color=pct>=80?'#10b981':pct>=50?'#6366f1':'#f59e0b';
+  var milestones=[
+    {pct:25,label:'R$500K'},
+    {pct:50,label:'R$1M'},
+    {pct:75,label:'R$1.5M'},
+    {pct:100,label:'Meta R$2M'}
+  ];
+  var card=document.createElement('div'); card.id='gl-thermo-card';
+  card.innerHTML=
+    '<div class="thermo-title">🌡️ Revenue Goal</div>'+
+    '<div class="thermo-body">'+
+      '<div class="thermo-tube-wrap">'+
+        '<div class="thermo-tube">'+
+          '<div class="thermo-fill" id="gl-thermo-fill" style="height:0%;background:'+color+';"></div>'+
+          milestones.map(function(ms){
+            return '<div class="thermo-milestone" style="bottom:'+ms.pct+'%;width:8px;">'+
+              '<div class="thermo-milestone-lbl">'+ms.label+'</div>'+
+            '</div>';
+          }).join('')+
+        '</div>'+
+        '<div class="thermo-bulb" style="background:'+color+';border-color:'+color+';"></div>'+
+        '<div class="thermo-pct-lbl" style="color:'+color+'">'+pct+'%</div>'+
+      '</div>'+
+      '<div class="thermo-stats">'+
+        '<div class="thermo-stat-row"><span class="thermo-stat-lbl">Meta do Ano</span><span class="thermo-stat-val">R$2.0M</span></div>'+
+        '<div class="thermo-stat-row"><span class="thermo-stat-lbl">Realizado</span><span class="thermo-stat-val" style="color:'+color+'">R$1.34M</span></div>'+
+        '<div class="thermo-stat-row"><span class="thermo-stat-lbl">Faltam</span><span class="thermo-stat-val">R$660K</span></div>'+
+        '<div class="thermo-stat-row"><span class="thermo-stat-lbl">Dias Restantes</span><span class="thermo-stat-val">'+getDaysLeft()+'d</span></div>'+
+        '<div class="thermo-stat-row"><span class="thermo-stat-lbl">Ritmo Necessário</span><span class="thermo-stat-val">R$'+(Math.round(660000/getDaysLeft()*30)/1000).toFixed(0)+'K/mês</span></div>'+
+      '</div>'+
+    '</div>';
+  grid.appendChild(card);
+  setTimeout(function(){
+    var fill=document.getElementById('gl-thermo-fill');
+    if(fill) fill.style.height=pct+'%';
+  },300);
+}
+
+function getDaysLeft(){
+  var now=new Date();
+  var end=new Date(now.getFullYear(),11,31);
+  return Math.ceil((end-now)/(1000*60*60*24));
+}
+
+/* ─────────────────────────────────────────────
+   4. FORECAST CALL PREP
+   ───────────────────────────────────────────── */
+var forecastPrepCSS = `
+#gl-fcprep-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-fcprep-modal.open { display:flex; }
+#gl-fcprep-box {
+  background:#fff; border-radius:16px; width:780px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-fcprep-box { background:#161b22; color:#e6edf3; }
+#gl-fcprep-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#1e1b4b,#4338ca); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-fcprep-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-fcprep-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.fcprep-section { margin-bottom:20px; }
+.fcprep-section h3 { font-size:14px; font-weight:700; margin:0 0 12px; display:flex; align-items:center; gap:6px; }
+.fcprep-item {
+  display:flex; align-items:flex-start; gap:10px; padding:12px 14px;
+  background:#f8fafc; border:1px solid #f1f5f9; border-radius:8px; margin-bottom:8px;
+  font-size:12px; line-height:1.7;
+}
+.gl-dark .fcprep-item { background:#21262d; border-color:#30363d; }
+.fcprep-check { width:18px; height:18px; border:2px solid #6366f1; border-radius:4px; flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center; margin-top:2px; }
+.fcprep-check.done { background:#6366f1; color:#fff; font-size:11px; }
+.fcprep-agenda-item {
+  display:flex; gap:12px; padding:12px 14px;
+  background:#eff6ff; border:1px solid #c7d2fe; border-radius:8px; margin-bottom:8px;
+}
+.gl-dark .fcprep-agenda-item { background:#1e3a5f22; border-color:#4338ca; }
+.fcprep-agenda-time { font-weight:700; color:#4338ca; font-size:12px; width:40px; flex-shrink:0; }
+.fcprep-agenda-text { font-size:12px; color:#374151; line-height:1.6; }
+.gl-dark .fcprep-agenda-text { color:#d1d5db; }
+.fcprep-ai-section {
+  margin-top:10px; padding:14px; background:#f0fdf4; border:1px solid #86efac;
+  border-radius:10px; font-size:12px; color:#14532d;
+}
+.gl-dark .fcprep-ai-section { background:#052e1622; border-color:#166534; color:#86efac; }
+`;
+
+window.__glFCPrep = {
+  open: function(){
+    if(!document.getElementById('gl-fcprep-modal')) buildFCPrepModal();
+    document.getElementById('gl-fcprep-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-fcprep-modal'); if(m) m.classList.remove('open'); },
+  toggleCheck: function(el){ el.classList.toggle('done'); el.textContent=el.classList.contains('done')?'✓':''; }
+};
+
+function buildFCPrepModal(){
+  var s=document.createElement('style'); s.textContent=forecastPrepCSS; document.head.appendChild(s);
+  var deals=window.__guardlineDealsCache||[];
+  var topDeals=deals.slice(0,4).concat([
+    {name:'Vivo Enterprise',value:'R$320K',stage:'Negociação'},
+    {name:'Banco Modal',value:'R$185K',stage:'Proposta'}
+  ]).slice(0,4);
+  var checkItem=function(txt){ return '<div class="fcprep-item"><div class="fcprep-check" onclick="window.__glFCPrep.toggleCheck(this)"></div><div>'+txt+'</div></div>'; };
+  var m=document.createElement('div'); m.id='gl-fcprep-modal';
+  m.innerHTML=
+    '<div id="gl-fcprep-box">'+
+      '<div id="gl-fcprep-head">'+
+        '<h2>📋 Forecast Call Prep</h2>'+
+        '<button onclick="window.__glFCPrep.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#a5b4fc">✕</button>'+
+      '</div>'+
+      '<div id="gl-fcprep-body">'+
+        '<div class="fcprep-section">'+
+          '<h3>📅 Agenda (45 minutos)</h3>'+
+          '<div class="fcprep-agenda-item"><div class="fcprep-agenda-time">0-5m</div><div class="fcprep-agenda-text">Check-in rápido: como foi a semana de cada AE? Highlights e lowlights.</div></div>'+
+          '<div class="fcprep-agenda-item"><div class="fcprep-agenda-time">5-20m</div><div class="fcprep-agenda-text">Review dos top deals: status, próximos passos, riscos, data de fechamento prevista.</div></div>'+
+          '<div class="fcprep-agenda-item"><div class="fcprep-agenda-time">20-30m</div><div class="fcprep-agenda-text">Forecast commit: qual é o número que o time fecha esta semana? Este mês? Confidence level?</div></div>'+
+          '<div class="fcprep-agenda-item"><div class="fcprep-agenda-time">30-40m</div><div class="fcprep-agenda-text">Bloqueadores: quais deals precisam de escalation ou suporte do management?</div></div>'+
+          '<div class="fcprep-agenda-item"><div class="fcprep-agenda-time">40-45m</div><div class="fcprep-agenda-text">Next actions: quem faz o quê até a próxima forecast call?</div></div>'+
+        '</div>'+
+        '<div class="fcprep-section">'+
+          '<h3>✅ Pré-Call Checklist</h3>'+
+          checkItem('Revisar CRM: todos os deals atualizados com próximos passos e close date')+
+          checkItem('Calcular pipeline coverage: meta x 3x em pipeline qualificado')+
+          checkItem('Identificar os 3 maiores riscos do quarter atual')+
+          checkItem('Preparar pergunta difícil para cada AE sobre deal em risco')+
+          checkItem('Checar atividades dos últimos 7 dias por rep')+
+          checkItem('Ter números de benchmark da semana anterior para comparar')+
+        '</div>'+
+        '<div class="fcprep-section">'+
+          '<h3>🔥 Top Deals Para Revisar</h3>'+
+          '<div style="display:flex;flex-direction:column;gap:6px;">'+
+            '<div class="fcprep-item" style="background:#fef9c3;border-color:#fde047;">💰 <strong>Vivo Enterprise (R$320K)</strong> — Negociação · Risco alto: champion mudou</div>'+
+            '<div class="fcprep-item" style="background:#fef9c3;border-color:#fde047;">💰 <strong>Banco Modal (R$185K)</strong> — Proposta · Concorrente ativo</div>'+
+            '<div class="fcprep-item">💰 <strong>HealthTech SA (R$188K)</strong> — Negociação · Em bom caminho</div>'+
+            '<div class="fcprep-item">💰 <strong>TechCorp BR (R$94K)</strong> — Proposta · Follow-up pendente</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="fcprep-ai-section">'+
+          '💡 <strong>Dica Julio:</strong> Comece a forecast call perguntando "O que você NÃO me contou na última semana?" — isso reduz happy ears e traz honestidade sobre riscos reais de deals.'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glFCPrep.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   5. COMMISSION CALCULATOR
+   ───────────────────────────────────────────── */
+var commCSS = `
+#gl-comm-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-comm-modal.open { display:flex; }
+#gl-comm-box {
+  background:#fff; border-radius:16px; width:720px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-comm-box { background:#161b22; color:#e6edf3; }
+#gl-comm-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#14532d,#15803d); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-comm-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-comm-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.comm-rep-selector { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; }
+.comm-rep-btn {
+  padding:7px 14px; border-radius:8px; font-size:12px; font-weight:600;
+  cursor:pointer; border:1px solid #e5e7eb; background:#f8fafc; color:#64748b; transition:all .2s;
+}
+.comm-rep-btn.active { background:#15803d; color:#fff; border-color:#15803d; }
+.comm-result-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.comm-result-card {
+  flex:1; min-width:130px; padding:16px; border-radius:12px; text-align:center;
+}
+.comm-rc-main { background:linear-gradient(135deg,#14532d,#15803d); color:#fff; }
+.comm-rc-sec { background:#f0fdf4; border:1px solid #86efac; }
+.gl-dark .comm-rc-sec { background:#052e16; border-color:#166534; }
+.comm-rc-val { font-size:28px; font-weight:900; }
+.comm-rc-main .comm-rc-val { color:#fff; }
+.comm-rc-sec .comm-rc-val { color:#15803d; }
+.comm-rc-lbl { font-size:11px; margin-top:4px; opacity:.8; }
+.comm-rc-main .comm-rc-lbl { color:rgba(255,255,255,.8); }
+.comm-rc-sec .comm-rc-lbl { color:#065f46; }
+.gl-dark .comm-rc-sec .comm-rc-lbl { color:#6ee7b7; }
+.comm-tier-table { width:100%; border-collapse:collapse; font-size:12px; }
+.comm-tier-table th { padding:8px 10px; background:#f1f5f9; text-align:left; font-weight:600; color:#64748b; }
+.gl-dark .comm-tier-table th { background:#21262d; color:#8b949e; }
+.comm-tier-table td { padding:8px 10px; border-bottom:1px solid #f1f5f9; }
+.gl-dark .comm-tier-table td { border-color:#30363d; }
+.comm-tier-table tr.active-tier td { background:#f0fdf4; font-weight:700; }
+.gl-dark .comm-tier-table tr.active-tier td { background:#052e16; }
+`;
+
+var COMM_REPS=[
+  {name:'Camila',quota:200000,achieved:188000,rate:8},
+  {name:'Luiza',quota:180000,achieved:153000,rate:7},
+  {name:'Pedro',quota:160000,achieved:115200,rate:6},
+  {name:'Rafael',quota:150000,achieved:91500,rate:5}
+];
+
+var selectedCommRep=0;
+window.__glComm = {
+  open: function(){
+    if(!document.getElementById('gl-comm-modal')) buildCommModal();
+    document.getElementById('gl-comm-modal').classList.add('open');
+    renderComm(0);
+  },
+  close: function(){ var m=document.getElementById('gl-comm-modal'); if(m) m.classList.remove('open'); },
+  select: function(i){ selectedCommRep=i; document.querySelectorAll('.comm-rep-btn').forEach(function(b){ b.classList.toggle('active',parseInt(b.dataset.idx)===i); }); renderComm(i); }
+};
+
+function buildCommModal(){
+  var s=document.createElement('style'); s.textContent=commCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-comm-modal';
+  m.innerHTML=
+    '<div id="gl-comm-box">'+
+      '<div id="gl-comm-head">'+
+        '<h2>💵 Commission Calculator</h2>'+
+        '<button onclick="window.__glComm.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6ee7b7">✕</button>'+
+      '</div>'+
+      '<div id="gl-comm-body">'+
+        '<div class="comm-rep-selector">'+
+          COMM_REPS.map(function(r,i){
+            return '<button class="comm-rep-btn'+(i===0?' active':'')+'" data-idx="'+i+'" onclick="window.__glComm.select('+i+')">'+r.name+'</button>';
+          }).join('')+
+        '</div>'+
+        '<div id="gl-comm-content"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glComm.close(); });
+  document.body.appendChild(m);
+}
+
+function renderComm(i){
+  var rep=COMM_REPS[i];
+  if(!rep) return;
+  var content=document.getElementById('gl-comm-content');
+  if(!content) return;
+  var pct=Math.round((rep.achieved/rep.quota)*100);
+  // Tiered commission
+  var tiers=[
+    {min:0,max:0.5,rate:rep.rate*0.5,label:'0-50% da quota'},
+    {min:0.5,max:1,rate:rep.rate,label:'50-100% da quota'},
+    {min:1,max:1.2,rate:rep.rate*1.5,label:'100-120% da quota (acelerador)'},
+    {min:1.2,max:999,rate:rep.rate*2,label:'>120% da quota (super acelerador)'}
+  ];
+  var totalComm=0;
+  var activeTierIdx=0;
+  tiers.forEach(function(t,idx){
+    var tierMin=t.min*rep.quota, tierMax=t.max*rep.quota;
+    if(rep.achieved>tierMin){
+      var inTier=Math.min(rep.achieved,tierMax)-tierMin;
+      if(inTier>0) totalComm+=inTier*(t.rate/100);
+    }
+    if(rep.achieved/rep.quota>=t.min && rep.achieved/rep.quota<t.max) activeTierIdx=idx;
+  });
+  var onTarget=rep.quota*(rep.rate/100);
+  content.innerHTML=
+    '<div class="comm-result-row">'+
+      '<div class="comm-result-card comm-rc-main"><div class="comm-rc-val">R$'+(totalComm/1000).toFixed(1)+'K</div><div class="comm-rc-lbl">Comissão Earned (MTD)</div></div>'+
+      '<div class="comm-result-card comm-rc-sec"><div class="comm-rc-val">'+pct+'%</div><div class="comm-rc-lbl">% Quota Atingida</div></div>'+
+      '<div class="comm-result-card comm-rc-sec"><div class="comm-rc-val">R$'+(onTarget/1000).toFixed(1)+'K</div><div class="comm-rc-lbl">On-Target Earnings</div></div>'+
+    '</div>'+
+    '<h4 style="font-size:13px;font-weight:700;margin:0 0 10px;">📊 Tiers de Comissão</h4>'+
+    '<table class="comm-tier-table">'+
+      '<thead><tr><th>Range</th><th>Taxa</th><th>Status</th></tr></thead>'+
+      '<tbody>'+
+        tiers.map(function(t,idx){
+          var isActive=idx===activeTierIdx;
+          return '<tr class="'+(isActive?'active-tier':'')+'">'+
+            '<td>'+t.label+'</td><td>'+t.rate+'%</td>'+
+            '<td>'+(isActive?'<span style="color:#15803d;font-weight:700;">← Nível Atual</span>':'—')+'</td>'+
+          '</tr>';
+        }).join('')+
+      '</tbody>'+
+    '</table>';
+}
+
+/* ─────────────────────────────────────────────
+   6. CUSTOMER SUCCESS HANDOFF
+   ───────────────────────────────────────────── */
+var csCSS = `
+#gl-cs-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-cs-modal.open { display:flex; }
+#gl-cs-box {
+  background:#fff; border-radius:16px; width:780px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-cs-box { background:#161b22; color:#e6edf3; }
+#gl-cs-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#0369a1,#0284c7); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-cs-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-cs-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.cs-phase { margin-bottom:20px; }
+.cs-phase-title {
+  font-size:13px; font-weight:700; margin-bottom:10px; padding:8px 14px;
+  background:#f0f9ff; border-radius:8px; color:#0369a1; display:flex; align-items:center; gap:6px;
+}
+.gl-dark .cs-phase-title { background:#0c4a6e22; color:#38bdf8; }
+.cs-item {
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+  border-bottom:1px solid #f8fafc; font-size:12px; line-height:1.7; cursor:pointer;
+  transition:background .15s;
+}
+.cs-item:hover { background:#f9fafb; border-radius:6px; }
+.gl-dark .cs-item { border-color:#21262d; }
+.gl-dark .cs-item:hover { background:#21262d; }
+.cs-item-check {
+  width:18px; height:18px; border:2px solid #0369a1; border-radius:4px;
+  flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:11px; color:#0369a1; margin-top:2px;
+}
+.cs-item-check.checked { background:#0369a1; color:#fff; }
+.cs-item-text { flex:1; color:#374151; }
+.gl-dark .cs-item-text { color:#d1d5db; }
+.cs-progress {
+  margin-bottom:16px; padding:12px 16px; background:#f0f9ff;
+  border:1px solid #bae6fd; border-radius:10px; display:flex; align-items:center; gap:12px;
+}
+.gl-dark .cs-progress { background:#0c4a6e22; border-color:#0369a1; }
+.cs-prog-bar-wrap { flex:1; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; }
+.cs-prog-bar { height:100%; background:#0369a1; border-radius:4px; transition:width .5s; }
+`;
+
+window.__glCS = {
+  open: function(){
+    if(!document.getElementById('gl-cs-modal')) buildCSModal();
+    document.getElementById('gl-cs-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-cs-modal'); if(m) m.classList.remove('open'); },
+  toggle: function(el){ el.classList.toggle('checked'); el.textContent=el.classList.contains('checked')?'✓':''; updateCSProgress(); }
+};
+
+function updateCSProgress(){
+  var checks=document.querySelectorAll('.cs-item-check');
+  var done=document.querySelectorAll('.cs-item-check.checked').length;
+  var bar=document.getElementById('gl-cs-prog-bar');
+  var lbl=document.getElementById('gl-cs-prog-lbl');
+  if(bar) bar.style.width=Math.round((done/checks.length)*100)+'%';
+  if(lbl) lbl.textContent=done+'/'+checks.length+' itens concluídos';
+}
+
+var CS_PHASES=[
+  {title:'📝 Pré-Handoff (AE → CS)',items:[
+    'Documentar todos os pain points discutidos no processo de venda',
+    'Registrar todos os stakeholders e seus papéis (champion, sponsor, usuário)',
+    'Listar integrações prometidas durante o processo de venda',
+    'Documentar objections superadas (para onboarding antecipar dúvidas)',
+    'Confirmar expectativas de prazo e KPIs de sucesso com o cliente',
+    'Criar Notion/doc de transição com resumo executivo do deal'
+  ]},
+  {title:'🤝 Kickoff Meeting (Semana 1)',items:[
+    'Apresentar CS Manager para o champion e usuários-chave',
+    'Confirmar business outcomes desejados e métricas de sucesso',
+    'Definir cronograma de onboarding detalhado (60 dias)',
+    'Estabelecer cadência de reuniões (semanal no primeiro mês)',
+    'Configurar account no sistema e convidar usuários iniciais',
+    'Enviar email de boas-vindas personalizado com próximos passos'
+  ]},
+  {title:'⚙️ Onboarding (Semanas 2-8)',items:[
+    'Configuração técnica: integrações, importação de dados',
+    'Treinamento básico para usuários power (sessão 1)',
+    'Treinamento avançado: relatórios, automações, IA (sessão 2)',
+    'Revisão de 30 dias: o que está funcionando, o que ajustar',
+    'Identificar quick wins para apresentar ao C-level',
+    'Configurar alertas e dashboards personalizados para o cliente'
+  ]},
+  {title:'🚀 Success & Expansion (Mês 3+)',items:[
+    'QBR de 90 dias: apresentar ROI realizado vs. esperado',
+    'Identificar oportunidades de expansão (novos users, módulos)',
+    'Enviar case study draft para aprovação do cliente',
+    'Solicitar referral e NPS score formal'
+  ]}
+];
+
+function buildCSModal(){
+  var s=document.createElement('style'); s.textContent=csCSS; document.head.appendChild(s);
+  var totalItems=CS_PHASES.reduce(function(a,p){ return a+p.items.length; },0);
+  var m=document.createElement('div'); m.id='gl-cs-modal';
+  var body=
+    '<div class="cs-progress">'+
+      '<div style="font-size:12px;font-weight:700;white-space:nowrap;">Progresso:</div>'+
+      '<div class="cs-prog-bar-wrap"><div class="cs-prog-bar" id="gl-cs-prog-bar" style="width:0%"></div></div>'+
+      '<div style="font-size:11px;color:#0369a1;white-space:nowrap;" id="gl-cs-prog-lbl">0/'+totalItems+' itens</div>'+
+    '</div>'+
+    CS_PHASES.map(function(phase){
+      return '<div class="cs-phase">'+
+        '<div class="cs-phase-title">'+phase.title+'</div>'+
+        phase.items.map(function(item){
+          return '<div class="cs-item" onclick="window.__glCS.toggle(this.querySelector(\'.cs-item-check\'))">'+
+            '<div class="cs-item-check"></div>'+
+            '<div class="cs-item-text">'+item+'</div>'+
+          '</div>';
+        }).join('')+
+      '</div>';
+    }).join('');
+  m.innerHTML=
+    '<div id="gl-cs-box">'+
+      '<div id="gl-cs-head">'+
+        '<h2>🤝 CS Handoff Checklist</h2>'+
+        '<button onclick="window.__glCS.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#bae6fd">✕</button>'+
+      '</div>'+
+      '<div id="gl-cs-body">'+body+'</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glCS.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   BATCH 8 INIT
+   ───────────────────────────────────────────── */
+function addBatch8Buttons(){
+  var dock=document.getElementById('gl-quick-dock');
+  if(!dock||dock.dataset.batch8) return;
+  dock.dataset.batch8='1';
+  var extras=document.createElement('div');
+  extras.style.display='contents';
+  extras.innerHTML=
+    '<button class="qad-btn" title="Contract Renewals" onclick="window.__glRenew.open()"><span class="qad-ico">📋</span><span>Renov.</span></button>'+
+    '<button class="qad-btn" title="MEDDIC Scorecard" onclick="window.__glMEDDIC.open()"><span class="qad-ico">🔬</span><span>MEDDIC</span></button>'+
+    '<button class="qad-btn" title="Forecast Prep" onclick="window.__glFCPrep.open()"><span class="qad-ico">📋</span><span>FC Prep</span></button>'+
+    '<button class="qad-btn" title="Commission Calculator" onclick="window.__glComm.open()"><span class="qad-ico">💵</span><span>Comissão</span></button>'+
+    '<button class="qad-btn" title="CS Handoff" onclick="window.__glCS.open()"><span class="qad-ico">🤝</span><span>CS</span></button>';
+  var seps=dock.querySelectorAll('.qad-sep');
+  var lastSep=seps[seps.length-1];
+  if(lastSep) dock.insertBefore(extras,lastSep); else dock.appendChild(extras);
+}
+
+function initBatch8(){
+  addBatch8Buttons();
+  var tries=0;
+  var wait=setInterval(function(){
+    tries++;
+    var grid=document.getElementById('command-grid');
+    if(grid||tries>80){
+      clearInterval(wait);
+      if(grid) buildThermoCard();
+    }
+  },200);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBatch8);
+else initBatch8();
+
+})();
+</script>
+
 </body>
 </html>
 
