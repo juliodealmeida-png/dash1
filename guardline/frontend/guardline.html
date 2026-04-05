@@ -3157,6 +3157,353 @@
       #julio-float-panel { width: calc(100vw - 24px); right: 12px; bottom: 76px; }
       #julio-fab { right: 12px; bottom: 16px; }
     }
+
+    /* V2 PREMIUM UI UPGRADES */
+    .gl-v2-card {
+      position: relative;
+      background: linear-gradient(180deg, rgba(20, 24, 39, 0.92), rgba(12, 16, 29, 0.96));
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 18px 44px rgba(2, 6, 23, 0.34), 0 1px 0 rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      transition: all 0.2s ease;
+    }
+    .gl-v2-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+    }
+    .gl-v2-card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(148, 163, 184, 0.24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 24px 60px rgba(2, 6, 23, 0.42), 0 0 0 1px rgba(124, 58, 237, 0.08);
+    }
+    .gl-v2-card .card-title,
+    .gl-v2-card .deal-company,
+    .gl-v2-card .deal-name,
+    .gl-v2-card .kpi-value {
+      letter-spacing: -0.02em;
+    }
+    .gl-v2-command-grid {
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.9fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .gl-v2-command-grid > .gl-v2-command-hero {
+      grid-column: 1 / -1 !important;
+      min-height: 136px;
+      background: radial-gradient(circle at top right, rgba(34, 211, 238, 0.12), transparent 28%), linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(15, 23, 42, 0.94));
+    }
+    .gl-v2-command-grid > .gl-v2-command-primary {
+      grid-column: 1 !important;
+    }
+    .gl-v2-command-grid > .gl-v2-command-rail {
+      grid-column: 2 !important;
+    }
+    .gl-v2-command-grid > .gl-v2-command-hero::before {
+      content: '';
+      position: absolute;
+      inset: auto 18px 16px 18px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(124, 58, 237, 0), rgba(124, 58, 237, 0.55), rgba(34, 211, 238, 0.1));
+      pointer-events: none;
+    }
+    .gl-v2-kpi-upgraded {
+      background: linear-gradient(180deg, rgba(17, 24, 39, 0.88), rgba(11, 16, 30, 0.96));
+      border-color: rgba(71, 85, 105, 0.28);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 30px rgba(2, 6, 23, 0.24);
+    }
+    .gl-v2-kpi-upgraded:hover {
+      border-color: rgba(124, 58, 237, 0.32);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 18px 42px rgba(2, 6, 23, 0.3);
+    }
+    .gl-v2-icon-chrome {
+      box-shadow: 0 10px 24px rgba(59, 130, 246, 0.2), inset 0 1px 0 rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .gl-v2-tooltip {
+      position: fixed;
+      max-width: 280px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: rgba(9, 12, 22, 0.96);
+      border: 1px solid rgba(71, 85, 105, 0.38);
+      box-shadow: 0 22px 55px rgba(2, 6, 23, 0.48), inset 0 1px 0 rgba(255,255,255,0.04);
+      color: #dbe7f5;
+      font-size: 12px;
+      line-height: 1.55;
+      pointer-events: none;
+      z-index: 12000;
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      opacity: 0;
+      transform: translateY(6px) scale(0.98);
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+    .gl-v2-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .gl-v2-tooltip-title {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a78bfa;
+      margin-bottom: 8px;
+    }
+    .gl-v2-tooltip ul {
+      margin: 0;
+      padding-left: 16px;
+    }
+    .gl-v2-tooltip li + li {
+      margin-top: 4px;
+    }
+    .gl-v2-floating-launcher {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      width: 62px;
+      height: 62px;
+      border-radius: 18px;
+      border: 1px solid rgba(124, 58, 237, 0.34);
+      background: linear-gradient(135deg, rgba(124, 58, 237, 0.96), rgba(37, 99, 235, 0.92));
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 22px 50px rgba(76, 29, 149, 0.45);
+      cursor: pointer;
+      z-index: 10040;
+      transition: all 0.2s ease;
+    }
+    .gl-v2-floating-launcher:hover {
+      transform: translateY(-2px) scale(1.03);
+      box-shadow: 0 28px 60px rgba(76, 29, 149, 0.52);
+    }
+    .gl-v2-floating-widget {
+      position: fixed;
+      right: 24px;
+      bottom: 96px;
+      width: min(390px, calc(100vw - 32px));
+      min-height: 360px;
+      border-radius: 22px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: linear-gradient(180deg, rgba(9, 12, 22, 0.92), rgba(14, 20, 35, 0.98));
+      box-shadow: 0 30px 80px rgba(2, 6, 23, 0.56), inset 0 1px 0 rgba(255,255,255,0.06);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      z-index: 10041;
+      overflow: hidden;
+      display: none;
+      user-select: none;
+    }
+    .gl-v2-floating-widget.gl-v2-open {
+      display: block;
+      animation: bounce-in 0.22s ease;
+    }
+    .gl-v2-fw-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      cursor: move;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .gl-v2-fw-avatar {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #7c3aed, #2563eb);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(124, 58, 237, 0.32);
+      flex-shrink: 0;
+    }
+    .gl-v2-fw-meta {
+      flex: 1;
+      min-width: 0;
+    }
+    .gl-v2-fw-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #eef2ff;
+    }
+    .gl-v2-fw-sub {
+      margin-top: 3px;
+      font-size: 11px;
+      color: #93c5fd;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .gl-v2-fw-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .gl-v2-fw-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(15, 23, 42, 0.56);
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .gl-v2-fw-btn:hover {
+      color: #fff;
+      border-color: rgba(124, 58, 237, 0.32);
+      background: rgba(124, 58, 237, 0.16);
+    }
+    .gl-v2-fw-body {
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      user-select: text;
+    }
+    .gl-v2-fw-panel {
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      background: rgba(15, 23, 42, 0.52);
+      padding: 14px;
+    }
+    .gl-v2-fw-panel h4 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #94a3b8;
+    }
+    .gl-v2-fw-panel p {
+      margin: 0;
+      font-size: 12px;
+      color: #dbe7f5;
+      line-height: 1.55;
+    }
+    .gl-v2-audio-wave {
+      display: inline-flex;
+      align-items: end;
+      gap: 3px;
+      height: 14px;
+    }
+    .gl-v2-audio-wave span {
+      width: 3px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, #22d3ee, #8b5cf6);
+      animation: gl-v2-wave 1.1s ease-in-out infinite;
+      box-shadow: 0 0 10px rgba(34, 211, 238, 0.28);
+    }
+    .gl-v2-audio-wave span:nth-child(1) { height: 6px; }
+    .gl-v2-audio-wave span:nth-child(2) { height: 12px; animation-delay: 0.12s; }
+    .gl-v2-audio-wave span:nth-child(3) { height: 8px; animation-delay: 0.24s; }
+    .gl-v2-audio-wave span:nth-child(4) { height: 14px; animation-delay: 0.36s; }
+    .gl-v2-audio-wave span:nth-child(5) { height: 9px; animation-delay: 0.48s; }
+    @keyframes gl-v2-wave {
+      0%, 100% { transform: scaleY(0.75); opacity: 0.75; }
+      50% { transform: scaleY(1.2); opacity: 1; }
+    }
+    .gl-v2-fw-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .gl-v2-fw-chip {
+      border-radius: 999px;
+      border: 1px solid rgba(99, 102, 241, 0.24);
+      background: rgba(79, 70, 229, 0.12);
+      color: #c7d2fe;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 7px 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .gl-v2-fw-chip:hover {
+      transform: translateY(-1px);
+      background: rgba(124, 58, 237, 0.16);
+      border-color: rgba(124, 58, 237, 0.34);
+      color: #e9d5ff;
+    }
+    .gl-v2-fw-input {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(2, 6, 23, 0.46);
+      color: #e2e8f0;
+      font-size: 12px;
+      font-family: inherit;
+      padding: 12px 14px;
+      outline: none;
+    }
+    .gl-v2-fw-input:focus {
+      border-color: rgba(124, 58, 237, 0.34);
+      box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+    }
+    .gl-v2-skeleton-overlay {
+      position: absolute;
+      inset: 0;
+      padding: 14px;
+      border-radius: inherit;
+      background: rgba(10, 13, 26, 0.78);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: grid;
+      gap: 12px;
+      z-index: 30;
+      transition: opacity 0.28s ease;
+    }
+    .gl-v2-skeleton-overlay.gl-v2-fade-out {
+      opacity: 0;
+    }
+    .gl-v2-skeleton-wrap {
+      position: relative;
+      overflow: hidden;
+    }
+    .gl-v2-skeleton {
+      border-radius: 16px;
+      background: linear-gradient(90deg, rgba(51, 65, 85, 0.28) 0%, rgba(71, 85, 105, 0.48) 18%, rgba(51, 65, 85, 0.28) 40%);
+      background-size: 220% 100%;
+      animation: gl-v2-skeleton 1.3s ease-in-out infinite;
+    }
+    .gl-v2-skeleton.gl-v2-skeleton-card {
+      min-height: 86px;
+      border: 1px solid rgba(148, 163, 184, 0.08);
+    }
+    @keyframes gl-v2-skeleton {
+      0% { background-position: 100% 0; opacity: 0.7; }
+      50% { opacity: 1; }
+      100% { background-position: -100% 0; opacity: 0.72; }
+    }
+    @media (max-width: 1024px) {
+      .gl-v2-command-grid {
+        grid-template-columns: 1fr;
+      }
+      .gl-v2-command-grid > .gl-v2-command-primary,
+      .gl-v2-command-grid > .gl-v2-command-rail,
+      .gl-v2-command-grid > .gl-v2-command-hero {
+        grid-column: 1 !important;
+      }
+    }
+    @media (max-width: 640px) {
+      .gl-v2-floating-widget {
+        width: calc(100vw - 20px);
+        right: 10px;
+        bottom: 84px;
+      }
+      .gl-v2-floating-launcher {
+        right: 10px;
+        bottom: 14px;
+      }
+    }
   </style>
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous"></script>
@@ -8030,7 +8377,7 @@
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-          body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 600, messages: [
+          body: JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', max_tokens: 600, messages: [
             { role: 'system', content: 'Você é o Julio AI, assistente de vendas. Gere exatamente 4 recomendações curtas e acionáveis para o vendedor iniciar o dia. Cada recomendação deve ter: emoji, título curto (max 8 palavras), e descrição (max 25 palavras). Formato: uma por linha, separado por |. Exemplo: 🔴|Ligar para Empresa X|Deal parado há 8 dias, risco de perda se não agir hoje' },
             { role: 'user', content: context }
           ] })
@@ -9686,7 +10033,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:800,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:800,messages:[
             {role:'system',content:'Você é um analista de risco de pipeline de vendas B2B. Analise os deals em risco e forneça: 1) Resumo executivo do risco, 2) Top 3 ações imediatas priorizadas por impacto, 3) Deals que podem ser salvos vs perdidos. Seja direto e prático em português.'},
             {role:'user',content:'Deals com risco:\n'+riskData}
           ]})
@@ -11592,7 +11939,7 @@
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
-          body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 1200, messages: [
+          body: JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', max_tokens: 1200, messages: [
             { role: 'system', content: 'Você é um analista de revenue operations sênior. Responda em português com dados concretos e ações específicas. Use markdown para formatação.' },
             { role: 'user', content: prompts[mode] || prompts.full }
           ]})
@@ -15063,7 +15410,7 @@
       var key = window.GROQ_API_KEY;
       if(!key){_chatMessages.push({from:'Julio AI',text:'Groq API key não configurada. Configure em Settings.',channel:_chatActiveChannel,time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),ts:Date.now()});localStorage.setItem('gl_chat_messages',JSON.stringify(_chatMessages));inboxRenderChat();return;}
       try{
-        var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:400,messages:[{role:'system',content:'Você é o Julio AI, assistente de vendas B2B. Responda de forma concisa e acionável em português.'},{role:'user',content:text}]})});
+        var resp=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:400,messages:[{role:'system',content:'Você é o Julio AI, assistente de vendas B2B. Responda de forma concisa e acionável em português.'},{role:'user',content:text}]})});
         var data=await resp.json();
         var reply=data.choices&&data.choices[0]&&data.choices[0].message&&data.choices[0].message.content||'Sem resposta.';
         _chatMessages.push({from:'Julio AI',text:reply,channel:_chatActiveChannel,time:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),ts:Date.now()});
@@ -15627,7 +15974,7 @@
         var context = 'Deal: ' + (deal.companyName||deal.company||'?') + '\nValor: $' + (deal.value||0) + '\nEstágio: ' + (deal.stage||'?') + '\nProbabilidade: ' + (deal.probability||0) + '%\nContato: ' + (deal.contactName||'?') + ' (' + (deal.contactEmail||'?') + ')\nFonte: ' + (deal.source||'?') + '\nNotas do deal: ' + notes + '\nNotas de reuniões: ' + meetingNotes;
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body: JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:1000, messages:[
+          body: JSON.stringify({ model:'moonshotai/kimi-k2-instruct', max_tokens:1000, messages:[
             {role:'system',content:'Você é um especialista em MEDDPICC para vendas B2B. Analise o deal e preencha cada dimensão do MEDDPICC com base nas notas disponíveis. Para cada dimensão, dê: STATUS (✅ Preenchido / ⚠ Parcial / ❌ Faltando), EVIDÊNCIA encontrada nas notas, e AÇÃO RECOMENDADA para preencher. Responda em português, seja direto e prático. As 8 dimensões são: Metrics, Economic Buyer, Decision Criteria, Decision Process, Paper Process, Identify Pain, Champion, Competition.'},
             {role:'user',content:context}
           ]})
@@ -15663,7 +16010,7 @@
         var allNotes = notes+'\n'+meetingNotes;
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:800,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:800,messages:[
             {role:'system',content:'Extraia informações das notas de reunião para preencher cada campo MEDDPICC. Responda APENAS em JSON com este formato: {"metrics":"valor extraído","economic_buyer":"nome/cargo","decision_criteria":"critérios","decision_process":"processo","paper_process":"status","identify_pain":"dor identificada","champion":"nome/cargo","competition":"concorrentes mencionados"}. Se não encontrar informação para um campo, use null.'},
             {role:'user',content:'Notas: '+allNotes}
           ]})
@@ -17330,7 +17677,7 @@
         var res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method:'POST',
           headers:{'Content-Type':'application/json','Authorization':'Bearer ' + window.GROQ_API_KEY},
-          body: JSON.stringify({ model:'llama-3.3-70b-versatile', max_tokens:60, messages:[{role:'user',content:'Analise este trecho de reunião de vendas e responda SOMENTE com JSON: {"sentimento":0-100,"engajamento":0-100,"tom":0-100}. Trecho: "' + text.slice(0,200) + '"'}] })
+          body: JSON.stringify({ model:'moonshotai/kimi-k2-instruct', max_tokens:60, messages:[{role:'user',content:'Analise este trecho de reunião de vendas e responda SOMENTE com JSON: {"sentimento":0-100,"engajamento":0-100,"tom":0-100}. Trecho: "' + text.slice(0,200) + '"'}] })
         });
         var d = await res.json();
         var content = d.choices && d.choices[0] && d.choices[0].message && d.choices[0].message.content;
@@ -17664,7 +18011,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.GROQ_API_KEY },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'moonshotai/kimi-k2-instruct',
             max_tokens: 200,
             temperature: 0.7,
             messages: [
@@ -17738,7 +18085,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.GROQ_API_KEY },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'moonshotai/kimi-k2-instruct',
             max_tokens: 150,
             messages: [{
               role: 'user',
@@ -17952,7 +18299,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + window.GROQ_API_KEY },
           body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
+            model: 'moonshotai/kimi-k2-instruct',
             max_tokens: 800,
             messages: [
               { role: 'system', content: 'Gere um resumo executivo desta reunião de vendas B2B. Inclua: 1) Resumo (3 linhas) 2) Próximos passos 3) Objeções detectadas 4) MEDDPICC gaps identificados 5) Score de calor do deal (0-100). Formato em Markdown.' },
@@ -18222,7 +18569,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:800,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:800,messages:[
             {role:'system',content:'Você é um especialista em n8n workflows. Dado um pedido de automação, gere um workflow com: 1) Nome do workflow, 2) Lista de nodes com tipo e configuração resumida, 3) Fluxo de dados entre nodes (use →), 4) Trigger e condições. Formato visual e limpo em português.'},
             {role:'user',content:prompt}
           ]})
@@ -18284,7 +18631,7 @@
             try {
               var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
                 method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-                body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:300,messages:[
+                body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:300,messages:[
                   {role:'system',content:'Você é um assistente de vendas B2B. Dado um deal, gere dados fictícios mas realistas para preencher campos vazios. Responda em JSON: {"contactName":"","notes":"","probability":0,"nextStep":""}'},
                   {role:'user',content:'Deal: '+escapeHtml(d.companyName||'')+', Stage: '+(d.stage||'')+ ', Value: $'+(d.value||0)+'. Campos vazios: '+missing.join(', ')}
                 ]})
@@ -18328,7 +18675,7 @@
             try {
               var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
                 method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-                body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:200,messages:[
+                body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:200,messages:[
                   {role:'system',content:'Assistente de vendas. Gere dados realistas para enriquecer um lead. Responda JSON: {"companyName":"","jobTitle":"","leadScore":0,"idealChannel":"","icpMatch":true}'},
                   {role:'user',content:'Lead: '+(l.name||l.email||'?')+', Email: '+(l.email||'')+'. Campos vazios: '+missing.join(', ')}
                 ]})
@@ -18670,7 +19017,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:600,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:600,messages:[
             {role:'system',content:'Você é um estrategista de vendas B2B. Analise a rede de relacionamentos e forneça: 1) Quem são os stakeholders mais influentes e por quê, 2) Caminhos de acesso ao decision maker, 3) Riscos de blockers, 4) Estratégia de multi-threading recomendada. Seja direto em português.'},
             {role:'user',content:'Rede de stakeholders:\n'+summary}
           ]})
@@ -18877,7 +19224,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:700,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:700,messages:[
             {role:'system',content:'Você é um analista de Voice of Customer para vendas B2B. Analise as interações e forneça: 1) Resumo executivo do sentimento geral, 2) Contas em risco com ações imediatas, 3) Oportunidades de upsell/expansion detectadas, 4) Padrões de sentimento e tendências, 5) Recomendações prioritárias. Seja direto e acionável em português.'},
             {role:'user',content:'Interações recentes:\n'+summary}
           ]})
@@ -19147,7 +19494,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:700,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:700,messages:[
             {role:'system',content:'Você é um Sales Coach AI especializado em vendas B2B. Com base no perfil do vendedor, forneça: 1) Diagnóstico rápido dos pontos fortes e fracos, 2) 3 ações imediatas para melhorar win rate, 3) Plano de desenvolvimento de 30/60/90 dias, 4) Recursos recomendados (livros, frameworks, exercícios). Seja motivador mas realista, em português.'},
             {role:'user',content:'Dados do perfil:\n'+summary}
           ]})
@@ -19365,7 +19712,7 @@
       try {
         var resp = await fetch('https://api.groq.com/openai/v1/chat/completions',{
           method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},
-          body:JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:600,messages:[
+          body:JSON.stringify({model:'moonshotai/kimi-k2-instruct',max_tokens:600,messages:[
             {role:'system',content:'Você é um Sales Motivator AI. Com base no ranking do time, forneça: 1) Mensagem motivacional personalizada para o time, 2) Destaque as conquistas recentes, 3) Desafio semanal para o time, 4) Dicas para quem está atrás no ranking, 5) Celebração dos top performers. Seja energético e motivador, em português.'},
             {role:'user',content:'Dados do ranking:\n'+summary}
           ]})
@@ -24544,7 +24891,7 @@ function _demoLeadAnalyticsData() {
               'Authorization': 'Bearer ' + groqKey,
             },
             body: JSON.stringify({
-              model: 'llama-3.3-70b-versatile',
+              model: 'moonshotai/kimi-k2-instruct',
               messages: [{ role: 'user', content: prompt }],
               temperature: 0.3,
               max_tokens: 600,
@@ -26666,6 +27013,348 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 else setTimeout(_init,500);
 
 console.log('[TrustSign Engine V2] ✅ Parts 1-3 loaded');
+})();
+</script>
+
+<script>
+(function(){
+  'use strict';
+  var premiumTooltip = null;
+  var premiumTooltipTarget = null;
+  var premiumUpgradeTimer = null;
+  var premiumFloatingWidget = null;
+  var premiumFloatingLauncher = null;
+  var premiumFloatingBody = null;
+  var premiumObserver = null;
+
+  function premiumText(value) {
+    return String(value == null ? '' : value);
+  }
+
+  function premiumEscape(value) {
+    return premiumText(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function premiumQueryAll(root, selector) {
+    return Array.prototype.slice.call((root || document).querySelectorAll(selector));
+  }
+
+  function premiumNormalize(value) {
+    return premiumText(value).toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  function premiumClosestText(el, selectors) {
+    if (!el) return '';
+    var list = premiumQueryAll(el, selectors);
+    if (list.length && list[0]) return premiumText(list[0].textContent || '').trim();
+    if (el.matches && el.matches(selectors)) return premiumText(el.textContent || '').trim();
+    return '';
+  }
+
+  function premiumFindDealFromElement(el) {
+    var cache = window.__guardlineDealsCache || [];
+    if (!cache.length) return null;
+    var scope = el && (el.closest('.deal-card, .deal-row, [data-deal-id], .signal-item-full, .risk-alert-block') || el.closest('.card'));
+    var name = premiumNormalize(scope ? premiumClosestText(scope, '.deal-company, .deal-name, .card-title, strong') : '');
+    if (!name) return null;
+    var i;
+    for (i = 0; i < cache.length; i++) {
+      var deal = cache[i] || {};
+      var label = premiumNormalize(deal.company || deal.companyName || deal.title || deal.name || '');
+      if (label && (name.indexOf(label) >= 0 || label.indexOf(name) >= 0)) return deal;
+    }
+    return null;
+  }
+
+  function premiumFindLeadFromElement(el) {
+    var leads = window.__guardlineCommandUiDeals || [];
+    if (!leads.length) return null;
+    var scope = el && (el.closest('.lead-drawer-body, tr, .card, .signal-item-full') || el);
+    var name = premiumNormalize(scope ? premiumClosestText(scope, '.deal-company, .deal-name, .card-title, td, strong') : '');
+    if (!name) return null;
+    var i;
+    for (i = 0; i < leads.length; i++) {
+      var lead = leads[i] || {};
+      var label = premiumNormalize(lead.companyName || lead.title || lead.name || '');
+      if (label && (name.indexOf(label) >= 0 || label.indexOf(name) >= 0)) return lead;
+    }
+    return null;
+  }
+
+  function premiumReasonFromRule(rule, deal) {
+    var key = premiumText(rule && rule.key);
+    var raw = deal && (deal._raw || deal) || {};
+    var days = Number(deal && (deal.daysNoContact || deal.daysSinceContact || raw.daysNoContact || raw.daysSinceContact || raw.days_open || 0)) || 0;
+    if (key === 'noContact7d' || key === 'noContact14d' || key === 'noContact21d' || key === 'proposalNoFU') return 'Ghosting: ' + (days || (key === 'noContact7d' ? 7 : key === 'noContact14d' ? 14 : 21)) + ' days';
+    if (key === 'noDecisionMaker') return 'Missing: Economic Buyer';
+    if (key === 'noChampion') return 'Missing: Champion';
+    if (key === 'meddpiccLow') return 'Missing: MEDDPICC depth';
+    if (key === 'stalledStage') return 'Stall: stage aging above 30 days';
+    if (key === 'competitorMentioned') return 'Competition: active in notes';
+    if (key === 'lowProbability') return 'Probability: below 30%';
+    if (key === 'smallDeal') return 'Value: below ideal ACV';
+    if (key === 'noNotes') return 'Missing: deal notes';
+    if (key === 'unknownSource') return 'Missing: trusted source attribution';
+    return premiumText(rule && rule.label) || 'Risk signal detected';
+  }
+
+  function premiumLeadReason(label) {
+    var txt = premiumText(label);
+    if (txt.toLowerCase().indexOf('sem empresa') >= 0) return 'Missing: company association';
+    if (txt.toLowerCase().indexOf('sem email') >= 0) return 'Missing: contact email';
+    if (txt.toLowerCase().indexOf('lead antigo') >= 0) return 'Ghosting: aging lead with low score';
+    if (txt.toLowerCase().indexOf('lead score baixo') >= 0) return 'Score: weak qualification';
+    if (txt.toLowerCase().indexOf('frio') >= 0) return 'Engagement: unresponsive lead';
+    return txt || 'Lead risk detected';
+  }
+
+  function premiumGetRiskReasons(target) {
+    var deal = premiumFindDealFromElement(target);
+    var lead = premiumFindLeadFromElement(target);
+    if (deal && typeof window.computeDealRiskEngine === 'function') {
+      var risk = window.computeDealRiskEngine(deal);
+      var triggered = (risk && risk.triggered) || [];
+      if (triggered.length) return triggered.slice(0, 4).map(function(rule) { return premiumReasonFromRule(rule, deal); });
+    }
+    if (lead && typeof window.computeLeadRiskEngine === 'function') {
+      var leadRisk = window.computeLeadRiskEngine(lead);
+      var reasons = (leadRisk && leadRisk.triggered) || [];
+      if (reasons.length) return reasons.slice(0, 4).map(function(rule) { return premiumLeadReason(rule.label); });
+    }
+    var content = premiumText(target && target.getAttribute && (target.getAttribute('aria-label') || target.getAttribute('title')) || target && target.textContent || '').trim();
+    return [content || 'Risk signal requires attention'];
+  }
+
+  function premiumEnsureTooltip() {
+    if (premiumTooltip) return premiumTooltip;
+    premiumTooltip = document.createElement('div');
+    premiumTooltip.className = 'gl-v2-tooltip';
+    document.body.appendChild(premiumTooltip);
+    return premiumTooltip;
+  }
+
+  function premiumMoveTooltip(event) {
+    if (!premiumTooltip || !premiumTooltipTarget || !event) return;
+    var margin = 18;
+    var width = premiumTooltip.offsetWidth || 260;
+    var height = premiumTooltip.offsetHeight || 80;
+    var x = Math.min(window.innerWidth - width - 12, event.clientX + margin);
+    var y = event.clientY - height - 16;
+    if (y < 12) y = Math.min(window.innerHeight - height - 12, event.clientY + margin);
+    premiumTooltip.style.left = Math.max(12, x) + 'px';
+    premiumTooltip.style.top = Math.max(12, y) + 'px';
+  }
+
+  function premiumHideTooltip() {
+    premiumTooltipTarget = null;
+    if (!premiumTooltip) return;
+    premiumTooltip.classList.remove('visible');
+  }
+
+  function premiumShowTooltip(target, event) {
+    var reasons = premiumGetRiskReasons(target);
+    var tooltip = premiumEnsureTooltip();
+    tooltip.innerHTML = '<div class="gl-v2-tooltip-title">Pipeline Risk Signals</div><ul>' + reasons.map(function(reason) { return '<li>' + premiumEscape(reason) + '</li>'; }).join('') + '</ul>';
+    premiumTooltipTarget = target;
+    premiumMoveTooltip(event);
+    requestAnimationFrame(function() {
+      if (premiumTooltipTarget === target) tooltip.classList.add('visible');
+    });
+  }
+
+  function bindRiskTooltips(scope) {
+    premiumQueryAll(scope || document, '.risk-badge').forEach(function(badge) {
+      if (badge.dataset.glV2TooltipBound === '1') return;
+      badge.dataset.glV2TooltipBound = '1';
+      badge.addEventListener('mouseenter', function(event) { premiumShowTooltip(badge, event); });
+      badge.addEventListener('mousemove', premiumMoveTooltip);
+      badge.addEventListener('mouseleave', premiumHideTooltip);
+    });
+  }
+
+  function upgradeCommandCenterLayout() {
+    var grid = document.getElementById('command-grid') || document.querySelector('.command-grid');
+    if (!grid) return;
+    grid.classList.add('gl-v2-command-grid');
+    var cards = premiumQueryAll(grid, ':scope > .card');
+    cards.forEach(function(card, index) {
+      card.classList.add('gl-v2-card');
+      card.classList.remove('gl-v2-command-hero', 'gl-v2-command-primary', 'gl-v2-command-rail');
+      var title = premiumNormalize(premiumClosestText(card, '.card-title, .card-subtitle'));
+      if (!title && index === 0) {
+        card.classList.add('gl-v2-command-hero');
+        return;
+      }
+      if (title.indexOf('bem-vind') >= 0 || title.indexOf('welcome') >= 0 || title.indexOf('centro de comando') >= 0 || title.indexOf('executive') >= 0) {
+        card.classList.add('gl-v2-command-hero');
+      } else if (title.indexOf('julio') >= 0 || title.indexOf('brief') >= 0 || title.indexOf('copilot') >= 0 || title.indexOf('inbox') >= 0 || title.indexOf('assinaturas') >= 0) {
+        card.classList.add('gl-v2-command-rail');
+      } else {
+        card.classList.add('gl-v2-command-primary');
+      }
+    });
+  }
+
+  function upgradeIconChrome() {
+    premiumQueryAll(document, '.topbar-logo-shield, .julio-avatar, .deal-rank, .jfp-avatar, .recipe-icon, .topbar-toggle, .icon-btn').forEach(function(node) {
+      node.classList.add('gl-v2-icon-chrome');
+    });
+  }
+
+  function upgradeExistingCardsUI() {
+    premiumQueryAll(document, '.card, .deal-card, .deal-row, .kpi-card, .signal-item-full, .signal-item, .camp-card, .int-card, .recipe-card, .scenario-card, .fraud-kpi-card, .leads-kpi-pill, .risk-alert-block, .brief-item').forEach(function(card) {
+      card.classList.add('gl-v2-card');
+      if (card.classList.contains('kpi-card')) card.classList.add('gl-v2-kpi-upgraded');
+    });
+    upgradeCommandCenterLayout();
+    upgradeIconChrome();
+  }
+
+  function premiumMakeDraggable(widget, handle) {
+    if (!widget || !handle || handle.dataset.glV2DragBound === '1') return;
+    handle.dataset.glV2DragBound = '1';
+    var state = { active: false, x: 0, y: 0, left: 0, top: 0 };
+    handle.addEventListener('mousedown', function(event) {
+      if (event.target && event.target.closest('.gl-v2-fw-actions')) return;
+      state.active = true;
+      var rect = widget.getBoundingClientRect();
+      state.x = event.clientX;
+      state.y = event.clientY;
+      state.left = rect.left;
+      state.top = rect.top;
+      widget.style.left = rect.left + 'px';
+      widget.style.top = rect.top + 'px';
+      widget.style.right = 'auto';
+      widget.style.bottom = 'auto';
+      event.preventDefault();
+    });
+    document.addEventListener('mousemove', function(event) {
+      if (!state.active) return;
+      var nextLeft = state.left + (event.clientX - state.x);
+      var nextTop = state.top + (event.clientY - state.y);
+      nextLeft = Math.max(10, Math.min(window.innerWidth - widget.offsetWidth - 10, nextLeft));
+      nextTop = Math.max(10, Math.min(window.innerHeight - widget.offsetHeight - 10, nextTop));
+      widget.style.left = nextLeft + 'px';
+      widget.style.top = nextTop + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+      state.active = false;
+    });
+  }
+
+  function ensureFloatingWidget() {
+    if (premiumFloatingWidget && premiumFloatingLauncher) return;
+    premiumFloatingLauncher = document.getElementById('gl-v2-julio-launcher');
+    premiumFloatingWidget = document.getElementById('gl-v2-julio-widget');
+    if (!premiumFloatingLauncher) {
+      premiumFloatingLauncher = document.createElement('button');
+      premiumFloatingLauncher.id = 'gl-v2-julio-launcher';
+      premiumFloatingLauncher.type = 'button';
+      premiumFloatingLauncher.className = 'gl-v2-floating-launcher';
+      premiumFloatingLauncher.setAttribute('aria-label', 'Open Julio AI Live');
+      premiumFloatingLauncher.innerHTML = '<i data-lucide="sparkles"></i>';
+      document.body.appendChild(premiumFloatingLauncher);
+    }
+    if (!premiumFloatingWidget) {
+      premiumFloatingWidget = document.createElement('div');
+      premiumFloatingWidget.id = 'gl-v2-julio-widget';
+      premiumFloatingWidget.className = 'gl-v2-floating-widget';
+      premiumFloatingWidget.innerHTML = '<div class="gl-v2-fw-header" id="gl-v2-julio-drag"><div class="gl-v2-fw-avatar"><i data-lucide="bot"></i></div><div class="gl-v2-fw-meta"><div class="gl-v2-fw-title">Julio AI Live</div><div class="gl-v2-fw-sub"><span>Meeting Copilot listening</span><span class="gl-v2-audio-wave"><span></span><span></span><span></span><span></span><span></span></span></div></div><div class="gl-v2-fw-actions"><button type="button" class="gl-v2-fw-btn" id="gl-v2-julio-min">−</button><button type="button" class="gl-v2-fw-btn" id="gl-v2-julio-close">×</button></div></div><div class="gl-v2-fw-body" id="gl-v2-julio-body"><div class="gl-v2-fw-panel"><h4>Live insight</h4><p>Economic buyer signal is weak in 3 active deals. Trigger a tighter multi-thread outreach before the forecast window slips.</p></div><div class="gl-v2-fw-panel"><h4>Recommended next move</h4><p>Pull the stalled proposal review into a same-day executive follow-up and confirm commercial criteria while momentum is still warm.</p></div><div class="gl-v2-fw-chips"><button type="button" class="gl-v2-fw-chip">Summarize this meeting</button><button type="button" class="gl-v2-fw-chip">Show at-risk deals</button><button type="button" class="gl-v2-fw-chip">Draft follow-up email</button></div><input class="gl-v2-fw-input" value="Ask Julio what moved the pipeline today…" readonly /></div>';
+      document.body.appendChild(premiumFloatingWidget);
+    }
+    premiumFloatingBody = document.getElementById('gl-v2-julio-body');
+    premiumFloatingLauncher.onclick = function() {
+      premiumFloatingWidget.classList.toggle('gl-v2-open');
+    };
+    var closeBtn = document.getElementById('gl-v2-julio-close');
+    var minBtn = document.getElementById('gl-v2-julio-min');
+    if (closeBtn && !closeBtn.dataset.glV2Bound) {
+      closeBtn.dataset.glV2Bound = '1';
+      closeBtn.onclick = function() { premiumFloatingWidget.classList.remove('gl-v2-open'); };
+    }
+    if (minBtn && !minBtn.dataset.glV2Bound) {
+      minBtn.dataset.glV2Bound = '1';
+      minBtn.onclick = function() {
+        if (!premiumFloatingBody) return;
+        premiumFloatingBody.style.display = premiumFloatingBody.style.display === 'none' ? 'flex' : 'none';
+      };
+    }
+    premiumQueryAll(premiumFloatingWidget, '.gl-v2-fw-chip').forEach(function(chip) {
+      if (chip.dataset.glV2Bound === '1') return;
+      chip.dataset.glV2Bound = '1';
+      chip.addEventListener('click', function() {
+        if (!premiumFloatingBody) return;
+        var panel = premiumFloatingBody.querySelector('.gl-v2-fw-panel:last-of-type p');
+        if (panel) panel.textContent = chip.textContent + ' queued for Julio AI.';
+      });
+    });
+    premiumMakeDraggable(premiumFloatingWidget, document.getElementById('gl-v2-julio-drag'));
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function premiumHijackJulioTriggers() {
+    premiumQueryAll(document, '.julio-ask-btn, .nav-item, button, a').forEach(function(node) {
+      if (node.dataset.glV2JulioBound === '1') return;
+      var text = premiumNormalize(node.textContent || '');
+      var onclickText = premiumNormalize(node.getAttribute && node.getAttribute('onclick') || '');
+      if (text.indexOf('julio') < 0 && text.indexOf('copilot') < 0 && onclickText.indexOf('julio') < 0) return;
+      node.dataset.glV2JulioBound = '1';
+      node.addEventListener('click', function(event) {
+        ensureFloatingWidget();
+        if (premiumFloatingWidget) premiumFloatingWidget.classList.add('gl-v2-open');
+        if (node.classList.contains('julio-ask-btn') || onclickText.indexOf('julio') >= 0) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }, true);
+    });
+  }
+
+  function showSkeletonLoading(containerId, duration) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var existing = container.querySelector(':scope > .gl-v2-skeleton-overlay');
+    if (existing) existing.remove();
+    container.classList.add('gl-v2-skeleton-wrap');
+    var overlay = document.createElement('div');
+    overlay.className = 'gl-v2-skeleton-overlay';
+    overlay.innerHTML = '<div class="gl-v2-skeleton gl-v2-skeleton-card"></div><div class="gl-v2-skeleton gl-v2-skeleton-card"></div><div class="gl-v2-skeleton gl-v2-skeleton-card"></div>';
+    container.appendChild(overlay);
+    setTimeout(function() {
+      overlay.classList.add('gl-v2-fade-out');
+      setTimeout(function() {
+        if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      }, 320);
+    }, Math.max(180, Number(duration) || 1200));
+  }
+
+  function premiumApplyAll() {
+    upgradeExistingCardsUI();
+    bindRiskTooltips(document);
+    ensureFloatingWidget();
+    premiumHijackJulioTriggers();
+  }
+
+  function premiumScheduleApply() {
+    clearTimeout(premiumUpgradeTimer);
+    premiumUpgradeTimer = setTimeout(premiumApplyAll, 80);
+  }
+
+  if (!premiumObserver && document.body) {
+    premiumObserver = new MutationObserver(premiumScheduleApply);
+    premiumObserver.observe(document.body, { childList: true, subtree: true });
+  }
+
+  window.upgradeExistingCardsUI = upgradeExistingCardsUI;
+  window.showSkeletonLoading = showSkeletonLoading;
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', premiumApplyAll);
+  else premiumApplyAll();
 })();
 </script>
 

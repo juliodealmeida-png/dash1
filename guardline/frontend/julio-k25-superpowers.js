@@ -1,6 +1,6 @@
 /**
  * JULIO K2.5 SUPER POWERS — v2.0
- * Motor: Groq API (llama-3.3-70b-versatile) com streaming SSE
+ * Motor: Groq API (moonshotai/kimi-k2-instruct) com streaming SSE
  * Capacidades: Tool Calling · Thinking Mode · Agent Swarm · Deep Research · Artifact Generation
  *
  * Uso:
@@ -22,8 +22,8 @@
   function getGroqKey() { return window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || ''; }
   var GROQ_KEY = getGroqKey();
   var GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-  var MODEL_FAST = 'llama-3.3-70b-versatile';   // ⚡ Instant + Agent
-  var MODEL_DEEP = 'llama-3.3-70b-versatile';   // 🧠 Thinking + Research
+  var MODEL_FAST = 'moonshotai/kimi-k2-instruct';   // ⚡ Instant + Agent
+  var MODEL_DEEP = 'moonshotai/kimi-k2-instruct';   // 🧠 Thinking + Research
   var MODEL_TOOL = 'llama3-groq-70b-8192-tool-use-preview'; // 🔧 Tool calling
 
   var MODES = {
