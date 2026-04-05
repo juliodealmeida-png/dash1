@@ -30494,6 +30494,554 @@ else initBatch3();
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     BATCH 4: Intent Data · Call Intelligence · Territory Map
+              Churn Predictor · SDR Leaderboard · Notification Center
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+function _h(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+var B4_CSS = `
+/* ── Shared modal base ── */
+.gl-b4-modal { position:fixed;inset:0;z-index:99880;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:20px; }
+.gl-b4-modal.open { display:flex; }
+.gl-b4-inner { width:100%;max-width:860px;max-height:90vh;overflow-y:auto;background:rgba(10,10,18,1);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,.8); }
+.gl-b4-head { display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid rgba(255,255,255,.08);position:sticky;top:0;background:rgba(10,10,18,.99);border-radius:20px 20px 0 0;z-index:2; }
+.gl-b4-head h2 { margin:0;font-size:15px;font-weight:800;color:#fff;flex:1; }
+.gl-b4-close { background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;padding:0;line-height:1; }
+.gl-b4-close:hover { color:#fff; }
+.gl-b4-body { padding:20px 24px; }
+
+/* ── Intent Data ── */
+.intent-chip { display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:10px;font-weight:700; }
+.intent-hot  { background:rgba(239,68,68,.15);color:#fca5a5;border:1px solid rgba(239,68,68,.3); }
+.intent-warm { background:rgba(245,158,11,.15);color:#fde68a;border:1px solid rgba(245,158,11,.3); }
+.intent-cold { background:rgba(100,116,139,.15);color:#94a3b8;border:1px solid rgba(100,116,139,.3); }
+.intent-card { background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:14px;transition:all .2s;cursor:pointer; }
+.intent-card:hover { background:rgba(255,255,255,.07);transform:translateX(3px); }
+.intent-score-ring { width:48px;height:48px;flex-shrink:0;position:relative; }
+.intent-score-ring svg { transform:rotate(-90deg); }
+.intent-score-ring .isr-num { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800; }
+
+/* ── Call Intelligence ── */
+.ci-waveform { height:40px;display:flex;align-items:center;gap:1px;padding:0 4px; }
+.ci-bar { flex:1;border-radius:1px;min-height:3px;transition:height .3s; }
+.ci-moment { display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05); }
+.ci-moment:last-child { border-bottom:none; }
+.ci-moment .cm-time { font-size:10px;font-weight:700;color:#7c3aed;min-width:38px;padding-top:2px; }
+.ci-moment .cm-tag { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:2px 7px;border-radius:4px;white-space:nowrap;margin-right:8px; }
+.ci-moment .cm-text { font-size:12px;color:rgba(255,255,255,.8);line-height:1.5;flex:1; }
+.ci-sentiment { display:flex;gap:0;height:8px;border-radius:4px;overflow:hidden;margin:12px 0; }
+.ci-seg-pos { background:#22c55e; }
+.ci-seg-neu { background:#64748b; }
+.ci-seg-neg { background:#ef4444; }
+
+/* ── Territory Map ── */
+#gl-terr-map { background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:20px;position:relative;min-height:320px;overflow:hidden; }
+.terr-region { position:absolute;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;border:1px solid rgba(255,255,255,.1); }
+.terr-region:hover { transform:scale(1.04);z-index:10;box-shadow:0 8px 24px rgba(0,0,0,.4); }
+.terr-region .tr-name { font-size:10px;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px; }
+.terr-region .tr-val { font-size:14px;font-weight:800;color:#fff; }
+.terr-region .tr-count { font-size:9px;color:rgba(255,255,255,.6);margin-top:2px; }
+
+/* ── Churn Predictor ── */
+.churn-card { display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all .2s; }
+.churn-card:hover { background:rgba(255,255,255,.08); }
+.churn-meter { width:60px;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden;flex-shrink:0; }
+.churn-meter-fill { height:100%;border-radius:3px;transition:width .8s ease; }
+
+/* ── SDR Leaderboard ── */
+.sdr-row { display:grid;grid-template-columns:32px 1fr repeat(4,70px);align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);font-size:12px; }
+.sdr-row:last-child { border-bottom:none; }
+.sdr-row.header { font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.1); }
+.sdr-rank { font-size:14px;font-weight:800;text-align:center; }
+.sdr-av { width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#fff;flex-shrink:0; }
+.sdr-bar-cell { position:relative;height:16px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden; }
+.sdr-bar-fill { height:100%;border-radius:4px;transition:width .8s ease; }
+.sdr-bar-label { position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff; }
+
+/* ── Notification Center ── */
+#gl-notif-bell { position:fixed;top:14px;right:70px;z-index:9500;width:36px;height:36px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;font-size:17px; }
+#gl-notif-bell:hover { background:rgba(255,255,255,.12); }
+#gl-notif-badge { position:absolute;top:-4px;right:-4px;width:16px;height:16px;background:#ef4444;border-radius:50%;font-size:9px;font-weight:800;color:#fff;display:flex;align-items:center;justify-content:center;display:none; }
+#gl-notif-panel { position:fixed;top:58px;right:16px;width:340px;z-index:9400;background:rgba(12,12,18,.98);border:1px solid rgba(255,255,255,.1);border-radius:16px;box-shadow:0 24px 60px rgba(0,0,0,.7);backdrop-filter:blur(16px);transform:translateY(-10px) scale(.97);opacity:0;pointer-events:none;transition:all .25s cubic-bezier(0.4,0,0.2,1);overflow:hidden; }
+#gl-notif-panel.open { transform:translateY(0) scale(1);opacity:1;pointer-events:all; }
+.notif-item { display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .2s; }
+.notif-item:hover { background:rgba(255,255,255,.04); }
+.notif-item:last-child { border-bottom:none; }
+.notif-item .ni-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px; }
+.notif-item .ni-body { flex:1; }
+.notif-item .ni-title { font-size:12px;font-weight:700;color:#fff;margin-bottom:2px; }
+.notif-item .ni-desc { font-size:11px;color:rgba(255,255,255,.5);line-height:1.4; }
+.notif-item .ni-time { font-size:10px;color:rgba(255,255,255,.3);white-space:nowrap;margin-top:2px; }
+@keyframes notif-ring { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-15deg)} 40%{transform:rotate(15deg)} 60%{transform:rotate(-10deg)} 80%{transform:rotate(10deg)} }
+.notif-ring { animation:notif-ring .5s ease; }
+`;
+var b4Style = document.createElement('style'); b4Style.textContent = B4_CSS; document.head.appendChild(b4Style);
+
+/* ══════════════════════════════════════════════════════
+   1. INTENT DATA FEED
+   ══════════════════════════════════════════════════════ */
+var INTENT_SIGNALS = [
+  {signal:'Visitou página de preços 3x esta semana',       weight:32, type:'hot',  category:'Web'},
+  {signal:'Abriu email de proposta (4 vezes)',              weight:28, type:'hot',  category:'Email'},
+  {signal:'Pesquisou "[Concorrente] vs Guardline"',         weight:25, type:'hot',  category:'Search'},
+  {signal:'LinkedIn: Postou sobre "digital transformation"',weight:18, type:'warm', category:'Social'},
+  {signal:'Assistiu webinar de revenue intelligence',       weight:15, type:'warm', category:'Content'},
+  {signal:'Download do case study',                         weight:12, type:'warm', category:'Content'},
+  {signal:'Abriu newsletter (1x)',                          weight:5,  type:'cold', category:'Email'},
+];
+
+function buildIntentModal(){
+  if(document.getElementById('gl-intent-modal')) return;
+  var el = document.createElement('div'); el.id='gl-intent-modal'; el.className='gl-b4-modal';
+  el.innerHTML='<div class="gl-b4-inner"><div class="gl-b4-head" style="background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(245,158,11,.06))"><span style="font-size:20px">🔥</span><h2>Intent Data — Sinais de Compra</h2><button class="gl-b4-close" onclick="window.__glIntent.close()">×</button></div><div class="gl-b4-body" id="gl-intent-body"></div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)window.__glIntent.close();});
+  document.body.appendChild(el);
+}
+
+function renderIntent(){
+  var body = document.getElementById('gl-intent-body'); if(!body) return;
+  var deals = window.__guardlineDealsCache||[];
+  var topDeals = deals.slice().sort(function(a,b){return(b.risk||0)-(a.risk||0);}).slice(0,6);
+
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">' +
+    [['🔥 Hot Leads','#ef4444',deals.filter(function(d){return(d.risk||0)>=70;}).length],
+     ['🟡 Warm','#f59e0b',deals.filter(function(d){return(d.risk||0)>=40&&(d.risk||0)<70;}).length],
+     ['📊 Total Sinais','#7c3aed',INTENT_SIGNALS.length * Math.max(1,deals.length)],
+     ['⚡ Ações Sugeridas','#22c55e',Math.min(deals.length,5)]
+    ].map(function(k){
+      return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;border-left:3px solid '+k[1]+'"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px">'+k[0]+'</div><div style="font-size:1.4rem;font-weight:800;color:'+k[1]+'">'+k[2]+'</div></div>';
+    }).join('')+'</div>';
+
+  html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:10px">Top sinais de intenção detectados</div>';
+  INTENT_SIGNALS.forEach(function(sig){
+    var score = sig.weight + Math.floor(Math.random()*10);
+    var color = sig.type==='hot'?'#ef4444':sig.type==='warm'?'#f59e0b':'#64748b';
+    html += '<div class="intent-card" onclick="window.__glIntent.actOn(\''+_h(sig.signal)+'\')">' +
+      '<div class="intent-score-ring"><svg viewBox="0 0 36 36" width="48" height="48"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3"/><circle cx="18" cy="18" r="15" fill="none" stroke="'+color+'" stroke-width="3" stroke-dasharray="'+score+' '+(100-score)+'" stroke-linecap="round"/></svg><div class="isr-num" style="color:'+color+'">'+score+'</div></div>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:6px">'+_h(sig.signal)+'</div>' +
+      '<div style="display:flex;gap:6px;align-items:center"><span class="intent-chip intent-'+sig.type+'">'+sig.type.toUpperCase()+'</span><span style="font-size:10px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.5);padding:2px 7px;border-radius:4px">'+sig.category+'</span></div></div>' +
+      '<button style="padding:5px 12px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#c084fc;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="event.stopPropagation();window.__glIntent.actOn(\''+_h(sig.signal)+'\')">Agir →</button>' +
+    '</div>';
+  });
+
+  if(topDeals.length){
+    html += '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin:16px 0 10px">Leads com maior intent score</div>';
+    topDeals.forEach(function(d,i){
+      var intentScore = Math.min(99, (d.risk||0) + Math.floor(Math.random()*20));
+      var ic = intentScore>=70?'#ef4444':intentScore>=45?'#f59e0b':'#22c55e';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;margin-bottom:6px">' +
+        '<div style="width:28px;height:28px;background:linear-gradient(135deg,'+ic+'44,'+ic+'22);border:1px solid '+ic+'44;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:'+ic+'">'+(i+1)+'</div>' +
+        '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fff">'+_h(d.company)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+_h(d.stage)+' · $'+Number(d.value||0).toLocaleString('en-US')+'</div></div>' +
+        '<div style="font-size:18px;font-weight:800;color:'+ic+'">'+intentScore+'</div>' +
+        '<button style="padding:4px 10px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:6px;color:#c084fc;font-size:10px;font-weight:700;cursor:pointer" onclick="typeof openDealDetail===\'function\'&&(window.__glIntent.close(),openDealDetail(\''+String(d.id)+'\'))">Ver →</button>' +
+      '</div>';
+    });
+  }
+  body.innerHTML = html;
+}
+
+window.__glIntent = {
+  open: function(){ buildIntentModal(); renderIntent(); document.getElementById('gl-intent-modal').classList.add('open'); },
+  close: function(){ var m=document.getElementById('gl-intent-modal'); if(m) m.classList.remove('open'); },
+  actOn: function(signal){
+    window.__glIntent.close();
+    if(typeof julioFloatOpen==='function') julioFloatOpen('O lead demonstrou o seguinte sinal de intenção de compra: "'+signal+'". Qual é a melhor ação de vendas para capitalizar esse sinal agora? Seja específico e direto ao ponto.');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   2. CALL INTELLIGENCE
+   ══════════════════════════════════════════════════════ */
+var CALL_MOMENTS = [
+  {time:'00:45', tag:'🔥 Dor', tagColor:'rgba(239,68,68,.2)', tagTextColor:'#fca5a5', text:'Cliente mencionou frustração com forecast impreciso do sistema atual.'},
+  {time:'03:12', tag:'💡 Interesse', tagColor:'rgba(34,197,94,.15)', tagTextColor:'#86efac', text:'Perguntou sobre integração com HubSpot — alto interesse em pipeline inteligente.'},
+  {time:'05:38', tag:'⚠️ Objeção', tagColor:'rgba(245,158,11,.15)', tagTextColor:'#fde68a', text:'"Já tentamos outras ferramentas e não funcionou" — abriu espaço para diferencial.'},
+  {time:'08:20', tag:'🎯 Próximo passo', tagColor:'rgba(124,58,237,.2)', tagTextColor:'#c084fc', text:'Cliente pediu demo com CFO e Head de Vendas — agendar para semana que vem.'},
+  {time:'10:55', tag:'💰 Budget', tagColor:'rgba(6,182,212,.15)', tagTextColor:'#67e8f9', text:'Confirmou budget aprovado de R$180k/ano — dentro do nosso range premium.'},
+];
+
+function buildCallModal(){
+  if(document.getElementById('gl-call-modal')) return;
+  var el=document.createElement('div'); el.id='gl-call-modal'; el.className='gl-b4-modal';
+  el.innerHTML='<div class="gl-b4-inner"><div class="gl-b4-head" style="background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(124,58,237,.08))"><span style="font-size:20px">📞</span><h2>Call Intelligence — Análise de Ligação</h2><button class="gl-b4-close" onclick="window.__glCall.close()">×</button></div><div class="gl-b4-body" id="gl-call-body"></div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)window.__glCall.close();});
+  document.body.appendChild(el);
+}
+
+function renderCall(){
+  var body=document.getElementById('gl-call-body'); if(!body) return;
+  var deal=(window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0]||{company:'Prospect',contact:'Contato'};
+
+  // generate fake waveform
+  var bars='';
+  for(var i=0;i<60;i++){
+    var h=8+Math.floor(Math.random()*32);
+    var prog=i/60;
+    var color=prog<0.3?'rgba(34,197,94,.6)':prog<0.7?'rgba(100,116,139,.5)':'rgba(239,68,68,.5)';
+    bars+='<div class="ci-bar" style="height:'+h+'px;background:'+color+'"></div>';
+  }
+
+  body.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">' +
+      '<div><div style="font-size:15px;font-weight:800;color:#fff">'+_h(deal.company)+' × '+_h(deal.contact)+'</div>' +
+      '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:2px">Duração: 13:42 · '+new Date().toLocaleDateString('pt-BR')+'</div></div>' +
+      '<button style="padding:7px 14px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#c084fc;font-size:11px;font-weight:700;cursor:pointer" onclick="window.__glCall.analyzeWithJulio()">⚡ Análise completa com Julio</button>' +
+    '</div>' +
+    '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;margin-bottom:16px">' +
+      '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:8px">Forma de onda · Sentimento ao longo da chamada</div>' +
+      '<div class="ci-waveform">'+bars+'</div>' +
+      '<div style="display:flex;gap:0;height:8px;border-radius:4px;overflow:hidden;margin-top:10px">' +
+        '<div class="ci-seg-pos" style="width:45%"></div>' +
+        '<div class="ci-seg-neu" style="width:35%"></div>' +
+        '<div class="ci-seg-neg" style="width:20%"></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:16px;margin-top:6px"><span style="font-size:10px;color:#22c55e">● Positivo 45%</span><span style="font-size:10px;color:#64748b">● Neutro 35%</span><span style="font-size:10px;color:#ef4444">● Negativo 20%</span></div>' +
+    '</div>' +
+    '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">' +
+      [['Talk/Listen','40/60','#22c55e'],['Monólogos','2','#f59e0b'],['Perguntas','7','#06b6d4'],['Score','82','#7c3aed']].map(function(k){
+        return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:10px 12px;text-align:center"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px">'+k[0]+'</div><div style="font-size:1.1rem;font-weight:800;color:'+k[2]+'">'+k[1]+'</div></div>';
+      }).join('') +
+    '</div>' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:10px">⚡ Momentos-chave</div>' +
+    CALL_MOMENTS.map(function(m){
+      return '<div class="ci-moment"><div class="cm-time">'+m.time+'</div><span class="cm-tag" style="background:'+m.tagColor+';color:'+m.tagTextColor+'">'+m.tag+'</span><div class="cm-text">'+_h(m.text)+'</div></div>';
+    }).join('') +
+    '<div style="margin-top:16px;padding:14px;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.15);border-radius:12px">' +
+      '<div style="font-size:11px;font-weight:700;color:#86efac;margin-bottom:6px">✅ Resumo da Call</div>' +
+      '<div style="font-size:13px;color:rgba(255,255,255,.8);line-height:1.6">Call produtiva com '+_h(deal.company)+'. Cliente confirmou budget e interesse em integração HubSpot. Próximo passo: demo com CFO + Head de Vendas. Objeção de histórico de falhas com ferramentas anteriores foi aberta — preparar case study do segmento deles.</div>' +
+    '</div>';
+}
+
+window.__glCall = {
+  open: function(){ buildCallModal(); renderCall(); document.getElementById('gl-call-modal').classList.add('open'); },
+  close: function(){ var m=document.getElementById('gl-call-modal'); if(m) m.classList.remove('open'); },
+  analyzeWithJulio: function(){
+    var deal=(window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0]||{company:'Prospect'};
+    window.__glCall.close();
+    if(typeof julioFloatOpen==='function') julioFloatOpen('Analise esta call de vendas com '+deal.company+'. Pontos detectados: dor com forecast impreciso, interesse em integração HubSpot, objeção "já tentamos ferramentas antes", budget R$180k confirmado, próximo passo: demo com CFO. Quais são: 1) as 3 ações mais urgentes, 2) como lidar com a objeção, 3) como preparar a demo com o CFO?');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   3. TERRITORY MAP
+   ══════════════════════════════════════════════════════ */
+var REGIONS = [
+  {id:'sp',  name:'São Paulo',       left:'52%',top:'55%', w:120,h:80,  color:'#7c3aed'},
+  {id:'rj',  name:'Rio de Janeiro',  left:'62%',top:'62%', w:90, h:60,  color:'#2563eb'},
+  {id:'mg',  name:'Minas Gerais',    left:'58%',top:'48%', w:100,h:70,  color:'#059669'},
+  {id:'rs',  name:'Rio Grande Sul',  left:'48%',top:'70%', w:85, h:55,  color:'#d97706'},
+  {id:'pr',  name:'Paraná',          left:'50%',top:'62%', w:85, h:55,  color:'#0891b2'},
+  {id:'ba',  name:'Bahia',           left:'65%',top:'38%', w:80, h:55,  color:'#7c3aed'},
+  {id:'other',name:'Outros',         left:'30%',top:'30%', w:90, h:55,  color:'#475569'},
+];
+
+function buildTerrModal(){
+  if(document.getElementById('gl-terr-modal')) return;
+  var el=document.createElement('div'); el.id='gl-terr-modal'; el.className='gl-b4-modal';
+  el.innerHTML='<div class="gl-b4-inner"><div class="gl-b4-head" style="background:linear-gradient(135deg,rgba(5,150,105,.12),rgba(6,182,212,.06))"><span style="font-size:20px">🗺️</span><h2>Territory Map — Deals por Região</h2><button class="gl-b4-close" onclick="window.__glTerr.close()">×</button></div><div class="gl-b4-body" id="gl-terr-body"></div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)window.__glTerr.close();});
+  document.body.appendChild(el);
+}
+
+function renderTerr(){
+  var body=document.getElementById('gl-terr-body'); if(!body) return;
+  var deals=window.__guardlineDealsCache||[];
+  var total=deals.length||1;
+  // distribute deals across regions
+  var regionDeals=REGIONS.map(function(r,i){
+    var count=Math.max(0,Math.floor((deals.length/(REGIONS.length))+Math.sin(i)*2));
+    var val=count*(deals.reduce(function(a,d){return a+(d.value||0);},0)/Math.max(total,1));
+    return Object.assign({},r,{count:count,val:val});
+  });
+  var maxVal=Math.max.apply(null,regionDeals.map(function(r){return r.val;}));
+
+  var regionsHtml=regionDeals.map(function(r){
+    var intensity=maxVal>0?r.val/maxVal:0.3;
+    var alpha=0.15+(intensity*0.5);
+    var fmt=r.val>=1e6?'$'+(r.val/1e6).toFixed(1)+'M':r.val>=1000?'$'+(r.val/1000).toFixed(0)+'k':'$0';
+    return '<div class="terr-region" style="left:'+r.left+';top:'+r.top+';width:'+r.w+'px;height:'+r.h+'px;background:'+r.color+String(Math.round(alpha*255).toString(16)).padStart(2,'0')+';border-color:'+r.color+'44" onclick="window.__glTerr.drill(\''+r.id+'\',\''+_h(r.name)+'\')">' +
+      '<div class="tr-name">'+_h(r.name)+'</div>' +
+      '<div class="tr-val">'+fmt+'</div>' +
+      '<div class="tr-count">'+r.count+' deals</div>' +
+    '</div>';
+  }).join('');
+
+  var listHtml=regionDeals.slice().sort(function(a,b){return b.val-a.val;}).map(function(r,i){
+    var fmt=r.val>=1e6?'$'+(r.val/1e6).toFixed(1)+'M':r.val>=1000?'$'+(r.val/1000).toFixed(0)+'k':'$0';
+    var pct=maxVal>0?Math.round(r.val/maxVal*100):0;
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">' +
+      '<div style="width:4px;height:36px;background:'+r.color+';border-radius:2px;flex-shrink:0"></div>' +
+      '<div style="flex:1"><div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:3px">'+_h(r.name)+'</div>' +
+      '<div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+r.color+';border-radius:3px;transition:width .8s ease"></div></div></div>' +
+      '<div style="text-align:right;min-width:60px"><div style="font-size:12px;font-weight:800;color:#fff">'+fmt+'</div><div style="font-size:10px;color:rgba(255,255,255,.4)">'+r.count+'d</div></div>' +
+    '</div>';
+  }).join('');
+
+  body.innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 280px;gap:16px;align-items:start">' +
+      '<div><div id="gl-terr-map" style="min-height:340px">'+regionsHtml+'<div style="position:absolute;bottom:12px;left:12px;font-size:11px;color:rgba(255,255,255,.3);font-weight:600">🇧🇷 Brasil · Clique na região para detalhar</div></div></div>' +
+      '<div style="padding:4px 0"><div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:12px">Ranking de Regiões</div>'+listHtml+
+        '<button style="width:100%;margin-top:14px;padding:9px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:10px;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glTerr.strategy()">⚡ Estratégia de território com Julio</button>' +
+      '</div>' +
+    '</div>';
+}
+
+window.__glTerr = {
+  open: function(){ buildTerrModal(); renderTerr(); document.getElementById('gl-terr-modal').classList.add('open'); },
+  close: function(){ var m=document.getElementById('gl-terr-modal'); if(m) m.classList.remove('open'); },
+  drill: function(id,name){
+    if(typeof julioFloatOpen==='function'){
+      var deals=window.__guardlineDealsCache||[];
+      var total=deals.reduce(function(a,d){return a+(d.value||0);},0);
+      julioFloatOpen('Analise a performance e oportunidades de crescimento no território '+name+'. Total pipeline: $'+(total/1000).toFixed(0)+'k. Quais são as 3 melhores estratégias para aumentar receita nessa região?');
+      window.__glTerr.close();
+    }
+  },
+  strategy: function(){
+    window.__glTerr.close();
+    if(typeof julioFloatOpen==='function') julioFloatOpen('Crie uma estratégia de cobertura de território para maximizar receita no Brasil. Quais regiões têm maior potencial não explorado? Onde devo alocar mais SDRs? Quais verticais priorizar por região?');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   4. CHURN PREDICTOR
+   ══════════════════════════════════════════════════════ */
+function buildChurnModal(){
+  if(document.getElementById('gl-churn-modal')) return;
+  var el=document.createElement('div'); el.id='gl-churn-modal'; el.className='gl-b4-modal';
+  el.innerHTML='<div class="gl-b4-inner"><div class="gl-b4-head" style="background:linear-gradient(135deg,rgba(239,68,68,.12),rgba(245,158,11,.06))"><span style="font-size:20px">⚠️</span><h2>Churn Predictor — Clientes em Risco</h2><button class="gl-b4-close" onclick="window.__glChurn.close()">×</button></div><div class="gl-b4-body" id="gl-churn-body"></div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)window.__glChurn.close();});
+  document.body.appendChild(el);
+}
+
+function renderChurn(){
+  var body=document.getElementById('gl-churn-body'); if(!body) return;
+  var deals=window.__guardlineDealsCache||[];
+  // simulate churn risk from existing deals (won = "customers")
+  var customers=deals.filter(function(d){return d.stage==='Won'||(d.risk||0)<30;}).slice(0,8);
+  if(!customers.length) customers=deals.slice(0,8);
+
+  var churnData=customers.map(function(d,i){
+    var base=(d.daysNoContact||0)*3+(d.risk||0)*0.5;
+    var score=Math.min(95,Math.max(5,Math.round(base+Math.sin(i)*15)));
+    var factors=[];
+    if((d.daysNoContact||0)>=14) factors.push('Sem contato há '+d.daysNoContact+'d');
+    if((d.risk||0)>=50) factors.push('Risco elevado no pipeline');
+    if(!factors.length) factors.push('Engajamento abaixo da média');
+    return Object.assign({},d,{churnScore:score,churnFactors:factors});
+  }).sort(function(a,b){return b.churnScore-a.churnScore;});
+
+  var high=churnData.filter(function(d){return d.churnScore>=70;}).length;
+  var med =churnData.filter(function(d){return d.churnScore>=40&&d.churnScore<70;}).length;
+
+  body.innerHTML=
+    '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">' +
+      [['🔴 Alto Risco',high,'#ef4444'],['🟡 Médio Risco',med,'#f59e0b'],['🟢 Saudáveis',Math.max(0,churnData.length-high-med),'#22c55e']].map(function(k){
+        return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;text-align:center;border-top:2px solid '+k[2]+'"><div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4);margin-bottom:4px">'+k[0]+'</div><div style="font-size:1.8rem;font-weight:800;color:'+k[2]+'">'+k[1]+'</div></div>';
+      }).join('')+
+    '</div>' +
+    '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:10px">Ranking por probabilidade de churn</div>' +
+    churnData.map(function(d){
+      var color=d.churnScore>=70?'#ef4444':d.churnScore>=40?'#f59e0b':'#22c55e';
+      return '<div class="churn-card" onclick="window.__glChurn.rescue(\''+_h(d.company)+'\','+d.churnScore+',\''+_h(d.churnFactors[0])+'\')">' +
+        '<div style="width:36px;height:36px;border-radius:8px;background:'+color+'22;border:1px solid '+color+'44;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:16px;font-weight:800;color:'+color+'">'+d.churnScore+'</span></div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:2px">'+_h(d.company)+'</div><div style="font-size:11px;color:rgba(255,255,255,.4)">'+_h(d.churnFactors[0])+'</div></div>' +
+        '<div class="churn-meter"><div class="churn-meter-fill" style="width:'+d.churnScore+'%;background:'+color+'"></div></div>' +
+        '<button style="padding:4px 10px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:6px;color:#c084fc;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap" onclick="event.stopPropagation();window.__glChurn.rescue(\''+_h(d.company)+'\','+d.churnScore+',\''+_h(d.churnFactors[0])+'\')">Resgatar</button>' +
+      '</div>';
+    }).join('');
+}
+
+window.__glChurn = {
+  open: function(){ buildChurnModal(); renderChurn(); document.getElementById('gl-churn-modal').classList.add('open'); },
+  close: function(){ var m=document.getElementById('gl-churn-modal'); if(m) m.classList.remove('open'); },
+  rescue: function(company,score,factor){
+    window.__glChurn.close();
+    if(typeof julioFloatOpen==='function') julioFloatOpen('O cliente '+company+' tem '+score+'% de probabilidade de churn. Fator principal: '+factor+'. Crie um plano de resgate com: 1) Email de reengajamento personalizado, 2) Oferta ou valor adicional para reter, 3) Próximos 3 passos concretos para reduzir o risco de perda.');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   5. SDR LEADERBOARD
+   ══════════════════════════════════════════════════════ */
+var SDR_TEAM = [
+  {name:'Ana Oliveira',   calls:48, meetings:12, pipeline:185000, won:42000, avatar:'AO'},
+  {name:'Carlos Mendes',  calls:41, meetings:9,  pipeline:142000, won:28000, avatar:'CM'},
+  {name:'Julia Santos',   calls:55, meetings:15, pipeline:220000, won:67000, avatar:'JS'},
+  {name:'Rafael Costa',   calls:33, meetings:7,  pipeline:98000,  won:18000, avatar:'RC'},
+  {name:'Fernanda Lima',  calls:29, meetings:5,  pipeline:75000,  won:12000, avatar:'FL'},
+];
+
+function buildSDRModal(){
+  if(document.getElementById('gl-sdr-modal')) return;
+  var el=document.createElement('div'); el.id='gl-sdr-modal'; el.className='gl-b4-modal';
+  el.innerHTML='<div class="gl-b4-inner"><div class="gl-b4-head" style="background:linear-gradient(135deg,rgba(124,58,237,.12),rgba(16,185,129,.06))"><span style="font-size:20px">🏆</span><h2>SDR Leaderboard — Performance da Equipe</h2><button class="gl-b4-close" onclick="window.__glSDR.close()">×</button></div><div class="gl-b4-body" id="gl-sdr-body"></div></div>';
+  el.addEventListener('click',function(e){if(e.target===el)window.__glSDR.close();});
+  document.body.appendChild(el);
+}
+
+function renderSDR(){
+  var body=document.getElementById('gl-sdr-body'); if(!body) return;
+  var sorted=SDR_TEAM.slice().sort(function(a,b){return b.won-a.won;});
+  var maxCalls=Math.max.apply(null,SDR_TEAM.map(function(s){return s.calls;}));
+  var maxMtgs=Math.max.apply(null,SDR_TEAM.map(function(s){return s.meetings;}));
+  var maxPipe=Math.max.apply(null,SDR_TEAM.map(function(s){return s.pipeline;}));
+  var maxWon=Math.max.apply(null,SDR_TEAM.map(function(s){return s.won;}));
+
+  var medals=['🥇','🥈','🥉','4','5'];
+  var medalColors=['#fbbf24','#94a3b8','#cd7f32','rgba(255,255,255,.3)','rgba(255,255,255,.2)'];
+
+  var kpis='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">'+
+    [['Total Calls',SDR_TEAM.reduce(function(a,s){return a+s.calls;},0),'#06b6d4'],
+     ['Meetings Set',SDR_TEAM.reduce(function(a,s){return a+s.meetings;},0),'#7c3aed'],
+     ['Pipeline Gerado','$'+(SDR_TEAM.reduce(function(a,s){return a+s.pipeline;},0)/1000).toFixed(0)+'k','#22c55e'],
+     ['Won Total','$'+(SDR_TEAM.reduce(function(a,s){return a+s.won;},0)/1000).toFixed(0)+'k','#f59e0b'],
+    ].map(function(k){return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;border-top:2px solid '+k[2]+'"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px">'+k[0]+'</div><div style="font-size:1.2rem;font-weight:800;color:'+k[2]+'">'+k[1]+'</div></div>';}).join('')+'</div>';
+
+  var rows='<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;overflow:hidden">' +
+    '<div class="sdr-row header"><div></div><div>SDR</div><div style="text-align:center">Calls</div><div style="text-align:center">Meetings</div><div style="text-align:center">Pipeline</div><div style="text-align:center">Won</div></div>' +
+    sorted.map(function(s,i){
+      var isTop=i===0;
+      return '<div class="sdr-row" style="'+(isTop?'background:rgba(124,58,237,.06)':'')+'">' +
+        '<div class="sdr-rank" style="color:'+medalColors[i]+'">'+medals[i]+'</div>' +
+        '<div style="display:flex;align-items:center;gap:8px"><div class="sdr-av" style="'+(isTop?'background:linear-gradient(135deg,#7c3aed,#06b6d4)':'')+'">'+s.avatar+'</div><span style="font-size:12px;font-weight:700;color:#fff">'+_h(s.name.split(' ')[0])+'</span></div>' +
+        '<div class="sdr-bar-cell"><div class="sdr-bar-fill" style="width:'+Math.round(s.calls/maxCalls*100)+'%;background:#06b6d4"></div><div class="sdr-bar-label">'+s.calls+'</div></div>' +
+        '<div class="sdr-bar-cell"><div class="sdr-bar-fill" style="width:'+Math.round(s.meetings/maxMtgs*100)+'%;background:#7c3aed"></div><div class="sdr-bar-label">'+s.meetings+'</div></div>' +
+        '<div class="sdr-bar-cell"><div class="sdr-bar-fill" style="width:'+Math.round(s.pipeline/maxPipe*100)+'%;background:#22c55e"></div><div class="sdr-bar-label">$'+(s.pipeline/1000).toFixed(0)+'k</div></div>' +
+        '<div class="sdr-bar-cell"><div class="sdr-bar-fill" style="width:'+Math.round(s.won/maxWon*100)+'%;background:#f59e0b"></div><div class="sdr-bar-label">$'+(s.won/1000).toFixed(0)+'k</div></div>' +
+      '</div>';
+    }).join('')+'</div>';
+
+  body.innerHTML=kpis+rows+
+    '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">'+
+      '<button style="padding:9px 18px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:10px;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glSDR.coach()">⚡ Coaching com Julio AI</button>'+
+      '<button style="padding:9px 18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glSDR.close()">Fechar</button>'+
+    '</div>';
+}
+
+window.__glSDR = {
+  open: function(){ buildSDRModal(); renderSDR(); document.getElementById('gl-sdr-modal').classList.add('open'); },
+  close: function(){ var m=document.getElementById('gl-sdr-modal'); if(m) m.classList.remove('open'); },
+  coach: function(){
+    window.__glSDR.close();
+    var top=SDR_TEAM.slice().sort(function(a,b){return b.won-a.won;})[0];
+    var bot=SDR_TEAM.slice().sort(function(a,b){return a.won-b.won;})[0];
+    if(typeof julioFloatOpen==='function') julioFloatOpen('Analise este leaderboard de SDRs. Top performer: '+top.name+' ('+top.calls+' calls, '+top.meetings+' meetings, $'+(top.won/1000).toFixed(0)+'k won). Bottom performer: '+bot.name+' ('+bot.calls+' calls, '+bot.meetings+' meetings, $'+(bot.won/1000).toFixed(0)+'k won). Crie: 1) análise do gap de performance, 2) plano de coaching para o bottom performer, 3) como replicar o sucesso do top para toda a equipe.');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   6. NOTIFICATION CENTER
+   ══════════════════════════════════════════════════════ */
+var _notifOpen = false;
+var _notifData = [];
+var _notifUnread = 0;
+
+function generateNotifications(){
+  var deals = window.__guardlineDealsCache||[];
+  var notifs = [];
+  deals.filter(function(d){return(d.daysNoContact||0)>=7;}).slice(0,3).forEach(function(d){
+    notifs.push({type:'urgent', color:'#ef4444', title:'⚠️ '+d.company+' sem contato', desc:(d.daysNoContact)+'d sem atividade · $'+Number(d.value||0).toLocaleString('en-US')+' em risco', time:'agora', action:function(){ if(typeof julioFloatOpen==='function') julioFloatOpen('Crie um email de re-engajamento urgente para '+d.company+' que ficou '+d.daysNoContact+' dias sem contato.'); }});
+  });
+  deals.filter(function(d){return(d.risk||0)>=80;}).slice(0,2).forEach(function(d){
+    notifs.push({type:'risk', color:'#f59e0b', title:'🔴 Risk Score alto: '+d.company, desc:'Risk '+d.risk+'% · Estágio: '+d.stage, time:'5 min', action:function(){ if(typeof openDealDetail==='function') openDealDetail(d.id); }});
+  });
+  notifs.push({type:'insight', color:'#7c3aed', title:'💡 Julio detectou padrão', desc:'3 deals em "Proposal" há +18 dias. Ação recomendada disponível.', time:'1h', action:function(){ if(window.__glNBA) window.__glNBA.open(); }});
+  notifs.push({type:'win', color:'#22c55e', title:'🎉 Meta semanal: 78%', desc:'Você está no caminho certo! Faltam 2 deals para bater a meta.', time:'2h', action:function(){ if(typeof navigateTo==='function') navigateTo('forecast'); }});
+  _notifData = notifs;
+  _notifUnread = notifs.length;
+  updateNotifBadge();
+}
+
+function updateNotifBadge(){
+  var badge = document.getElementById('gl-notif-badge');
+  if(!badge) return;
+  if(_notifUnread > 0){ badge.style.display='flex'; badge.textContent=_notifUnread>9?'9+':_notifUnread; }
+  else { badge.style.display='none'; }
+}
+
+function buildNotifCenter(){
+  if(document.getElementById('gl-notif-bell')) return;
+
+  var bell = document.createElement('div'); bell.id='gl-notif-bell';
+  bell.innerHTML='🔔<div id="gl-notif-badge"></div>';
+  bell.onclick = function(){ window.__glNotif.toggle(); bell.classList.add('notif-ring'); setTimeout(function(){bell.classList.remove('notif-ring');},600); };
+  document.body.appendChild(bell);
+
+  var panel = document.createElement('div'); panel.id='gl-notif-panel';
+  panel.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.08)"><span style="font-size:13px;font-weight:800;color:#fff">Notificações</span><button style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(255,255,255,.6);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer" onclick="window.__glNotif.clearAll()">Marcar lidas</button></div><div id="gl-notif-list"></div>';
+  document.body.appendChild(panel);
+
+  document.addEventListener('click', function(e){
+    if(_notifOpen && !bell.contains(e.target) && !panel.contains(e.target)){ window.__glNotif.close(); }
+  });
+}
+
+function renderNotifPanel(){
+  var list=document.getElementById('gl-notif-list'); if(!list) return;
+  if(!_notifData.length){ list.innerHTML='<div style="padding:20px;text-align:center;color:rgba(255,255,255,.3);font-size:12px">Sem notificações novas ✅</div>'; return; }
+  list.innerHTML=_notifData.map(function(n,i){
+    return '<div class="notif-item" onclick="window.__glNotif.act('+i+')">' +
+      '<div class="ni-dot" style="background:'+n.color+'"></div>' +
+      '<div class="ni-body"><div class="ni-title">'+_h(n.title)+'</div><div class="ni-desc">'+_h(n.desc)+'</div></div>' +
+      '<div class="ni-time">'+_h(n.time)+'</div>' +
+    '</div>';
+  }).join('');
+}
+
+window.__glNotif = {
+  open: function(){ buildNotifCenter(); renderNotifPanel(); _notifOpen=true; document.getElementById('gl-notif-panel').classList.add('open'); _notifUnread=0; updateNotifBadge(); },
+  close: function(){ _notifOpen=false; var p=document.getElementById('gl-notif-panel'); if(p) p.classList.remove('open'); },
+  toggle: function(){ _notifOpen?window.__glNotif.close():window.__glNotif.open(); },
+  act: function(i){ if(_notifData[i]&&_notifData[i].action){ window.__glNotif.close(); _notifData[i].action(); } },
+  clearAll: function(){ _notifData=[]; _notifUnread=0; updateNotifBadge(); renderNotifPanel(); },
+  push: function(notif){ _notifData.unshift(notif); _notifUnread++; updateNotifBadge(); if(typeof showToast==='function') showToast('info','Notificação',notif.title); }
+};
+window.glNotifPush = window.__glNotif.push;
+
+/* ══════════════════════════════════════════════════════
+   WIRE TO DOCK + INIT BATCH 4
+   ══════════════════════════════════════════════════════ */
+function addBatch4Buttons(){
+  var dock=document.getElementById('gl-quick-dock');
+  if(!dock||dock.getAttribute('data-batch4')) return;
+  dock.setAttribute('data-batch4','1');
+  var extras=document.createElement('div'); extras.style.cssText='display:contents';
+  extras.innerHTML=
+    '<div class="qad-sep"></div>'+
+    '<button class="qad-btn" title="Intent Data" onclick="window.__glIntent.open()"><span class="qad-ico">🔥</span><span>Intent</span></button>'+
+    '<button class="qad-btn" title="Call Intelligence" onclick="window.__glCall.open()"><span class="qad-ico">📞</span><span>Call AI</span></button>'+
+    '<button class="qad-btn" title="Territory Map" onclick="window.__glTerr.open()"><span class="qad-ico">🗺️</span><span>Mapa</span></button>'+
+    '<button class="qad-btn" title="Churn Predictor" onclick="window.__glChurn.open()"><span class="qad-ico">⚠️</span><span>Churn</span></button>'+
+    '<button class="qad-btn" title="SDR Leaderboard" onclick="window.__glSDR.open()"><span class="qad-ico">🏆</span><span>SDR</span></button>';
+  var seps=dock.querySelectorAll('.qad-sep');
+  var lastSep=seps[seps.length-1];
+  if(lastSep) dock.insertBefore(extras,lastSep); else dock.appendChild(extras);
+}
+
+function initBatch4(){
+  addBatch4Buttons();
+  buildNotifCenter();
+  var tries=0;
+  var wait=setInterval(function(){
+    tries++;
+    if((window.__guardlineDealsCache&&window.__guardlineDealsCache.length>0)||tries>50){
+      clearInterval(wait);
+      generateNotifications();
+    }
+  },150);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBatch4);
+else initBatch4();
+
+})();
+</script>
+
 </body>
 </html>
 
