@@ -34150,6 +34150,695 @@ else initBatch8();
 })();
 </script>
 
+<!-- ============================================================
+     BATCH 9 (FINAL): TAM/SAM/SOM, Sales Playbook,
+     Account Intelligence, KPI Goal Setter, Revenue OS Hub (50 total)
+     ============================================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ─────────────────────────────────────────────
+   1. TAM / SAM / SOM CALCULATOR
+   ───────────────────────────────────────────── */
+var tamCSS = `
+#gl-tam-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-tam-modal.open { display:flex; }
+#gl-tam-box {
+  background:#fff; border-radius:16px; width:780px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-tam-box { background:#161b22; color:#e6edf3; }
+#gl-tam-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#0f172a,#334155); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-tam-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-tam-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.tam-funnel {
+  display:flex; flex-direction:column; align-items:center; gap:0; margin-bottom:24px;
+}
+.tam-layer {
+  display:flex; align-items:center; justify-content:center; flex-direction:column;
+  border-radius:8px; color:#fff; font-weight:800; cursor:default; transition:opacity .2s;
+  margin-bottom:2px;
+}
+.tam-layer:hover { opacity:.9; }
+.tam-layer-lbl { font-size:11px; font-weight:400; opacity:.8; margin-top:2px; }
+.tam-inputs { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+.tam-input-group label { display:block; font-size:11px; font-weight:600; color:#64748b; margin-bottom:5px; }
+.tam-input-group input {
+  width:100%; padding:9px 12px; border:1px solid #e5e7eb; border-radius:7px;
+  font-size:13px; font-weight:600; box-sizing:border-box; background:#f9fafb;
+}
+.gl-dark .tam-input-group input { background:#21262d; border-color:#30363d; color:#e6edf3; }
+.tam-calc-btn {
+  width:100%; padding:11px; background:#334155; color:#fff; border:none;
+  border-radius:9px; font-size:14px; font-weight:700; cursor:pointer; margin-bottom:16px; transition:opacity .2s;
+}
+.tam-calc-btn:hover { opacity:.85; }
+.tam-results { display:flex; gap:12px; flex-wrap:wrap; }
+.tam-result-card {
+  flex:1; min-width:150px; padding:16px; border-radius:12px; text-align:center;
+}
+.tam-rc-tam { background:linear-gradient(135deg,#1e293b,#334155); color:#fff; }
+.tam-rc-sam { background:linear-gradient(135deg,#1e3a5f,#1d4ed8); color:#fff; }
+.tam-rc-som { background:linear-gradient(135deg,#14532d,#15803d); color:#fff; }
+.tam-rc-val { font-size:28px; font-weight:900; }
+.tam-rc-lbl { font-size:10px; opacity:.8; margin-top:3px; }
+.tam-rc-sub { font-size:11px; opacity:.6; margin-top:2px; }
+`;
+
+window.__glTAM = {
+  open: function(){
+    if(!document.getElementById('gl-tam-modal')) buildTAMModal();
+    document.getElementById('gl-tam-modal').classList.add('open');
+    calcTAM();
+  },
+  close: function(){ var m=document.getElementById('gl-tam-modal'); if(m) m.classList.remove('open'); },
+  calc: calcTAM
+};
+
+function buildTAMModal(){
+  var s=document.createElement('style'); s.textContent=tamCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-tam-modal';
+  m.innerHTML=
+    '<div id="gl-tam-box">'+
+      '<div id="gl-tam-head">'+
+        '<h2>🌐 Market Sizing (TAM/SAM/SOM)</h2>'+
+        '<button onclick="window.__glTAM.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">✕</button>'+
+      '</div>'+
+      '<div id="gl-tam-body">'+
+        '<div class="tam-inputs">'+
+          '<div class="tam-input-group"><label>🏢 Empresas no Brasil (segmento)</label><input id="tam-companies" type="number" value="120000"></div>'+
+          '<div class="tam-input-group"><label>💰 ACV médio alvo (R$)</label><input id="tam-acv" type="number" value="45000"></div>'+
+          '<div class="tam-input-group"><label>🎯 Market penetration alcançável (%)</label><input id="tam-pen" type="number" value="5" min="1" max="100"></div>'+
+        '</div>'+
+        '<button class="tam-calc-btn" onclick="window.__glTAM.calc()">📊 Calcular Mercado</button>'+
+        '<div id="gl-tam-funnel" class="tam-funnel"></div>'+
+        '<div id="gl-tam-results" class="tam-results"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glTAM.close(); });
+  document.body.appendChild(m);
+}
+
+function calcTAM(){
+  var companies=parseFloat(document.getElementById('tam-companies').value)||120000;
+  var acv=parseFloat(document.getElementById('tam-acv').value)||45000;
+  var pen=(parseFloat(document.getElementById('tam-pen').value)||5)/100;
+  var tam=companies*acv;
+  var sam=tam*0.3;
+  var som=sam*pen;
+  var funnel=document.getElementById('gl-tam-funnel');
+  var results=document.getElementById('gl-tam-results');
+  if(!funnel||!results) return;
+  funnel.innerHTML=
+    '<div class="tam-layer" style="width:320px;padding:20px;background:linear-gradient(135deg,#1e293b,#334155);">'+
+      '<div style="font-size:22px;font-weight:900;">TAM: R$'+fmtBig(tam)+'</div>'+
+      '<div class="tam-layer-lbl">Total Addressable Market</div>'+
+    '</div>'+
+    '<div class="tam-layer" style="width:240px;padding:16px;background:linear-gradient(135deg,#1e3a5f,#1d4ed8);">'+
+      '<div style="font-size:20px;font-weight:900;">SAM: R$'+fmtBig(sam)+'</div>'+
+      '<div class="tam-layer-lbl">Serviceable Addressable Market (30%)</div>'+
+    '</div>'+
+    '<div class="tam-layer" style="width:160px;padding:12px;background:linear-gradient(135deg,#14532d,#15803d);">'+
+      '<div style="font-size:18px;font-weight:900;">SOM: R$'+fmtBig(som)+'</div>'+
+      '<div class="tam-layer-lbl">Serviceable Obtainable</div>'+
+    '</div>';
+  results.innerHTML=
+    '<div class="tam-result-card tam-rc-tam"><div class="tam-rc-val">R$'+fmtBig(tam)+'</div><div class="tam-rc-lbl">TAM — Mercado Total</div><div class="tam-rc-sub">'+Math.round(companies/1000)+'K empresas × R$'+Math.round(acv/1000)+'K</div></div>'+
+    '<div class="tam-result-card tam-rc-sam"><div class="tam-rc-val">R$'+fmtBig(sam)+'</div><div class="tam-rc-lbl">SAM — Endereçável</div><div class="tam-rc-sub">Geografias e segmentos alvo</div></div>'+
+    '<div class="tam-result-card tam-rc-som"><div class="tam-rc-val">R$'+fmtBig(som)+'</div><div class="tam-rc-lbl">SOM — Obtível</div><div class="tam-rc-sub">'+Math.round(pen*100)+'% de penetração realista</div></div>';
+}
+
+function fmtBig(n){
+  if(n>=1e9) return (n/1e9).toFixed(1)+'B';
+  if(n>=1e6) return (n/1e6).toFixed(1)+'M';
+  if(n>=1e3) return (n/1e3).toFixed(0)+'K';
+  return n.toFixed(0);
+}
+
+/* ─────────────────────────────────────────────
+   2. SALES PLAYBOOK
+   ───────────────────────────────────────────── */
+var playbookCSS = `
+#gl-pb-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-pb-modal.open { display:flex; }
+#gl-pb-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-pb-box { background:#161b22; color:#e6edf3; }
+#gl-pb-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#78350f,#d97706); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-pb-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-pb-body { flex:1; overflow:hidden; display:flex; }
+#gl-pb-nav { width:200px; background:#f9fafb; border-right:1px solid #e5e7eb; overflow-y:auto; padding:16px 0; flex-shrink:0; }
+.gl-dark #gl-pb-nav { background:#21262d; border-color:#30363d; }
+.pb-nav-item {
+  padding:10px 18px; font-size:12px; font-weight:600; cursor:pointer; color:#64748b; transition:all .2s;
+}
+.pb-nav-item:hover { background:#f1f5f9; color:#1e293b; }
+.gl-dark .pb-nav-item:hover { background:#161b22; color:#e6edf3; }
+.pb-nav-item.active { background:#fef3c7; color:#92400e; border-left:3px solid #d97706; }
+.gl-dark .pb-nav-item.active { background:#78350f22; color:#fbbf24; }
+#gl-pb-content { flex:1; overflow-y:auto; padding:20px 24px; }
+.pb-section-title { font-size:18px; font-weight:800; margin-bottom:14px; color:#92400e; }
+.gl-dark .pb-section-title { color:#fbbf24; }
+.pb-step {
+  display:flex; gap:12px; margin-bottom:14px;
+}
+.pb-step-num {
+  width:28px; height:28px; border-radius:50%; background:#d97706; color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex-shrink:0;
+}
+.pb-step-text { font-size:13px; line-height:1.7; color:#374151; flex:1; }
+.gl-dark .pb-step-text { color:#d1d5db; }
+.pb-highlight {
+  padding:12px 16px; background:#fffbeb; border:1px solid #fde68a;
+  border-radius:8px; font-size:12px; color:#92400e; margin-top:10px; line-height:1.7;
+}
+.gl-dark .pb-highlight { background:#78350f22; border-color:#d97706; color:#fbbf24; }
+`;
+
+var PB_SECTIONS=[
+  {title:'🎯 ICP Definition',content:[
+    {step:'Defina o perfil de empresa ideal: B2B, 50-500 funcionários, vertical SaaS/Fintech/HealthTech, budget anual >R$50K para tech.'},
+    {step:'Persona principal: VP de Vendas ou CRO, com dor de forecast impreciso ou pipeline sem visibilidade.'},
+    {step:'Sinais de compra: crescimento de time comercial (+3 AEs no último trimestre), adoção de CRM básico, perdas de quota repetidas.'},
+    {step:'Disqualifiers: empresas <10 funcionários, sem budget dedicado para RevOps, setor público.'}
+  ],tip:'Tip: Use LinkedIn Sales Navigator com filtros "headcount growth" + "tecnologia: HubSpot/Pipedrive" para encontrar ICPs prontos.'},
+  {title:'📞 Discovery Framework',content:[
+    {step:'Abertura: "O que você queria que eu soubesse sobre o estado atual do pipeline de vocês antes de começarmos?"'},
+    {step:'Dor principal: "Qual é o maior desafio do time de vendas hoje que te impede de bater a meta?"'},
+    {step:'Impacto: "Se você não resolver isso nos próximos 6 meses, o que acontece?"'},
+    {step:'Visão: "Como seria perfeito para você daqui a 1 ano?"'},
+    {step:'Budget/Timeline: "O que precisaria acontecer para vocês tomarem uma decisão até final do trimestre?"'}
+  ],tip:'Tip: Nunca apresente antes de entender a dor. O objetivo da discovery é fazer o prospect dizer sua própria dor em voz alta.'},
+  {title:'💡 Demo Playbook',content:[
+    {step:'Abertura: recapitule as 3 dores descobertas na discovery. "Você mencionou X, Y e Z — nossa demo vai mostrar exatamente como resolvemos cada um."'},
+    {step:'Feature by pain: mostre cada funcionalidade conectada diretamente a uma dor específica do cliente.'},
+    {step:'Julio AI: demonstre o assistente de IA processando um deal real do prospect (use dados que eles compartilharam).'},
+    {step:'ROI moment: calcule ao vivo o impacto financeiro usando o ROI Calculator.'},
+    {step:'Fechamento: "O que vimos hoje resolve o problema de X? O que falta para você se sentir confiante em avançar?"'}
+  ],tip:'Tip: A demo mais eficaz dura 20-30 minutos, não 60. Menos features, mais contexto do problema.'},
+  {title:'🛡️ Objeção: "Caro"',content:[
+    {step:'Não defenda o preço imediatamente. Pergunte: "Caro comparado a quê?"'},
+    {step:'Reformule para investimento: "Você investe R$5K/mês. Se isso gerar R$50K em receita adicional, qual é o ROI?"'},
+    {step:'Use o ROI Calculator ao vivo: calcule payback < 3 meses com os dados deles.'},
+    {step:'Ofereça prova antes de compra: "Posso te dar 14 dias de trial com seus dados reais?"'},
+    {step:'Alternativa: "O que precisaria mudar no modelo para fazer sentido financeiramente?"'}
+  ],tip:'Tip: "Caro" quase sempre significa "não vejo valor suficiente ainda". Reforce o ROI antes de falar de desconto.'},
+  {title:'🏁 Closing Techniques',content:[
+    {step:'Assumptive close: "Então, considerando que atende suas necessidades, vamos começar na próxima segunda?" (não "você quer comprar?")'},
+    {step:'Summary close: resuma os 3 benefícios principais + ROI + próximo passo em uma frase.'},
+    {step:'Urgency: "Só temos vagas de onboarding em março — posso reservar a sua agora?"'},
+    {step:'Puppy dog close: "Vamos fazer um piloto de 30 dias. Se não funcionar, sem compromisso."'},
+    {step:'CTO/CFO alignment: se o deal travar, peça uma reunião de 15 min com o economic buyer.'}
+  ],tip:'Tip: O melhor close é quando o prospect pede você para fechar. Construa urgência através de valor, não de pressão.'}
+];
+
+var activePBSection=0;
+window.__glPB = {
+  open: function(){
+    if(!document.getElementById('gl-pb-modal')) buildPlaybookModal();
+    document.getElementById('gl-pb-modal').classList.add('open');
+    showPBSection(0);
+  },
+  close: function(){ var m=document.getElementById('gl-pb-modal'); if(m) m.classList.remove('open'); },
+  show: function(i){ showPBSection(i); }
+};
+
+function buildPlaybookModal(){
+  var s=document.createElement('style'); s.textContent=playbookCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-pb-modal';
+  m.innerHTML=
+    '<div id="gl-pb-box">'+
+      '<div id="gl-pb-head">'+
+        '<h2>📖 Sales Playbook</h2>'+
+        '<button onclick="window.__glPB.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#fde68a">✕</button>'+
+      '</div>'+
+      '<div id="gl-pb-body">'+
+        '<div id="gl-pb-nav">'+
+          PB_SECTIONS.map(function(s,i){ return '<div class="pb-nav-item'+(i===0?' active':'')+'" onclick="window.__glPB.show('+i+')">'+s.title+'</div>'; }).join('')+
+        '</div>'+
+        '<div id="gl-pb-content"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glPB.close(); });
+  document.body.appendChild(m);
+}
+
+function showPBSection(i){
+  activePBSection=i;
+  document.querySelectorAll('.pb-nav-item').forEach(function(el,j){ el.classList.toggle('active',j===i); });
+  var content=document.getElementById('gl-pb-content');
+  if(!content) return;
+  var sec=PB_SECTIONS[i];
+  if(!sec) return;
+  content.innerHTML=
+    '<div class="pb-section-title">'+sec.title+'</div>'+
+    sec.content.map(function(s,n){
+      return '<div class="pb-step"><div class="pb-step-num">'+(n+1)+'</div><div class="pb-step-text">'+s.step+'</div></div>';
+    }).join('')+
+    '<div class="pb-highlight">💡 '+sec.tip+'</div>';
+}
+
+/* ─────────────────────────────────────────────
+   3. ACCOUNT INTELLIGENCE 360°
+   ───────────────────────────────────────────── */
+var acctCSS = `
+#gl-acct-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-acct-modal.open { display:flex; }
+#gl-acct-box {
+  background:#fff; border-radius:16px; width:820px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-acct-box { background:#161b22; color:#e6edf3; }
+#gl-acct-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-acct-head { border-color:#30363d; }
+#gl-acct-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-acct-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.acct-select {
+  width:100%; padding:10px 14px; border:1px solid #e5e7eb; border-radius:8px;
+  font-size:13px; margin-bottom:16px; background:#f9fafb; font-weight:600;
+}
+.gl-dark .acct-select { background:#21262d; border-color:#30363d; color:#e6edf3; }
+.acct-header-row { display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+.acct-logo {
+  width:56px; height:56px; border-radius:12px; display:flex; align-items:center;
+  justify-content:center; font-size:28px; background:#f1f5f9; flex-shrink:0;
+}
+.acct-name-block { flex:1; }
+.acct-company-name { font-size:20px; font-weight:800; }
+.acct-tags { display:flex; gap:6px; flex-wrap:wrap; margin-top:4px; }
+.acct-tag { padding:2px 8px; border-radius:6px; font-size:10px; font-weight:600; background:#dbeafe; color:#1d4ed8; }
+.acct-health-score { text-align:center; }
+.acct-health-num { font-size:32px; font-weight:900; }
+.acct-health-lbl { font-size:10px; color:#94a3b8; }
+.acct-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:16px; }
+.acct-card {
+  padding:14px 16px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px;
+}
+.gl-dark .acct-card { background:#21262d; border-color:#30363d; }
+.acct-card-title { font-size:12px; font-weight:700; color:#64748b; margin-bottom:8px; }
+.acct-card-item { font-size:12px; padding:4px 0; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; }
+.gl-dark .acct-card-item { border-color:#30363d; }
+.acct-card-item:last-child { border-bottom:none; }
+.acct-timeline-item { display:flex; gap:10px; font-size:12px; margin-bottom:8px; }
+.acct-tl-dot { width:8px; height:8px; border-radius:50%; background:#6366f1; flex-shrink:0; margin-top:5px; }
+.acct-tl-text { color:#64748b; line-height:1.6; }
+.gl-dark .acct-tl-text { color:#8b949e; }
+`;
+
+var ACCT_DATA=[
+  {name:'TechCorp BR',emoji:'💻',tags:['Enterprise','SaaS','São Paulo'],health:82,color:'#10b981',
+    financials:[{k:'MRR',v:'R$3.800'},{k:'ARR',v:'R$45.600'},{k:'Seats',v:'12 / 30'},{k:'Plano',v:'Growth'}],
+    contacts:[{k:'Champion',v:'Marcos Alves (VP Sales)'},{k:'Economic Buyer',v:'Ana Lima (CFO)'},{k:'Power User',v:'Carla Souza'}],
+    timeline:['Onboarding concluído — Jan/26','QBR 90 dias — Mar/26','Expandiu para 12 seats — Mar/26','Renovação agendada — Jun/26']
+  },
+  {name:'Fintech Solutions',emoji:'🏦',tags:['Enterprise','Fintech','Rio de Janeiro'],health:90,color:'#6366f1',
+    financials:[{k:'MRR',v:'R$5.200'},{k:'ARR',v:'R$62.400'},{k:'Seats',v:'20 / 20'},{k:'Plano',v:'Enterprise'}],
+    contacts:[{k:'Champion',v:'Bruno Costa (CTO)'},{k:'Economic Buyer',v:'CEO Maria Silva'},{k:'User',v:'Time de 18 vendedores'}],
+    timeline:['Fechou em 19 dias — Dez/25','Integração API concluída — Jan/26','NPS: 9/10 — Fev/26','Candidato a case study — Abr/26']
+  }
+];
+
+var activeAcct=0;
+window.__glAcct = {
+  open: function(){
+    if(!document.getElementById('gl-acct-modal')) buildAcctModal();
+    document.getElementById('gl-acct-modal').classList.add('open');
+    renderAcct(0);
+  },
+  close: function(){ var m=document.getElementById('gl-acct-modal'); if(m) m.classList.remove('open'); },
+  select: function(i){ renderAcct(parseInt(i)); }
+};
+
+function buildAcctModal(){
+  var s=document.createElement('style'); s.textContent=acctCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-acct-modal';
+  m.innerHTML=
+    '<div id="gl-acct-box">'+
+      '<div id="gl-acct-head">'+
+        '<h2>🔍 Account Intelligence 360°</h2>'+
+        '<button onclick="window.__glAcct.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-acct-body">'+
+        '<select class="acct-select" onchange="window.__glAcct.select(this.value)">'+
+          ACCT_DATA.map(function(a,i){ return '<option value="'+i+'">'+a.name+'</option>'; }).join('')+
+        '</select>'+
+        '<div id="gl-acct-content"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glAcct.close(); });
+  document.body.appendChild(m);
+}
+
+function renderAcct(i){
+  var acct=ACCT_DATA[i];
+  if(!acct) return;
+  var content=document.getElementById('gl-acct-content');
+  if(!content) return;
+  content.innerHTML=
+    '<div class="acct-header-row">'+
+      '<div class="acct-logo">'+acct.emoji+'</div>'+
+      '<div class="acct-name-block">'+
+        '<div class="acct-company-name">'+acct.name+'</div>'+
+        '<div class="acct-tags">'+acct.tags.map(function(t){ return '<span class="acct-tag">'+t+'</span>'; }).join('')+'</div>'+
+      '</div>'+
+      '<div class="acct-health-score"><div class="acct-health-num" style="color:'+acct.color+'">'+acct.health+'</div><div class="acct-health-lbl">Health Score</div></div>'+
+    '</div>'+
+    '<div class="acct-grid">'+
+      '<div class="acct-card"><div class="acct-card-title">💰 Financeiro</div>'+
+        acct.financials.map(function(f){ return '<div class="acct-card-item"><span>'+f.k+'</span><span style="font-weight:700;">'+f.v+'</span></div>'; }).join('')+
+      '</div>'+
+      '<div class="acct-card"><div class="acct-card-title">👥 Contatos Chave</div>'+
+        acct.contacts.map(function(c){ return '<div class="acct-card-item"><span style="color:#94a3b8;">'+c.k+'</span><span style="font-weight:600;">'+c.v+'</span></div>'; }).join('')+
+      '</div>'+
+    '</div>'+
+    '<div class="acct-card"><div class="acct-card-title">📅 Timeline da Conta</div>'+
+      acct.timeline.map(function(t){ return '<div class="acct-timeline-item"><div class="acct-tl-dot"></div><div class="acct-tl-text">'+t+'</div></div>'; }).join('')+
+    '</div>';
+}
+
+/* ─────────────────────────────────────────────
+   4. KPI GOAL SETTER
+   ───────────────────────────────────────────── */
+var kpiCSS = `
+#gl-kpi-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-kpi-modal.open { display:flex; }
+#gl-kpi-box {
+  background:#fff; border-radius:16px; width:740px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-kpi-box { background:#161b22; color:#e6edf3; }
+#gl-kpi-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-kpi-head { border-color:#30363d; }
+#gl-kpi-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-kpi-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.kpi-item {
+  display:flex; align-items:center; gap:12px; padding:14px 16px;
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:10px;
+}
+.gl-dark .kpi-item { background:#21262d; border-color:#30363d; }
+.kpi-item-icon { font-size:22px; flex-shrink:0; }
+.kpi-item-info { flex:1; }
+.kpi-item-name { font-weight:700; font-size:13px; margin-bottom:2px; }
+.kpi-bar-wrap { height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; margin-top:6px; width:100%; }
+.kpi-bar-fill { height:100%; border-radius:3px; transition:width 1s; }
+.kpi-item-vals { text-align:right; flex-shrink:0; }
+.kpi-item-current { font-size:16px; font-weight:800; }
+.kpi-item-goal { font-size:11px; color:#94a3b8; }
+.kpi-item-pct { font-size:11px; font-weight:700; margin-top:2px; }
+.kpi-add-form {
+  margin-top:16px; padding:16px; background:#f9fafb; border:1px solid #e5e7eb;
+  border-radius:12px; display:flex; gap:10px; flex-wrap:wrap;
+}
+.gl-dark .kpi-add-form { background:#21262d; border-color:#30363d; }
+.kpi-add-form input {
+  flex:1; min-width:120px; padding:8px 12px; border:1px solid #e5e7eb; border-radius:7px;
+  font-size:13px; background:#fff;
+}
+.gl-dark .kpi-add-form input { background:#161b22; border-color:#30363d; color:#e6edf3; }
+.kpi-add-btn {
+  padding:8px 18px; background:#6366f1; color:#fff; border:none;
+  border-radius:7px; font-size:13px; font-weight:700; cursor:pointer;
+}
+`;
+
+var KPI_GOALS=[
+  {icon:'💰',name:'Receita Mensal',current:1340000,goal:2000000,unit:'R$',color:'#6366f1'},
+  {icon:'🎯',name:'Win Rate',current:67,goal:75,unit:'%',color:'#10b981'},
+  {icon:'⏱️',name:'Ciclo de Venda',current:28,goal:21,unit:'d',color:'#f59e0b',reverse:true},
+  {icon:'📊',name:'Pipeline Coverage',current:3.2,goal:4,unit:'x',color:'#6366f1'},
+  {icon:'📞',name:'Calls / Semana',current:142,goal:180,unit:'',color:'#8b5cf6'},
+  {icon:'🤝',name:'Meetings / Mês',current:32,goal:40,unit:'',color:'#10b981'}
+];
+
+window.__glKPI = {
+  open: function(){
+    if(!document.getElementById('gl-kpi-modal')) buildKPIModal();
+    document.getElementById('gl-kpi-modal').classList.add('open');
+    renderKPIs();
+  },
+  close: function(){ var m=document.getElementById('gl-kpi-modal'); if(m) m.classList.remove('open'); },
+  add: addKPI
+};
+
+function buildKPIModal(){
+  var s=document.createElement('style'); s.textContent=kpiCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-kpi-modal';
+  m.innerHTML=
+    '<div id="gl-kpi-box">'+
+      '<div id="gl-kpi-head">'+
+        '<h2>🎯 KPI Goal Setter</h2>'+
+        '<button onclick="window.__glKPI.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-kpi-body">'+
+        '<div id="gl-kpi-list"></div>'+
+        '<div class="kpi-add-form">'+
+          '<input id="kpi-new-name" placeholder="Nome do KPI" type="text">'+
+          '<input id="kpi-new-current" placeholder="Atual" type="number">'+
+          '<input id="kpi-new-goal" placeholder="Meta" type="number">'+
+          '<input id="kpi-new-unit" placeholder="Unidade (R$, %, d...)" type="text" style="max-width:130px;">'+
+          '<button class="kpi-add-btn" onclick="window.__glKPI.add()">+ Adicionar</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glKPI.close(); });
+  document.body.appendChild(m);
+}
+
+function renderKPIs(){
+  var list=document.getElementById('gl-kpi-list');
+  if(!list) return;
+  list.innerHTML=KPI_GOALS.map(function(k){
+    var pct=k.reverse ? Math.round((k.goal/k.current)*100) : Math.round((k.current/k.goal)*100);
+    pct=Math.min(pct,100);
+    var status=pct>=100?'✅':pct>=75?'🟡':'🔴';
+    var fmt=function(v){ if(k.unit==='R$') return 'R$'+(v>=1000000?(v/1000000).toFixed(1)+'M':(v/1000).toFixed(0)+'K'); return v+k.unit; };
+    return '<div class="kpi-item">'+
+      '<div class="kpi-item-icon">'+k.icon+'</div>'+
+      '<div class="kpi-item-info">'+
+        '<div class="kpi-item-name">'+k.name+' '+status+'</div>'+
+        '<div class="kpi-bar-wrap"><div class="kpi-bar-fill" style="width:'+pct+'%;background:'+k.color+'"></div></div>'+
+      '</div>'+
+      '<div class="kpi-item-vals">'+
+        '<div class="kpi-item-current" style="color:'+k.color+'">'+fmt(k.current)+'</div>'+
+        '<div class="kpi-item-goal">Meta: '+fmt(k.goal)+'</div>'+
+        '<div class="kpi-item-pct">'+pct+'%</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  setTimeout(function(){
+    list.querySelectorAll('.kpi-bar-fill').forEach(function(b){
+      var w=b.style.width; b.style.width='0'; setTimeout(function(){ b.style.width=w; },50);
+    });
+  },50);
+}
+
+function addKPI(){
+  var name=document.getElementById('kpi-new-name').value.trim();
+  var current=parseFloat(document.getElementById('kpi-new-current').value)||0;
+  var goal=parseFloat(document.getElementById('kpi-new-goal').value)||100;
+  var unit=document.getElementById('kpi-new-unit').value.trim();
+  if(!name) return;
+  KPI_GOALS.push({icon:'📌',name:name,current:current,goal:goal,unit:unit,color:'#6366f1'});
+  document.getElementById('kpi-new-name').value='';
+  document.getElementById('kpi-new-current').value='';
+  document.getElementById('kpi-new-goal').value='';
+  document.getElementById('kpi-new-unit').value='';
+  renderKPIs();
+}
+
+/* ─────────────────────────────────────────────
+   5. REVENUE OS STATUS HUB (Feature #50)
+   ───────────────────────────────────────────── */
+var hubCSS = `
+#gl-hub-modal {
+  display:none; position:fixed; inset:0; z-index:10200;
+  background:rgba(0,0,0,.85); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+}
+#gl-hub-modal.open { display:flex; }
+#gl-hub-box {
+  background:#0f172a; border-radius:20px; width:900px; max-width:97vw;
+  max-height:92vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 40px 100px rgba(0,0,0,.6); border:1px solid #1e293b;
+}
+#gl-hub-head {
+  padding:24px 32px 20px; text-align:center;
+  background:linear-gradient(135deg,#0f172a,#1e1b4b); border-radius:20px 20px 0 0;
+}
+#gl-hub-head h2 { margin:0 0 4px; font-size:24px; font-weight:900; color:#f8fafc; }
+#gl-hub-head p { margin:0; font-size:13px; color:#94a3b8; }
+#gl-hub-body { flex:1; overflow-y:auto; padding:20px 28px 24px; }
+.hub-feature-grid {
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px;
+}
+.hub-feature {
+  display:flex; align-items:center; gap:8px; padding:10px 12px;
+  background:#1e293b; border-radius:8px; font-size:12px; font-weight:600;
+  color:#e2e8f0; border:1px solid #334155; transition:all .2s;
+}
+.hub-feature:hover { background:#334155; transform:translateY(-1px); }
+.hub-feature-ico { font-size:16px; flex-shrink:0; }
+.hub-feature-num {
+  font-size:10px; font-weight:800; padding:1px 5px; border-radius:5px;
+  background:#4338ca; color:#e0e7ff; flex-shrink:0; margin-left:auto;
+}
+.hub-batch-title {
+  font-size:12px; font-weight:700; color:#64748b; margin:14px 0 8px;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.hub-close-btn {
+  display:block; margin:0 auto; padding:10px 32px;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff;
+  border:none; border-radius:10px; font-size:14px; font-weight:700;
+  cursor:pointer; transition:opacity .2s;
+}
+.hub-close-btn:hover { opacity:.85; }
+.hub-congrats {
+  text-align:center; padding:16px; margin-bottom:16px;
+  background:linear-gradient(135deg,#1e1b4b,#312e81); border-radius:12px;
+  border:1px solid #4338ca;
+}
+.hub-congrats h3 { margin:0 0 6px; font-size:18px; font-weight:800; color:#e0e7ff; }
+.hub-congrats p { margin:0; font-size:12px; color:#a5b4fc; }
+`;
+
+var ALL_FEATURES=[
+  {batch:1,features:[
+    {n:1,ico:'🎯',name:'Deal Pulse'},{n:2,ico:'🧠',name:'NBA Engine'},{n:3,ico:'⚡',name:'Quick Actions Dock'},{n:4,ico:'🌅',name:'Morning Screen'}
+  ]},
+  {batch:2,features:[
+    {n:5,ico:'💧',name:'Revenue Waterfall'},{n:6,ico:'🛡️',name:'Objection Handler'},{n:7,ico:'⚔️',name:'Battle Cards'},{n:8,ico:'✉️',name:'Email Writer v2'},{n:9,ico:'📊',name:'Forecast Confidence'},{n:10,ico:'📋',name:'Smart Cadence BDR'}
+  ]},
+  {batch:3,features:[
+    {n:11,ico:'⏮️',name:'Pipeline Replay'},{n:12,ico:'🏠',name:'Deal Room'},{n:13,ico:'🔍',name:'Win/Loss Deep Dive'},{n:14,ico:'🎤',name:'Talk Track Generator'},{n:15,ico:'📊',name:'Revenue Dashboard v2'}
+  ]},
+  {batch:4,features:[
+    {n:16,ico:'🔥',name:'Intent Data Feed'},{n:17,ico:'📞',name:'Call Intelligence'},{n:18,ico:'🗺️',name:'Territory Map'},{n:19,ico:'⚠️',name:'Churn Predictor'},{n:20,ico:'🏆',name:'SDR Leaderboard'},{n:21,ico:'🔔',name:'Notification Center'}
+  ]},
+  {batch:5,features:[
+    {n:22,ico:'🌙',name:'Dark Mode Toggle'},{n:23,ico:'📊',name:'Board Report Generator'},{n:24,ico:'⚔️',name:'Competitive Intel'},{n:25,ico:'🏥',name:'Deal Health Score'},{n:26,ico:'⚡',name:'Sales Velocity Tracker'},{n:27,ico:'🎯',name:'Revenue Attribution'}
+  ]},
+  {batch:6,features:[
+    {n:28,ico:'🎯',name:'Lead Scoring Engine'},{n:29,ico:'🏅',name:'AE Scorecard'},{n:30,ico:'🏥',name:'Pipeline Health Card'},{n:31,ico:'💙',name:'Customer Pulse NPS'},{n:32,ico:'💲',name:'Pricing Intelligence'},{n:33,ico:'🎓',name:'Sales Coaching Hub'}
+  ]},
+  {batch:7,features:[
+    {n:34,ico:'🎯',name:'Quota Tracker'},{n:35,ico:'🚨',name:'Deal Risk Radar'},{n:36,ico:'📬',name:'Email Sequence Builder'},{n:37,ico:'💹',name:'ROI Calculator'},{n:38,ico:'📰',name:'Weekly Revenue Digest'},{n:39,ico:'📈',name:'Expansion Revenue Tracker'}
+  ]},
+  {batch:8,features:[
+    {n:40,ico:'📋',name:'Contract Renewal Tracker'},{n:41,ico:'🔬',name:'MEDDIC Scorecard'},{n:42,ico:'🌡️',name:'Revenue Thermometer'},{n:43,ico:'📋',name:'Forecast Call Prep'},{n:44,ico:'💵',name:'Commission Calculator'},{n:45,ico:'🤝',name:'CS Handoff Checklist'}
+  ]},
+  {batch:9,features:[
+    {n:46,ico:'🌐',name:'TAM/SAM/SOM Calculator'},{n:47,ico:'📖',name:'Sales Playbook'},{n:48,ico:'🔍',name:'Account Intelligence 360°'},{n:49,ico:'🎯',name:'KPI Goal Setter'},{n:50,ico:'🚀',name:'Revenue OS Hub (este!)'}
+  ]}
+];
+
+window.__glHub = {
+  open: function(){
+    if(!document.getElementById('gl-hub-modal')) buildHubModal();
+    document.getElementById('gl-hub-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-hub-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildHubModal(){
+  var s=document.createElement('style'); s.textContent=hubCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-hub-modal';
+  var featuresHtml=ALL_FEATURES.map(function(batch){
+    return '<div class="hub-batch-title">Batch '+batch.batch+'</div>'+
+      '<div class="hub-feature-grid">'+
+        batch.features.map(function(f){
+          return '<div class="hub-feature"><span class="hub-feature-ico">'+f.ico+'</span><span>'+f.name+'</span><span class="hub-feature-num">#'+f.n+'</span></div>';
+        }).join('')+
+      '</div>';
+  }).join('');
+  m.innerHTML=
+    '<div id="gl-hub-box">'+
+      '<div id="gl-hub-head">'+
+        '<h2>🚀 Guardline Revenue OS</h2>'+
+        '<p>50 features de excelência — dashboard definitivo para CEO, CRO, CTO, AE, BDR e SDR</p>'+
+      '</div>'+
+      '<div id="gl-hub-body">'+
+        '<div class="hub-congrats">'+
+          '<h3>🎉 50/50 Features Implementadas</h3>'+
+          '<p>O dashboard mais completo de Revenue Operations do Brasil — construído com IA Julio K25 + Groq + Kimi K2</p>'+
+        '</div>'+
+        featuresHtml+
+        '<div style="text-align:center;margin-top:20px;">'+
+          '<button class="hub-close-btn" onclick="window.__glHub.close()">✓ Fechar</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glHub.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   BATCH 9 INIT (FINAL)
+   ───────────────────────────────────────────── */
+function addBatch9Buttons(){
+  var dock=document.getElementById('gl-quick-dock');
+  if(!dock||dock.dataset.batch9) return;
+  dock.dataset.batch9='1';
+  var extras=document.createElement('div');
+  extras.style.display='contents';
+  extras.innerHTML=
+    '<button class="qad-btn" title="Market Sizing" onclick="window.__glTAM.open()"><span class="qad-ico">🌐</span><span>TAM</span></button>'+
+    '<button class="qad-btn" title="Sales Playbook" onclick="window.__glPB.open()"><span class="qad-ico">📖</span><span>Playbook</span></button>'+
+    '<button class="qad-btn" title="Account 360" onclick="window.__glAcct.open()"><span class="qad-ico">🔍</span><span>Acct 360</span></button>'+
+    '<button class="qad-btn" title="KPI Goals" onclick="window.__glKPI.open()"><span class="qad-ico">🎯</span><span>KPIs</span></button>'+
+    '<button class="qad-btn" title="Revenue OS Hub — 50 Features" onclick="window.__glHub.open()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;"><span class="qad-ico">🚀</span><span>Hub 50</span></button>';
+  var seps=dock.querySelectorAll('.qad-sep');
+  var lastSep=seps[seps.length-1];
+  if(lastSep) dock.insertBefore(extras,lastSep); else dock.appendChild(extras);
+}
+
+function initBatch9(){
+  addBatch9Buttons();
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBatch9);
+else initBatch9();
+
+})();
+</script>
+
 </body>
 </html>
 
