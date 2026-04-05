@@ -34839,6 +34839,342 @@ else initBatch9();
 })();
 </script>
 
+<!-- ============================================================
+     UI CRITICAL FIXES:
+     1. Remove duplicate AI panel — sidebar card → slim status pill
+     2. Dock overflow → Core buttons + collapsible "More" grid
+     3. KPI command-bar → contextual per screen (hide on irrelevant screens)
+     ============================================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════════════════════════════════════════════
+   FIX 1 — Unify AI Entry Point
+   Hide duplicate julio-sidebar-box card, replace with
+   a slim status pill. FAB remains the only chat entry.
+   ═══════════════════════════════════════════════════════ */
+var fix1CSS = `
+/* Hide the verbose sidebar Julio card */
+.julio-sidebar-box { display: none !important; }
+
+/* Slim AI status pill injected below nav */
+#gl-julio-pill {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 6px 12px 4px;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, rgba(124,58,237,.12), rgba(6,182,212,.08));
+  border: 1px solid rgba(124,58,237,.25);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .2s;
+  text-decoration: none;
+}
+#gl-julio-pill:hover {
+  background: linear-gradient(135deg, rgba(124,58,237,.22), rgba(6,182,212,.14));
+  border-color: rgba(124,58,237,.5);
+}
+.gl-pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b98199;
+  flex-shrink: 0;
+  animation: pillPulse 2.5s infinite;
+}
+@keyframes pillPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:.6; transform:scale(.85); }
+}
+.gl-pill-name { font-size: 12px; font-weight: 700; color: #c084fc; }
+.gl-pill-status { font-size: 10px; color: var(--text-muted, #94a3b8); margin-left: auto; }
+.gl-pill-icon { font-size: 14px; }
+
+/* Make sure the FAB doesn't clash with the dock */
+#julio-fab {
+  bottom: 80px !important;
+  right: 20px !important;
+}
+`;
+
+function applyFix1() {
+  // Inject CSS
+  var s = document.createElement('style');
+  s.id = 'gl-fix1-css';
+  s.textContent = fix1CSS;
+  document.head.appendChild(s);
+
+  // Insert slim pill into sidebar, right before integrations-status
+  var intStatus = document.querySelector('.integrations-status');
+  if (intStatus && !document.getElementById('gl-julio-pill')) {
+    var pill = document.createElement('button');
+    pill.id = 'gl-julio-pill';
+    pill.type = 'button';
+    pill.title = 'Abrir Julio AI';
+    pill.innerHTML =
+      '<span class="gl-pill-icon">🤖</span>' +
+      '<span class="gl-pill-dot"></span>' +
+      '<span class="gl-pill-name">Julio AI</span>' +
+      '<span class="gl-pill-status">Kimi K2 ●</span>';
+    pill.addEventListener('click', function() {
+      if (typeof julioFloatOpen === 'function') julioFloatOpen();
+      else if (typeof window.navigateTo === 'function') window.navigateTo('julio');
+    });
+    intStatus.parentNode.insertBefore(pill, intStatus);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   FIX 2 — Dock: Core buttons visible, overflow in "More"
+   ═══════════════════════════════════════════════════════ */
+var fix2CSS = `
+/* Dock only shows core group by default */
+#gl-quick-dock .qad-overflow-group {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10,10,15,0.97);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 -12px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(124,58,237,.15);
+  backdrop-filter: blur(20px);
+  z-index: 9200;
+  width: max-content;
+  max-width: 92vw;
+}
+#gl-quick-dock .qad-overflow-group.open { display: flex; flex-wrap: wrap; gap: 6px; max-width: 680px; }
+#gl-quick-dock .qad-overflow-group .qad-section-lbl {
+  width: 100%;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255,255,255,.3);
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  margin: 6px 0 2px;
+}
+#gl-quick-dock .qad-overflow-group .qad-section-lbl:first-child { margin-top: 0; }
+.qad-more-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 11px;
+  background: rgba(124,58,237,.18);
+  border: 1px solid rgba(124,58,237,.35);
+  border-radius: 100px;
+  color: #c084fc;
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: all .2s;
+}
+.qad-more-btn:hover { background: rgba(124,58,237,.3); color: #fff; }
+.qad-more-btn.active { background: rgba(124,58,237,.4); color: #fff; }
+/* The dock itself should not wrap */
+#gl-quick-dock { flex-wrap: nowrap; position: relative; }
+`;
+
+/* Labels for grouping overflow buttons */
+var DOCK_GROUPS = [
+  { label: '📊 Análise & Forecast', ids: ['Intent','Call AI','Velocity','Attrib','Board','Forecast','Rev Dashboard','Pipeline Replay','Win/Loss','Rev Waterfall','Forecast Conf.'] },
+  { label: '🧑‍💼 Time & Performance', ids: ['SDR','AE','Coach','Quota','Commission','Leads','Lead Scoring'] },
+  { label: '🤝 Deal & Cliente', ids: ['Deal Room','Churn','Risco','NPS','Renov.','CS','MEDDIC','Acct 360'] },
+  { label: '⚙️ Ferramentas', ids: ['Mapa','Comp','Pricing','ROI','Sequence','Playbook','TAM','KPIs','Digest','Expansão','FC Prep','Hub 50','Attrib'] }
+];
+
+/* Core buttons to keep always visible (by their title attributes) */
+var CORE_TITLES = ['Registrar ligação','Enviar email','Agendar reunião','Novo deal','Preparar & Enviar Documento','Próximas ações + Julio AI','Buscar tudo'];
+
+function applyFix2() {
+  var s = document.createElement('style');
+  s.id = 'gl-fix2-css';
+  s.textContent = fix2CSS;
+  document.head.appendChild(s);
+
+  var dock = document.getElementById('gl-quick-dock');
+  if (!dock || dock.dataset.fix2) return;
+  dock.dataset.fix2 = '1';
+
+  // Collect all current buttons + separators
+  var allChildren = Array.from(dock.children);
+
+  // Separate core vs overflow
+  var overflowBtns = [];
+  allChildren.forEach(function(el) {
+    if (el.classList.contains('qad-sep')) return; // handled separately
+    var title = el.getAttribute('title') || '';
+    var isCore = CORE_TITLES.some(function(t) { return title.indexOf(t) >= 0; });
+    if (!isCore && el.tagName === 'BUTTON') {
+      overflowBtns.push(el);
+    }
+  });
+
+  // Build overflow group panel
+  var panel = document.createElement('div');
+  panel.className = 'qad-overflow-group';
+
+  if (overflowBtns.length > 0) {
+    // Remove overflow buttons from dock
+    overflowBtns.forEach(function(btn) {
+      // Also remove adjacent separator if any
+      var next = btn.nextElementSibling;
+      if (next && next.classList.contains('qad-sep')) dock.removeChild(next);
+      var prev = btn.previousElementSibling;
+      if (prev && prev.classList.contains('qad-sep')) dock.removeChild(prev);
+      dock.removeChild(btn);
+      panel.appendChild(btn);
+    });
+
+    // Clean up any double/orphan separators in dock
+    var dockKids = Array.from(dock.children);
+    var lastWasSep = false;
+    dockKids.forEach(function(el) {
+      var isSep = el.classList.contains('qad-sep');
+      if (isSep && (lastWasSep || el === dock.firstElementChild || el === dock.lastElementChild)) {
+        dock.removeChild(el);
+      } else {
+        lastWasSep = isSep;
+      }
+    });
+
+    // Add section labels to overflow panel (simple: just one "More tools" label)
+    var lbl = document.createElement('div');
+    lbl.className = 'qad-section-lbl';
+    lbl.textContent = '🧰 Todas as ferramentas (' + overflowBtns.length + ')';
+    panel.insertBefore(lbl, panel.firstChild);
+
+    dock.appendChild(panel);
+
+    // "More" toggle button
+    var moreBtn = document.createElement('button');
+    moreBtn.className = 'qad-more-btn';
+    moreBtn.innerHTML = '⋯ <span id="gl-more-count">' + overflowBtns.length + '</span>';
+    moreBtn.title = 'Mostrar mais ferramentas';
+    moreBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = panel.classList.toggle('open');
+      moreBtn.classList.toggle('active', isOpen);
+      moreBtn.innerHTML = (isOpen ? '✕ Fechar' : '⋯ <span id="gl-more-count">' + overflowBtns.length + '</span>');
+    });
+
+    // Close panel when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!dock.contains(e.target)) {
+        panel.classList.remove('open');
+        moreBtn.classList.remove('active');
+        moreBtn.innerHTML = '⋯ <span>' + overflowBtns.length + '</span>';
+      }
+    });
+
+    // Add separator + more button at end
+    var sep = document.createElement('div');
+    sep.className = 'qad-sep';
+    dock.appendChild(sep);
+    dock.appendChild(moreBtn);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   FIX 3 — Contextual KPI bar (hide on irrelevant screens)
+   ═══════════════════════════════════════════════════════ */
+var KPI_SCREENS = {
+  'command': true,
+  'pipeline': true,
+  'forecast': true,
+  'signals': true,
+  'leads': true,
+  'lead-flow': true,
+  'pipeline-health': true,
+  'pipeline-funnel': true,
+  'loss': true,
+  'sdr-hub': true,
+  'wonlost-analysis': true,
+  'quarterly-targets': true,
+  'hubspot-pipeline': true,
+  'lead-analytics': true,
+  'segment-breakdown': true,
+  'channel-deals': true,
+  'timeline-deals': true,
+};
+
+var fix3CSS = `
+/* Default: hide command-bar; shown only on revenue screens */
+#command-bar {
+  transition: max-height .25s ease, opacity .2s ease, padding .2s ease;
+  overflow: hidden;
+}
+#command-bar.kpi-hidden {
+  max-height: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  border-bottom-width: 0 !important;
+}
+#command-bar:not(.kpi-hidden) {
+  max-height: 80px;
+}
+`;
+
+function applyFix3() {
+  var s = document.createElement('style');
+  s.id = 'gl-fix3-css';
+  s.textContent = fix3CSS;
+  document.head.appendChild(s);
+
+  // Patch navigateTo to toggle command-bar
+  var origNav = window.navigateTo;
+  if (origNav && !window.__fix3NavPatched) {
+    window.__fix3NavPatched = true;
+    window.navigateTo = function(screen) {
+      var result = origNav.apply(this, arguments);
+      window.currentScreen = screen;
+      var bar = document.getElementById('command-bar');
+      if (bar) {
+        if (KPI_SCREENS[screen]) {
+          bar.classList.remove('kpi-hidden');
+        } else {
+          bar.classList.add('kpi-hidden');
+        }
+      }
+      return result;
+    };
+  }
+
+  // Apply to current screen on load
+  setTimeout(function() {
+    var bar = document.getElementById('command-bar');
+    if (!bar) return;
+    var current = window.currentScreen || '';
+    if (!current || !KPI_SCREENS[current]) {
+      bar.classList.add('kpi-hidden');
+    }
+  }, 400);
+}
+
+/* ─────────────────────────────────────────────
+   INIT ALL FIXES
+   ───────────────────────────────────────────── */
+function initCriticalFixes() {
+  applyFix1();
+  // Fix 2: apply after dock is built (dock is built on DOMContentLoaded or first use)
+  var tries = 0;
+  var wait = setInterval(function() {
+    tries++;
+    var dock = document.getElementById('gl-quick-dock');
+    if (dock || tries > 100) {
+      clearInterval(wait);
+      if (dock) applyFix2();
+    }
+  }, 120);
+  applyFix3();
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initCriticalFixes);
+else initCriticalFixes();
+
+})();
+</script>
+
 </body>
 </html>
 
