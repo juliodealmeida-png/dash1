@@ -7067,12 +7067,10 @@
 
     window.onerror = function(msg, src, line, col, err) {
       console.error('[Guardline Error]', { msg: msg, src: src, line: line, col: col, err: err });
-      if (typeof showToast === 'function') showToast('error', 'Erro inesperado', String(msg).substring(0, 120));
     };
     window.onunhandledrejection = function(event) {
       var reason = event && event.reason;
       console.error('[Guardline Promise]', reason);
-      if (typeof showToast === 'function') showToast('error', 'Falha assíncrona', ((reason && reason.message) || 'Erro desconhecido').substring(0, 120));
     };
 
     function guardlineShowDemoBanner() {
@@ -20998,47 +20996,316 @@
     async function renderTimelineDeals() {
       var area = document.getElementById('content-area');
       var deals = _demoTimelineDeals();
-      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); deals = (r.data || []).filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
-      var today = new Date('2026-04-02'), thisMonth = deals.filter(function(d) { var ed = new Date(d.expectedCloseDate); return ed.getMonth() === today.getMonth(); });
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Timeline de Fechamento</h2><div class="card"><div class="card-header">Deals Fechando Este Mês</div><div style="padding:16px">'+thisMonth.length+' deals este mês</div></div></div>';
+      try { var r = await API.get('/deals?perPage=200&sortBy=expectedCloseDate&sortOrder=asc'); if (r && r.data && r.data.length) deals = r.data.filter(function(d) { return d.expectedCloseDate && d.stage !== 'lost'; }); } catch(e) { }
+      var today = new Date();
+      var stageColor = { prospecting:'#6366f1', qualified:'#06b6d4', presentation:'#8b5cf6', proposal:'#f59e0b', negotiation:'#f97316', commit_signing:'#10b981' };
+      var stageLabel = { prospecting:'Prospecting', qualified:'Qualificado', presentation:'Apresentação', proposal:'Proposta', negotiation:'Negociação', commit_signing:'Assinatura' };
+      var totalValue = deals.reduce(function(a,d){ return a+(d.value||0); }, 0);
+      var monthDeals = deals.filter(function(d){ var ed=new Date(d.expectedCloseDate); return ed.getMonth()===today.getMonth()&&ed.getFullYear()===today.getFullYear(); });
+      var weekMs = 7*24*60*60*1000;
+      var urgentDeals = deals.filter(function(d){ return new Date(d.expectedCloseDate)-today < weekMs; });
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">📅 Timeline de Fechamento</h2>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:24px;font-weight:800;color:#10b981">'+deals.length+'</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Deals Ativos</div>' +
+          '</div>' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:24px;font-weight:800;color:#f59e0b">'+monthDeals.length+'</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Fechando Este Mês</div>' +
+          '</div>' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:24px;font-weight:800;color:#ef4444">'+urgentDeals.length+'</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Urgentes (7 dias)</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-header" style="display:flex;justify-content:space-between;align-items:center">' +
+            '<span>Todos os Deals por Data de Fechamento</span>' +
+            '<span style="color:var(--text-muted);font-size:12px">Total: $'+(totalValue/1000).toFixed(0)+'k</span>' +
+          '</div>' +
+          '<div style="overflow-x:auto">' +
+            '<table style="width:100%;border-collapse:collapse">' +
+              '<thead><tr style="border-bottom:1px solid var(--border-subtle)">' +
+                '<th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Empresa</th>' +
+                '<th style="padding:10px 16px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Valor</th>' +
+                '<th style="padding:10px 16px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Stage</th>' +
+                '<th style="padding:10px 16px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Fecha Em</th>' +
+                '<th style="padding:10px 16px;text-align:center;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Status</th>' +
+              '</tr></thead>' +
+              '<tbody>' +
+              deals.sort(function(a,b){return new Date(a.expectedCloseDate)-new Date(b.expectedCloseDate);}).map(function(d) {
+                var ed = new Date(d.expectedCloseDate);
+                var daysLeft = Math.ceil((ed - today) / 86400000);
+                var isUrgent = daysLeft <= 7;
+                var isPast = daysLeft < 0;
+                var statusColor = isPast ? '#ef4444' : isUrgent ? '#f59e0b' : '#10b981';
+                var statusText = isPast ? 'Atrasado' : isUrgent ? daysLeft+'d restantes' : daysLeft+'d';
+                var sc = stageColor[d.stage] || '#6b7280';
+                return '<tr style="border-bottom:1px solid var(--border-subtle);' + (isUrgent||isPast?'background:rgba(239,68,68,0.04)':'') + '">' +
+                  '<td style="padding:10px 16px;font-size:13px;font-weight:500">'+(d.companyName||d.deal_name||'—')+'</td>' +
+                  '<td style="padding:10px 16px;font-size:13px;text-align:right;color:#10b981">$'+(((d.value||0)/1000).toFixed(0))+'k</td>' +
+                  '<td style="padding:10px 16px;text-align:center"><span style="background:'+sc+'20;color:'+sc+';border:1px solid '+sc+'40;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600">'+(stageLabel[d.stage]||d.stage||'—')+'</span></td>' +
+                  '<td style="padding:10px 16px;font-size:12px;text-align:right;color:var(--text-muted)">'+(ed.toLocaleDateString('pt-BR'))+'</td>' +
+                  '<td style="padding:10px 16px;text-align:center"><span style="color:'+statusColor+';font-size:12px;font-weight:600">'+statusText+'</span></td>' +
+                '</tr>';
+              }).join('') +
+              '</tbody></table>' +
+          '</div>' +
+        '</div></div>';
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
     async function renderSegmentBreakdown() {
       var area = document.getElementById('content-area');
-      
       var data = _demoSegmentData();
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Segment Breakdown</h2>'+data.segments.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.name+'</div><div style="padding:12px">$'+(s.totalValue/1000).toFixed(0)+'k · '+s.dealCount+' deals</div></div>'; }).join('')+'</div>';
+      var totalValue = data.segments.reduce(function(a,s){return a+s.totalValue;},0);
+      var totalDeals = data.segments.reduce(function(a,s){return a+s.dealCount;},0);
+      var segColors = ['#7c3aed','#06b6d4','#10b981','#f59e0b','#ef4444'];
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">🥧 Segment Breakdown</h2>' +
+          '<span style="font-size:12px;color:var(--text-muted)">Total: $'+(totalValue/1000).toFixed(0)+'k · '+totalDeals+' deals</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:20px">' +
+        data.segments.map(function(s,i) {
+          var pct = Math.round((s.totalValue/totalValue)*100);
+          var col = segColors[i%segColors.length];
+          return '<div class="card" style="padding:20px">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">' +
+              '<div style="width:10px;height:10px;border-radius:50%;background:'+col+';flex-shrink:0"></div>' +
+              '<div style="font-size:15px;font-weight:700">'+s.name+'</div>' +
+              '<div style="margin-left:auto;font-size:12px;color:var(--text-muted)">'+pct+'%</div>' +
+            '</div>' +
+            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">' +
+              '<div style="background:var(--bg-surface);border-radius:8px;padding:10px">' +
+                '<div style="font-size:18px;font-weight:800;color:'+col+'">$'+(s.totalValue/1000).toFixed(0)+'k</div>' +
+                '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Pipeline</div>' +
+              '</div>' +
+              '<div style="background:var(--bg-surface);border-radius:8px;padding:10px">' +
+                '<div style="font-size:18px;font-weight:800">'+s.dealCount+'</div>' +
+                '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase">Deals</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="background:var(--bg-surface);border-radius:6px;height:6px;overflow:hidden">' +
+              '<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:6px;transition:width 0.5s"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-header">Deals por Segmento</div>' +
+          data.segments.map(function(s,i) {
+            var col = segColors[i%segColors.length];
+            return '<div style="padding:12px 16px;border-bottom:1px solid var(--border-subtle);last-child:border:none">' +
+              '<div style="font-size:12px;font-weight:600;color:'+col+';margin-bottom:6px">'+s.name+'</div>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:6px">' +
+              (s.deals||[]).map(function(d){ return '<span style="background:'+col+'15;color:'+col+';border:1px solid '+col+'30;border-radius:12px;padding:2px 10px;font-size:11px">'+d+'</span>'; }).join('') +
+              '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>' +
+        '</div>';
     }
 
     async function renderProductBreakdown() {
       var area = document.getElementById('content-area');
-      
       var data = _demoProductData();
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Product Breakdown</h2>'+data.products.map(function(p) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+p.name+'</div><div style="padding:12px">$'+(p.revenue/1000).toFixed(0)+'k · '+p.dealCount+' deals</div></div>'; }).join('')+'</div>';
+      var totalRev = data.products.reduce(function(a,p){return a+p.revenue;},0);
+      var prodColors = ['#7c3aed','#06b6d4','#10b981','#f59e0b'];
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">📦 Product Breakdown</h2>' +
+          '<span style="font-size:12px;color:var(--text-muted)">Total: $'+(totalRev/1000).toFixed(0)+'k</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:20px">' +
+        data.products.map(function(p,i) {
+          var col = prodColors[i%prodColors.length];
+          var pct = Math.round((p.revenue/totalRev)*100);
+          var avgDeal = p.dealCount ? Math.round(p.revenue/p.dealCount) : 0;
+          return '<div class="card" style="padding:20px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">' +
+              '<div style="font-size:15px;font-weight:700">'+p.name+'</div>' +
+              '<span style="background:'+col+'20;color:'+col+';border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">'+pct+'%</span>' +
+            '</div>' +
+            '<div style="font-size:28px;font-weight:900;color:'+col+';margin-bottom:4px">$'+(p.revenue/1000).toFixed(0)+'k</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">'+p.dealCount+' deals · Avg $'+(avgDeal/1000).toFixed(0)+'k</div>' +
+            '<div style="background:var(--bg-surface);border-radius:6px;height:6px;overflow:hidden;margin-bottom:12px">' +
+              '<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:6px"></div>' +
+            '</div>' +
+            '<div style="font-size:11px;color:var(--text-muted)">Combina com: ' +
+            (p.commonCombinations||[]).map(function(c){ return '<span style="background:var(--bg-surface);border-radius:10px;padding:1px 7px">'+c+'</span>'; }).join(' ') +
+            '</div>' +
+          '</div>';
+        }).join('') +
+        '</div>' +
+        '</div>';
     }
 
     async function renderQuarterlyTargets() {
       var area = document.getElementById('content-area');
-      
       var data = _demoQuarterlyTargets();
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Sales Targets 2026</h2>'+data.quarters.map(function(q) { var pct = Math.round((q.forecast/q.target)*100); return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+q.quarter+'</div><div style="padding:12px">'+pct+'% attainment · $'+(q.forecast/1000).toFixed(0)+'k / $'+(q.target/1000).toFixed(0)+'k</div></div>'; }).join('')+'</div>';
+      var totalTarget = data.quarters.reduce(function(a,q){return a+q.target;},0);
+      var totalForecast = data.quarters.filter(function(q){return q.forecast>0;}).reduce(function(a,q){return a+q.forecast;},0);
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">🎯 Sales Targets 2026</h2>' +
+          '<span style="font-size:12px;color:var(--text-muted)">Meta anual: $'+(totalTarget/1000).toFixed(0)+'k</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:20px">' +
+        data.quarters.map(function(q) {
+          var pct = q.target > 0 ? Math.round((q.forecast/q.target)*100) : 0;
+          var hasForecast = q.forecast > 0;
+          var color = !hasForecast ? '#475569' : pct >= 100 ? '#10b981' : pct >= 80 ? '#f59e0b' : '#ef4444';
+          var label = !hasForecast ? 'Futuro' : pct >= 100 ? 'On track ✓' : pct >= 80 ? 'Atenção' : 'Em risco';
+          return '<div class="card" style="padding:20px">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">' +
+              '<div style="font-size:15px;font-weight:700">'+q.quarter+'</div>' +
+              '<span style="background:'+color+'20;color:'+color+';border-radius:10px;padding:2px 8px;font-size:11px;font-weight:600">'+label+'</span>' +
+            '</div>' +
+            '<div style="font-size:26px;font-weight:900;color:'+color+';margin-bottom:4px">'+(hasForecast ? pct+'%' : '—')+'</div>' +
+            '<div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">' +
+              (hasForecast ? '$'+(q.forecast/1000).toFixed(0)+'k' : '—') + ' / $'+(q.target/1000).toFixed(0)+'k meta' +
+            '</div>' +
+            '<div style="background:var(--bg-surface);border-radius:6px;height:8px;overflow:hidden">' +
+              '<div style="background:'+color+';height:100%;width:'+Math.min(100,pct)+'%;border-radius:6px;transition:width 0.5s"></div>' +
+            '</div>' +
+            (hasForecast && q.committed > 0 ? '<div style="margin-top:8px;font-size:11px;color:var(--text-muted)">Committed: $'+(q.committed/1000).toFixed(0)+'k · At risk: $'+(q.atRisk/1000).toFixed(0)+'k</div>' : '') +
+          '</div>';
+        }).join('') +
+        '</div>' +
+        '</div>';
     }
 
     async function renderWonLostAnalysis() {
       var area = document.getElementById('content-area');
-      
       var data = _demoWonLostData();
       var wr = Math.round((data.won.length/(data.won.length+data.lost.length))*100);
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Won/Lost Analysis</h2><div class="card"><div class="card-header">Win Rate</div><div style="padding:16px">'+wr+'% · '+data.won.length+' won, '+data.lost.length+' lost</div></div></div>';
+      var wonRev = data.won.reduce(function(a,d){return a+d.value;},0);
+      var lostRev = data.lost.reduce(function(a,d){return a+d.value;},0);
+      var avgCycle = data.won.reduce(function(a,d){return a+d.daysCycle;},0) / (data.won.length||1);
+      var lostReasons = {};
+      data.lost.forEach(function(d){ lostReasons[d.reason] = (lostReasons[d.reason]||0)+1; });
+      var reasonLabels = { price:'Preço', budget:'Budget', competition:'Concorrência', timeline:'Timeline', fit:'Fit' };
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">📊 Won/Lost Analysis</h2>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px">' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:26px;font-weight:900;color:#10b981">'+wr+'%</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Win Rate</div>' +
+          '</div>' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:26px;font-weight:900;color:#10b981">$'+(wonRev/1000).toFixed(0)+'k</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Receita Ganha</div>' +
+          '</div>' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:26px;font-weight:900;color:#ef4444">$'+(lostRev/1000).toFixed(0)+'k</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Receita Perdida</div>' +
+          '</div>' +
+          '<div class="card" style="padding:16px;text-align:center">' +
+            '<div style="font-size:26px;font-weight:900;color:#06b6d4">'+Math.round(avgCycle)+'d</div>' +
+            '<div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;margin-top:4px">Ciclo Médio</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">' +
+          '<div class="card">' +
+            '<div class="card-header" style="color:#10b981">✅ Deals Ganhos ('+data.won.length+')</div>' +
+            data.won.map(function(d){ return '<div style="padding:10px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;font-weight:500">'+d.companyName+'</div><div style="font-size:13px;color:#10b981">$'+(d.value/1000).toFixed(0)+'k <span style="font-size:11px;color:var(--text-muted)">'+d.daysCycle+'d</span></div></div>'; }).join('') +
+          '</div>' +
+          '<div class="card">' +
+            '<div class="card-header" style="color:#ef4444">❌ Deals Perdidos ('+data.lost.length+')</div>' +
+            data.lost.map(function(d){ return '<div style="padding:10px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;font-weight:500">'+d.companyName+'</div><div style="font-size:13px;color:var(--text-muted)">$'+(d.value/1000).toFixed(0)+'k <span style="background:#ef444420;color:#ef4444;border-radius:8px;padding:1px 6px;font-size:10px">'+(reasonLabels[d.reason]||d.reason)+'</span></div></div>'; }).join('') +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-header">Motivos de Perda</div>' +
+          '<div style="padding:16px;display:flex;flex-wrap:wrap;gap:10px">' +
+          Object.keys(lostReasons).map(function(r) {
+            var pct = Math.round((lostReasons[r]/data.lost.length)*100);
+            return '<div style="flex:1;min-width:120px;background:var(--bg-surface);border-radius:10px;padding:12px;text-align:center">' +
+              '<div style="font-size:20px;font-weight:800;color:#ef4444">'+pct+'%</div>' +
+              '<div style="font-size:12px;color:var(--text-muted);margin-top:2px">'+(reasonLabels[r]||r)+'</div>' +
+              '<div style="font-size:11px;color:var(--text-muted)">'+lostReasons[r]+' deal(s)</div>' +
+            '</div>';
+          }).join('') +
+          '</div>' +
+        '</div>' +
+        '</div>';
     }
 
     async function renderLeadAnalytics() {
       var area = document.getElementById('content-area');
-      
       var data = _demoLeadAnalyticsData();
       var total = data.stages.reduce(function(a,s){ return a+s.count; },0);
-      area.innerHTML = '<div class="pipeline-page-wrap"><h2 style="margin-bottom:20px">Lead Analytics</h2>'+data.stages.map(function(s) { return '<div class="card" style="margin-bottom:12px"><div class="card-header">'+s.stage+'</div><div style="padding:12px">'+s.count+' leads ('+Math.round((s.count/total)*100)+'%)</div></div>'; }).join('')+'</div>';
+      var stageColors = ['#7c3aed','#06b6d4','#10b981','#f59e0b','#ef4444'];
+      var stageIcons  = ['🎯','✅','📞','📅','🏆'];
+      var stageLabels = { prospected:'Prospectados', qualified:'Qualificados', contacted:'Contactados', meeting:'Em Reunião', converted:'Convertidos' };
+      area.innerHTML =
+        '<div class="pipeline-page-wrap">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">' +
+          '<h2 style="margin:0">🔬 Lead Analytics Funnel</h2>' +
+          '<span style="font-size:12px;color:var(--text-muted)">'+total+' leads totais</span>' +
+        '</div>' +
+        '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:20px">' +
+        data.stages.map(function(s,i) {
+          var pct = Math.round((s.count/total)*100);
+          var col = stageColors[i];
+          return '<div class="card" style="padding:14px;text-align:center">' +
+            '<div style="font-size:18px;margin-bottom:6px">'+stageIcons[i]+'</div>' +
+            '<div style="font-size:22px;font-weight:900;color:'+col+'">'+s.count+'</div>' +
+            '<div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin:3px 0">'+(stageLabels[s.stage]||s.stage)+'</div>' +
+            '<div style="font-size:11px;color:var(--text-muted)">'+pct+'%</div>' +
+          '</div>';
+        }).join('') +
+        '</div>' +
+        '<div class="card" style="margin-bottom:16px">' +
+          '<div class="card-header">Funil de Conversão</div>' +
+          '<div style="padding:16px">' +
+          data.stages.map(function(s,i) {
+            var pct = Math.round((s.count/total)*100);
+            var col = stageColors[i];
+            return '<div style="margin-bottom:10px">' +
+              '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">' +
+                '<span style="font-size:12px;font-weight:600;color:'+col+'">'+(stageLabels[s.stage]||s.stage)+'</span>' +
+                '<span style="font-size:12px;color:var(--text-muted)">'+s.count+' · '+pct+'% · avg '+s.avgDaysInStage+'d</span>' +
+              '</div>' +
+              '<div style="background:var(--bg-surface);border-radius:6px;height:8px;overflow:hidden">' +
+                '<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:6px"></div>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-header">Fontes de Lead</div>' +
+          '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse">' +
+            '<thead><tr style="border-bottom:1px solid var(--border-subtle)">' +
+              '<th style="padding:10px 16px;text-align:left;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Fonte</th>' +
+              '<th style="padding:10px 16px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Leads</th>' +
+              '<th style="padding:10px 16px;text-align:right;font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase">Conv. Rate</th>' +
+            '</tr></thead>' +
+            '<tbody>' +
+            data.sources.map(function(s) {
+              var col = s.conversion >= 8 ? '#10b981' : s.conversion >= 5 ? '#f59e0b' : '#94a3b8';
+              return '<tr style="border-bottom:1px solid var(--border-subtle)">' +
+                '<td style="padding:10px 16px;font-size:13px">'+s.source+'</td>' +
+                '<td style="padding:10px 16px;font-size:13px;text-align:right">'+s.count+'</td>' +
+                '<td style="padding:10px 16px;text-align:right"><span style="color:'+col+';font-size:13px;font-weight:700">'+s.conversion+'%</span></td>' +
+              '</tr>';
+            }).join('') +
+            '</tbody></table></div>' +
+        '</div>' +
+        '</div>';
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 
