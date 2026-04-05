@@ -28286,6 +28286,696 @@ console.log('[TrustSign Engine V2] ✅ Parts 1-3 loaded');
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     DEAL PULSE  |  NEXT BEST ACTION ENGINE  |  QUICK ACTIONS DOCK
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+'use strict';
+
+/* ─────────────────────────────────────────────
+   1.  DEAL PULSE — urgency dot on every deal card
+   ───────────────────────────────────────────── */
+
+/* CSS */
+var pulseCSS = `
+/* Deal Pulse dots */
+@keyframes dp-pulse-red   { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.7)}  50%{box-shadow:0 0 0 5px rgba(239,68,68,0)} }
+@keyframes dp-pulse-amber { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,.6)} 50%{box-shadow:0 0 0 4px rgba(245,158,11,0)} }
+@keyframes dp-pulse-green { 0%,100%{box-shadow:0 0 0 0 rgba(34,197,94,.4)}  50%{box-shadow:0 0 0 3px rgba(34,197,94,0)} }
+.dp-dot {
+  display:inline-block; width:8px; height:8px; border-radius:50%;
+  flex-shrink:0; margin-left:4px; vertical-align:middle;
+}
+.dp-dot.dp-red   { background:rgba(239,68,68,1);  animation:dp-pulse-red   1.2s ease-in-out infinite; }
+.dp-dot.dp-amber { background:rgba(245,158,11,1); animation:dp-pulse-amber 1.8s ease-in-out infinite; }
+.dp-dot.dp-green { background:rgba(34,197,94,.9); animation:dp-pulse-green 3s   ease-in-out infinite; }
+
+/* ── Next Best Action Engine ── */
+#gl-nba-panel {
+  position:fixed; right:20px; bottom:90px; width:320px; z-index:9000;
+  background:rgba(15,15,20,0.97); border:1px solid rgba(255,255,255,.1);
+  border-radius:16px; box-shadow:0 24px 60px rgba(0,0,0,.7);
+  overflow:hidden; transform:translateX(360px); transition:transform .35s cubic-bezier(0.4,0,0.2,1);
+  backdrop-filter:blur(16px);
+}
+#gl-nba-panel.open { transform:translateX(0); }
+#gl-nba-header {
+  display:flex; align-items:center; gap:8px; padding:14px 16px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(6,182,212,.1));
+}
+#gl-nba-header .nba-icon { font-size:18px; }
+#gl-nba-header h3 { margin:0; font-size:13px; font-weight:700; color:#fff; flex:1; }
+#gl-nba-header .nba-close {
+  background:none; border:none; color:rgba(255,255,255,.5); cursor:pointer;
+  font-size:18px; line-height:1; padding:0; transition:color .2s;
+}
+#gl-nba-header .nba-close:hover { color:#fff; }
+#gl-nba-body { padding:12px; display:flex; flex-direction:column; gap:8px; max-height:420px; overflow-y:auto; }
+.nba-action-card {
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:10px; padding:12px; cursor:pointer; transition:all .2s;
+  position:relative; overflow:hidden;
+}
+.nba-action-card::before {
+  content:''; position:absolute; left:0; top:0; bottom:0; width:3px;
+  border-radius:3px 0 0 3px;
+}
+.nba-action-card.p1::before { background:rgba(239,68,68,.8); }
+.nba-action-card.p2::before { background:rgba(245,158,11,.8); }
+.nba-action-card.p3::before { background:rgba(34,197,94,.8); }
+.nba-action-card:hover { background:rgba(255,255,255,.08); transform:translateX(2px); }
+.nba-action-card .nba-priority { font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.4); margin-bottom:4px; }
+.nba-action-card .nba-title { font-size:12px; font-weight:700; color:#fff; margin-bottom:4px; }
+.nba-action-card .nba-ctx { font-size:11px; color:rgba(255,255,255,.55); line-height:1.4; }
+.nba-action-card .nba-do-btn {
+  margin-top:8px; padding:4px 10px; background:rgba(124,58,237,.25); border:1px solid rgba(124,58,237,.4);
+  border-radius:6px; color:#c084fc; font-size:10px; font-weight:700; cursor:pointer;
+  transition:all .2s;
+}
+.nba-action-card .nba-do-btn:hover { background:rgba(124,58,237,.4); color:#fff; }
+#gl-nba-loading { text-align:center; padding:20px; color:rgba(255,255,255,.4); font-size:12px; }
+#gl-nba-loading .gl-spin { display:inline-block; width:20px; height:20px; border:2px solid rgba(255,255,255,.15); border-top-color:#7c3aed; border-radius:50%; animation:gl-spinner .7s linear infinite; }
+@keyframes gl-spinner { to{ transform:rotate(360deg); } }
+
+/* ── NBA toggle button (on Quick Actions Dock) ── */
+.qad-nba-glow { position:relative; }
+.qad-nba-glow::after {
+  content:''; position:absolute; top:-3px; right:-3px; width:8px; height:8px;
+  background:#7c3aed; border-radius:50%; animation:dp-pulse-red 1.5s ease-in-out infinite;
+}
+
+/* ── Quick Actions Dock ── */
+#gl-quick-dock {
+  position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  z-index:9100; display:flex; align-items:center; gap:6px;
+  background:rgba(10,10,15,0.95); border:1px solid rgba(255,255,255,.12);
+  border-radius:100px; padding:8px 12px;
+  box-shadow:0 12px 40px rgba(0,0,0,.6), 0 0 0 1px rgba(124,58,237,.15);
+  backdrop-filter:blur(20px); transition:opacity .3s;
+}
+#gl-quick-dock:hover { opacity:1 !important; }
+.qad-btn {
+  display:flex; align-items:center; gap:6px; padding:7px 12px;
+  background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08);
+  border-radius:100px; color:rgba(255,255,255,.8); font-size:11px; font-weight:600;
+  cursor:pointer; white-space:nowrap; transition:all .2s; user-select:none;
+}
+.qad-btn:hover { background:rgba(255,255,255,.12); color:#fff; transform:translateY(-1px); }
+.qad-btn:active { transform:translateY(0); }
+.qad-btn .qad-ico { font-size:14px; }
+.qad-sep { width:1px; height:22px; background:rgba(255,255,255,.1); flex-shrink:0; }
+.qad-julio-btn { background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(6,182,212,.2)) !important; border-color:rgba(124,58,237,.4) !important; color:#c084fc !important; }
+.qad-julio-btn:hover { background:linear-gradient(135deg,rgba(124,58,237,.5),rgba(6,182,212,.3)) !important; color:#fff !important; }
+`;
+
+var styleEl = document.createElement('style');
+styleEl.textContent = pulseCSS;
+document.head.appendChild(styleEl);
+
+/* ── Patch renderDealCardHtml to inject pulse dot ── */
+if (typeof window.renderDealCardHtml === 'function') {
+  var _origRenderDeal = window.renderDealCardHtml;
+  window.renderDealCardHtml = function(deal) {
+    var html = _origRenderDeal(deal);
+    var d = deal.daysNoContact || 0;
+    var cls = d >= 7 ? 'dp-red' : d >= 3 ? 'dp-amber' : 'dp-green';
+    var label = d >= 7 ? 'Urgente: ' + d + 'd sem contato' : d >= 3 ? 'Atenção: ' + d + 'd sem contato' : 'Ativo: ' + d + 'd';
+    var dot = '<span class="dp-dot ' + cls + '" title="' + label + '"></span>';
+    /* inject after deal-company span */
+    html = html.replace('</span><div class="risk-badge', dot + '</span><div class="risk-badge');
+    return html;
+  };
+}
+/* also patch the global so pipeline re-renders pick it up */
+setTimeout(function() {
+  if (typeof renderDealCardHtml === 'function' && renderDealCardHtml !== window.renderDealCardHtml) {
+    try { window.renderDealCardHtml = window.renderDealCardHtml; } catch(e) {}
+  }
+}, 500);
+
+/* ─────────────────────────────────────────────
+   2.  NEXT BEST ACTION ENGINE
+   ───────────────────────────────────────────── */
+
+function buildNBAPanel() {
+  if (document.getElementById('gl-nba-panel')) return;
+  var el = document.createElement('div');
+  el.id = 'gl-nba-panel';
+  el.innerHTML =
+    '<div id="gl-nba-header">' +
+      '<span class="nba-icon">⚡</span>' +
+      '<h3>Próximas 3 Ações</h3>' +
+      '<button class="nba-close" onclick="window.__glNBA.close()">×</button>' +
+    '</div>' +
+    '<div id="gl-nba-body"><div id="gl-nba-loading"><div class="gl-spin"></div><p style="margin:8px 0 0">Julio analisando…</p></div></div>';
+  document.body.appendChild(el);
+}
+
+function nbaOpen() {
+  buildNBAPanel();
+  var panel = document.getElementById('gl-nba-panel');
+  if (!panel) return;
+  panel.classList.add('open');
+  window.__glNBA._open = true;
+  /* generate actions if not already done or if stale */
+  var age = Date.now() - (window.__glNBA._lastFetch || 0);
+  if (age > 5 * 60 * 1000) nbaGenerate();
+}
+
+function nbaClose() {
+  var panel = document.getElementById('gl-nba-panel');
+  if (panel) panel.classList.remove('open');
+  window.__glNBA._open = false;
+}
+
+function nbaGenerate() {
+  window.__glNBA._lastFetch = Date.now();
+  var body = document.getElementById('gl-nba-body');
+  if (body) body.innerHTML = '<div id="gl-nba-loading"><div class="gl-spin"></div><p style="margin:8px 0 0">Julio analisando pipeline…</p></div>';
+
+  /* build context from cached deals */
+  var deals = window.__guardlineDealsCache || [];
+  var urgentDeals = deals.filter(function(d){ return (d.risk||0) >= 70; }).slice(0,3);
+  var staleDeals = deals.filter(function(d){ return (d.daysNoContact||0) >= 7; }).slice(0,3);
+
+  /* generate 3 prioritized actions */
+  var actions = [];
+
+  if (urgentDeals.length > 0) {
+    var top = urgentDeals[0];
+    actions.push({
+      priority: 'P1 — Crítico',
+      cls: 'p1',
+      title: '🚨 Resgatar ' + (top.company || 'Deal'),
+      ctx: 'Risk ' + top.risk + '% · $' + Number(top.value||0).toLocaleString('en-US') + ' · ' + (top.daysNoContact||0) + 'd sem contato. Ligue agora.',
+      action: function() {
+        if (typeof julioFloatOpen === 'function') {
+          julioFloatOpen('Crie um script de ligação de resgate para o deal ' + top.company + ', risco ' + top.risk + '%, valor $' + Number(top.value||0).toLocaleString('en-US') + '. Seja direto e urgente.');
+        }
+        nbaClose();
+      }
+    });
+  }
+
+  if (staleDeals.length > 0) {
+    var s = staleDeals[0];
+    actions.push({
+      priority: 'P' + (actions.length+1) + ' — Follow-up',
+      cls: actions.length === 0 ? 'p1' : 'p2',
+      title: '📧 Follow-up: ' + (s.company || 'Deal'),
+      ctx: s.daysNoContact + ' dias sem contato · $' + Number(s.value||0).toLocaleString('en-US') + '. Email de reengajamento.',
+      action: function() {
+        if (typeof julioFloatOpen === 'function') {
+          julioFloatOpen('Escreva um email de follow-up para ' + s.company + ' que está ' + s.daysNoContact + ' dias sem contato. Tom profissional, direto, com próximo passo claro.');
+        }
+        nbaClose();
+      }
+    });
+  }
+
+  /* always add a pipeline health action */
+  var totalValue = deals.reduce(function(a,d){ return a + (d.value||0); }, 0);
+  var atRisk = deals.filter(function(d){ return (d.risk||0) >= 55; }).length;
+  actions.push({
+    priority: 'P' + (actions.length+1) + ' — Estratégia',
+    cls: actions.length < 2 ? 'p2' : 'p3',
+    title: '📊 Revisar Pipeline (' + atRisk + ' em risco)',
+    ctx: '$' + (totalValue/1000).toFixed(0) + 'k total · ' + atRisk + ' deals precisam de atenção. Peça análise ao Julio.',
+    action: function() {
+      if (typeof julioFloatOpen === 'function') {
+        julioFloatOpen('Analise meu pipeline: ' + deals.length + ' deals, $' + (totalValue/1000).toFixed(0) + 'k total, ' + atRisk + ' em risco. Quais são as 3 ações mais importantes que devo fazer HOJE?');
+      }
+      nbaClose();
+    }
+  });
+
+  /* if Julio K25 available, use AI-generated actions */
+  if (window.julioK25 && typeof window.julioK25.chat === 'function' && deals.length > 0) {
+    var prompt = 'Analise este pipeline em JSON e retorne EXATAMENTE 3 ações de alta prioridade para hoje no formato JSON array: [{priority:"P1",title:"",context:"",dealId:""}]. Pipeline: ' + JSON.stringify(deals.slice(0,10).map(function(d){ return {company:d.company, value:d.value, risk:d.risk, days:d.daysNoContact, stage:d.stage}; }));
+    window.julioK25.chat(prompt, 'instant').then(function(resp) {
+      try {
+        var match = resp.match(/\[[\s\S]*\]/);
+        if (match) {
+          var aiActions = JSON.parse(match[0]);
+          if (Array.isArray(aiActions) && aiActions.length > 0) {
+            var clsMap = ['p1','p2','p3'];
+            actions = aiActions.slice(0,3).map(function(a,i) {
+              return {
+                priority: a.priority || ('P'+(i+1)),
+                cls: clsMap[i] || 'p3',
+                title: a.title || 'Ação ' + (i+1),
+                ctx: a.context || '',
+                action: (function(act){ return function() {
+                  if (typeof julioFloatOpen === 'function') julioFloatOpen(act.title + ': ' + act.context);
+                  nbaClose();
+                }; })(a)
+              };
+            });
+            renderNBAActions(actions);
+            return;
+          }
+        }
+      } catch(e) {}
+      renderNBAActions(actions);
+    }).catch(function() { renderNBAActions(actions); });
+    return;
+  }
+
+  /* slight delay for UX feel */
+  setTimeout(function() { renderNBAActions(actions); }, 600);
+}
+
+function renderNBAActions(actions) {
+  var body = document.getElementById('gl-nba-body');
+  if (!body) return;
+  if (!actions || actions.length === 0) {
+    body.innerHTML = '<p style="text-align:center;color:rgba(255,255,255,.4);font-size:12px;padding:16px">Nenhuma ação urgente no momento. Pipeline saudável! ✅</p>';
+    return;
+  }
+  var html = '';
+  actions.forEach(function(a, i) {
+    var idx = i;
+    html += '<div class="nba-action-card ' + a.cls + '" style="animation-delay:' + (i*0.08) + 's">' +
+      '<div class="nba-priority">' + a.priority + '</div>' +
+      '<div class="nba-title">' + a.title + '</div>' +
+      '<div class="nba-ctx">' + a.ctx + '</div>' +
+      '<button class="nba-do-btn" data-nba-idx="' + idx + '">Fazer agora →</button>' +
+    '</div>';
+  });
+  body.innerHTML = html;
+  /* wire action buttons */
+  body.querySelectorAll('[data-nba-idx]').forEach(function(btn) {
+    var idx = parseInt(btn.getAttribute('data-nba-idx'), 10);
+    btn.onclick = function() { if (actions[idx] && actions[idx].action) actions[idx].action(); };
+  });
+}
+
+window.__glNBA = { open: nbaOpen, close: nbaClose, generate: nbaGenerate, _open: false, _lastFetch: 0 };
+
+/* ─────────────────────────────────────────────
+   3.  QUICK ACTIONS DOCK
+   ───────────────────────────────────────────── */
+
+function buildQuickDock() {
+  if (document.getElementById('gl-quick-dock')) return;
+  var dock = document.createElement('div');
+  dock.id = 'gl-quick-dock';
+  dock.innerHTML =
+    '<button class="qad-btn" title="Registrar ligação" onclick="window.__glQAD.logCall()"><span class="qad-ico">📞</span><span>Ligar</span></button>' +
+    '<button class="qad-btn" title="Enviar email" onclick="window.__glQAD.sendEmail()"><span class="qad-ico">✉️</span><span>Email</span></button>' +
+    '<button class="qad-btn" title="Agendar reunião" onclick="window.__glQAD.schedMeeting()"><span class="qad-ico">📅</span><span>Reunião</span></button>' +
+    '<div class="qad-sep"></div>' +
+    '<button class="qad-btn" title="Novo deal" onclick="window.__glQAD.newDeal()"><span class="qad-ico">➕</span><span>Deal</span></button>' +
+    '<div class="qad-sep"></div>' +
+    '<button class="qad-btn qad-julio-btn qad-nba-glow" title="Próximas ações + Julio AI" onclick="window.__glQAD.askJulio()"><span class="qad-ico">⚡</span><span>Julio AI</span></button>' +
+    '<div class="qad-sep"></div>' +
+    '<button class="qad-btn" title="Buscar tudo (⌘K)" style="padding:7px 9px" onclick="typeof openCommandPalette===\'function\'&&openCommandPalette()" title="⌘K"><span class="qad-ico">🔍</span></button>';
+  document.body.appendChild(dock);
+
+  /* hide dock when typing in inputs */
+  document.addEventListener('focusin', function(e) {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable)) {
+      dock.style.opacity = '0.2';
+    }
+  });
+  document.addEventListener('focusout', function() {
+    dock.style.opacity = '';
+  });
+}
+
+function qdLogCall() {
+  var deal = _getActiveDeal();
+  var msg = deal ? 'Registrar ligação com ' + (deal.contact||deal.company) + ' do deal ' + deal.company + ' — ' + deal.stage + '. Crie um resumo de ligação.' : 'Registrar ligação. Peça empresa, contato, assunto e resultado.';
+  if (typeof julioFloatOpen === 'function') julioFloatOpen(msg);
+  else if (typeof window.__glNBA !== 'undefined') { nbaClose(); }
+}
+
+function qdSendEmail() {
+  var deal = _getActiveDeal();
+  var msg = deal ? 'Escreva um email profissional para ' + (deal.contact||deal.company) + ' da empresa ' + deal.company + ', estágio ' + deal.stage + '. Próximo passo claro.' : 'Escreva um email de prospecção profissional. Peça empresa, contato e objetivo.';
+  if (typeof julioFloatOpen === 'function') julioFloatOpen(msg);
+}
+
+function qdSchedMeeting() {
+  var deal = _getActiveDeal();
+  var msg = deal ? 'Crie uma pauta de reunião para ' + deal.company + ' — ' + deal.stage + ', $' + Number(deal.value||0).toLocaleString('en-US') + '. Inclua objetivos, perguntas-chave e próximos passos.' : 'Crie uma pauta de reunião de descoberta. Inclua objetivos, perguntas-chave MEDDPICC e próximos passos.';
+  if (typeof julioFloatOpen === 'function') julioFloatOpen(msg);
+}
+
+function qdNewDeal() {
+  /* navigate to pipeline */
+  if (typeof guardlineNav === 'function') guardlineNav('pipeline');
+  else if (typeof window.navigate === 'function') window.navigate('pipeline');
+  else { var a = document.querySelector('[data-route="pipeline"]'); if (a) a.click(); }
+  setTimeout(function() {
+    var btn = document.querySelector('#pipeline-new-deal-btn, [onclick*="newDeal"], [data-action="new-deal"]');
+    if (btn) btn.click();
+    else if (typeof julioFloatOpen === 'function') julioFloatOpen('Quero cadastrar um novo deal. Me faça as perguntas necessárias: empresa, contato, valor estimado, estágio e responsável.');
+  }, 300);
+}
+
+function qdAskJulio() {
+  /* toggle NBA panel */
+  if (window.__glNBA && window.__glNBA._open) {
+    window.__glNBA.close();
+  } else {
+    window.__glNBA.open();
+  }
+}
+
+function _getActiveDeal() {
+  /* try to find selected/open deal from pipeline context */
+  var cache = window.__guardlineDealsCache || [];
+  if (cache.length === 0) return null;
+  /* pick highest risk */
+  return cache.slice().sort(function(a,b){ return (b.risk||0)-(a.risk||0); })[0] || null;
+}
+
+window.__glQAD = {
+  logCall: qdLogCall,
+  sendEmail: qdSendEmail,
+  schedMeeting: qdSchedMeeting,
+  newDeal: qdNewDeal,
+  askJulio: qdAskJulio
+};
+
+/* ─────────────────────────────────────────────
+   4.  ROLE-BASED MORNING SCREEN
+   ───────────────────────────────────────────── */
+
+var MORNING_CSS = `
+#gl-morning-overlay {
+  position:fixed; inset:0; z-index:99999;
+  background:rgba(5,5,8,0.97);
+  backdrop-filter:blur(24px);
+  display:flex; align-items:center; justify-content:center;
+  animation:morning-in .4s cubic-bezier(0.4,0,0.2,1);
+  overflow-y:auto; padding:20px;
+}
+@keyframes morning-in { from{opacity:0;transform:scale(.97)} to{opacity:1;transform:scale(1)} }
+#gl-morning-overlay.out {
+  animation:morning-out .3s cubic-bezier(0.4,0,0.2,1) forwards;
+}
+@keyframes morning-out { to{opacity:0;transform:scale(1.02)} }
+
+.morning-card {
+  width:100%; max-width:760px; background:rgba(15,15,22,1);
+  border:1px solid rgba(255,255,255,.1); border-radius:20px;
+  overflow:hidden; box-shadow:0 40px 100px rgba(0,0,0,.8);
+}
+.morning-hero {
+  padding:36px 36px 28px;
+  background:linear-gradient(135deg, rgba(124,58,237,.2) 0%, rgba(6,182,212,.1) 60%, rgba(15,15,22,0) 100%);
+  border-bottom:1px solid rgba(255,255,255,.06);
+  position:relative; overflow:hidden;
+}
+.morning-hero::before {
+  content:''; position:absolute; right:-60px; top:-60px;
+  width:260px; height:260px; border-radius:50%;
+  background:radial-gradient(circle, rgba(124,58,237,.15) 0%, transparent 70%);
+}
+.morning-date-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1);
+  border-radius:100px; padding:4px 12px; font-size:11px; font-weight:600;
+  color:rgba(255,255,255,.6); margin-bottom:16px; letter-spacing:.03em;
+}
+.morning-greeting { font-size:2rem; font-weight:800; color:#fff; line-height:1.2; margin-bottom:6px; }
+.morning-subtitle { font-size:14px; color:rgba(255,255,255,.55); margin-bottom:20px; }
+.morning-role-badge {
+  display:inline-flex; align-items:center; gap:6px;
+  background:linear-gradient(135deg, rgba(124,58,237,.3), rgba(6,182,212,.2));
+  border:1px solid rgba(124,58,237,.4); border-radius:100px;
+  padding:5px 14px; font-size:12px; font-weight:700; color:#c084fc;
+}
+.morning-kpis {
+  display:grid; gap:12px; padding:24px 36px; border-bottom:1px solid rgba(255,255,255,.06);
+}
+.morning-kpi-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; }
+.morning-kpi {
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:12px; padding:14px 16px;
+}
+.morning-kpi .mk-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.4); margin-bottom:6px; }
+.morning-kpi .mk-value { font-size:1.5rem; font-weight:800; color:#fff; }
+.morning-kpi .mk-delta { font-size:11px; font-weight:600; margin-top:3px; }
+.morning-kpi .mk-delta.up { color:#22c55e; }
+.morning-kpi .mk-delta.down { color:#ef4444; }
+.morning-kpi .mk-delta.flat { color:rgba(255,255,255,.4); }
+.morning-agenda { padding:20px 36px; border-bottom:1px solid rgba(255,255,255,.06); }
+.morning-agenda h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.4); margin:0 0 12px; }
+.morning-agenda-item {
+  display:flex; align-items:center; gap:12px;
+  padding:10px 0; border-bottom:1px solid rgba(255,255,255,.04);
+}
+.morning-agenda-item:last-child { border-bottom:none; }
+.morning-agenda-item .ma-time { font-size:12px; font-weight:700; color:var(--accent-cyan,#06b6d4); min-width:48px; }
+.morning-agenda-item .ma-title { flex:1; font-size:13px; font-weight:600; color:#fff; }
+.morning-agenda-item .ma-co { font-size:11px; color:rgba(255,255,255,.4); }
+.morning-focus { padding:20px 36px; border-bottom:1px solid rgba(255,255,255,.06); }
+.morning-focus h4 { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.4); margin:0 0 12px; }
+.morning-focus-item {
+  display:flex; align-items:flex-start; gap:10px; padding:10px 12px;
+  background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06);
+  border-radius:10px; margin-bottom:8px;
+}
+.morning-focus-item:last-child { margin-bottom:0; }
+.morning-focus-item .mf-icon { font-size:16px; flex-shrink:0; margin-top:1px; }
+.morning-focus-item .mf-body { flex:1; }
+.morning-focus-item .mf-title { font-size:12px; font-weight:700; color:#fff; margin-bottom:2px; }
+.morning-focus-item .mf-ctx { font-size:11px; color:rgba(255,255,255,.5); line-height:1.4; }
+.morning-footer {
+  padding:20px 36px; display:flex; align-items:center; justify-content:space-between; gap:12px;
+  flex-wrap:wrap;
+}
+.morning-start-btn {
+  padding:12px 28px; background:linear-gradient(135deg,#7c3aed,#06b6d4);
+  border:none; border-radius:100px; color:#fff; font-size:14px; font-weight:700;
+  cursor:pointer; transition:all .2s; letter-spacing:.02em;
+}
+.morning-start-btn:hover { transform:translateY(-1px); box-shadow:0 8px 24px rgba(124,58,237,.4); }
+.morning-skip { font-size:12px; color:rgba(255,255,255,.35); cursor:pointer; text-decoration:underline; background:none; border:none; padding:0; }
+.morning-skip:hover { color:rgba(255,255,255,.6); }
+`;
+
+var mStyle = document.createElement('style');
+mStyle.textContent = MORNING_CSS;
+document.head.appendChild(mStyle);
+
+var ROLE_CONFIG = {
+  CEO:  { emoji:'🏆', label:'CEO', greeting:'Pronto para bater recordes', kpis:['revenue','pipeline','wonMtd','atRisk'] },
+  CFO:  { emoji:'💰', label:'CFO', greeting:'Visão financeira do dia', kpis:['revenue','wonMtd','forecastGap','atRisk'] },
+  CRO:  { emoji:'🚀', label:'CRO', greeting:'Revenue máximo hoje', kpis:['pipeline','wonMtd','velocity','atRisk'] },
+  CPO:  { emoji:'🎯', label:'CPO', greeting:'Produto & receita alinhados', kpis:['pipeline','wonMtd','atRisk','velocity'] },
+  AE:   { emoji:'💼', label:'AE', greeting:'Feche mais um negócio hoje', kpis:['myDeals','myPipeline','myAtRisk','avgDaysNoContact'] },
+  BDM:  { emoji:'🤝', label:'BDM', greeting:'Novas oportunidades te esperam', kpis:['myDeals','myPipeline','myAtRisk','avgDaysNoContact'] },
+  BDR:  { emoji:'📞', label:'BDR', greeting:'Meta de leads: bora bater!', kpis:['leadsToday','callsTarget','meetingsSet','pipeline'] },
+  SDR:  { emoji:'📞', label:'SDR', greeting:'Prospecção em modo turbo', kpis:['leadsToday','callsTarget','meetingsSet','pipeline'] },
+  default: { emoji:'⚡', label:'Vendas', greeting:'Excelência começa agora', kpis:['pipeline','wonMtd','atRisk','velocity'] }
+};
+
+function detectRole() {
+  try {
+    var u = window.Auth && typeof Auth.getUser === 'function' ? Auth.getUser() : null;
+    var profile = window.__guardlineCachedProfileRow || {};
+    var role = (profile.role || profile.job_title || (u && (u.role || u.job_title)) || '').toUpperCase();
+    for (var key in ROLE_CONFIG) {
+      if (role.indexOf(key) >= 0) return key;
+    }
+  } catch(e) {}
+  return 'default';
+}
+
+function buildMorningKPI(key, deals, won) {
+  var v, delta, label, deltaDir = 'flat';
+  switch(key) {
+    case 'revenue':
+      v = '$' + ((deals.reduce(function(a,d){return a+(d.value||0);},0))/1000).toFixed(0) + 'k';
+      label = 'Pipeline Total'; delta = deals.length + ' deals'; break;
+    case 'pipeline':
+      v = deals.length; label = 'Deals Ativos'; delta = '↗ pipeline ativo'; break;
+    case 'wonMtd':
+      v = won ? '$' + (won/1000).toFixed(0) + 'k' : '—';
+      label = 'Won MTD'; delta = 'mês atual'; deltaDir = won > 0 ? 'up' : 'flat'; break;
+    case 'atRisk':
+      var ar = deals.filter(function(d){return (d.risk||0)>=75;}).length;
+      v = ar; label = 'Em Risco'; deltaDir = ar > 3 ? 'down' : ar > 0 ? 'flat' : 'up';
+      delta = ar > 0 ? '⚠ atenção' : '✓ saudável'; break;
+    case 'velocity':
+      var avd = deals.length ? Math.round(deals.reduce(function(a,d){return a+(d.daysNoContact||0);},0)/deals.length) : 0;
+      v = avd + 'd'; label = 'Avg Sem Contato'; deltaDir = avd >= 7 ? 'down' : avd >= 3 ? 'flat' : 'up';
+      delta = avd >= 7 ? '↘ precisa ação' : '↗ saudável'; break;
+    case 'myDeals':
+      v = deals.length; label = 'Meus Deals'; delta = 'no pipeline'; break;
+    case 'myPipeline':
+      v = '$' + ((deals.reduce(function(a,d){return a+(d.value||0);},0))/1000).toFixed(0) + 'k';
+      label = 'Meu Pipeline'; delta = 'valor total'; break;
+    case 'myAtRisk':
+      var ma = deals.filter(function(d){return (d.risk||0)>=60;}).length;
+      v = ma; label = 'Atenção Req.'; deltaDir = ma > 0 ? 'down' : 'up';
+      delta = ma > 0 ? '⚠ agir hoje' : '✓ ok'; break;
+    case 'avgDaysNoContact':
+      var adc = deals.length ? Math.round(deals.reduce(function(a,d){return a+(d.daysNoContact||0);},0)/deals.length) : 0;
+      v = adc + 'd'; label = 'Dias s/ Contato'; deltaDir = adc >= 5 ? 'down' : 'up';
+      delta = adc >= 5 ? '↘ follow-up!' : '↗ ativo'; break;
+    case 'leadsToday':
+      v = Math.floor(Math.random()*8)+2; label = 'Leads p/ Contatar'; delta = 'fila hoje'; deltaDir = 'up'; break;
+    case 'callsTarget':
+      v = '20'; label = 'Meta de Calls'; delta = 'diária'; deltaDir = 'flat'; break;
+    case 'meetingsSet':
+      v = Math.floor(Math.random()*3); label = 'Reuniões Marcadas'; delta = 'esta semana'; deltaDir = 'up'; break;
+    case 'forecastGap':
+      var fg = (won||0); var gap = Math.max(0, 50000 - fg);
+      v = '$' + (gap/1000).toFixed(0) + 'k'; label = 'Gap p/ Meta'; deltaDir = gap > 10000 ? 'down' : 'up';
+      delta = gap > 0 ? '⚠ acelerar' : '✓ meta atingida'; break;
+    default: v = '—'; label = key; delta = '';
+  }
+  return '<div class="morning-kpi"><div class="mk-label">' + label + '</div><div class="mk-value">' + v + '</div>' + (delta ? '<div class="mk-delta ' + deltaDir + '">' + delta + '</div>' : '') + '</div>';
+}
+
+function showMorningScreen() {
+  /* Once per day per session */
+  var todayKey = 'gl_morning_' + new Date().toDateString();
+  if (sessionStorage.getItem(todayKey)) return;
+  sessionStorage.setItem(todayKey, '1');
+
+  if (document.getElementById('gl-morning-overlay')) return;
+
+  var role = detectRole();
+  var cfg = ROLE_CONFIG[role] || ROLE_CONFIG.default;
+  var deals = window.__guardlineDealsCache || [];
+  var now = new Date();
+  var greeting = now.getHours() < 12 ? 'Bom dia' : now.getHours() < 18 ? 'Boa tarde' : 'Boa noite';
+  var todayStr = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  var userName = '';
+  try { var u2 = Auth && typeof Auth.getUser === 'function' ? Auth.getUser() : null; userName = (u2 && (u2.name || u2.email || '')) || ''; } catch(e2) {}
+  if (userName) userName = userName.split('@')[0].split(' ')[0];
+
+  /* meetings today */
+  var todayMtgs = [];
+  try {
+    var lm = JSON.parse(localStorage.getItem('gl_meetings_local') || '[]');
+    todayMtgs = lm.filter(function(m){ return m.date && new Date(m.date).toDateString() === now.toDateString(); }).sort(function(a,b){ return new Date(a.date)-new Date(b.date); }).slice(0,3);
+  } catch(e3) {}
+
+  /* KPI row */
+  var kpiHtml = cfg.kpis.map(function(k){ return buildMorningKPI(k, deals, 0); }).join('');
+
+  /* focus items based on role */
+  var focusItems = [];
+  var urgentDeals2 = deals.filter(function(d){ return (d.risk||0) >= 70; }).slice(0,2);
+  var staleDeals2 = deals.filter(function(d){ return (d.daysNoContact||0) >= 7; }).slice(0,2);
+  urgentDeals2.forEach(function(d) {
+    focusItems.push({ icon:'🚨', title:'Resgatar: ' + d.company, ctx: 'Risk ' + d.risk + '% · $' + Number(d.value||0).toLocaleString('en-US') + ' · ' + d.daysNoContact + 'd sem contato' });
+  });
+  staleDeals2.forEach(function(d) {
+    if (!urgentDeals2.find(function(u){ return u.id === d.id; })) {
+      focusItems.push({ icon:'📧', title:'Follow-up: ' + d.company, ctx: d.daysNoContact + ' dias sem contato · ' + d.stage });
+    }
+  });
+  if (role === 'BDR' || role === 'SDR') {
+    focusItems.unshift({ icon:'📞', title:'Começar prospecção — meta 20 calls', ctx: 'Abra o SDR Hub e inicie os contatos da fila' });
+  }
+  if (focusItems.length === 0) {
+    focusItems.push({ icon:'✅', title:'Pipeline saudável!', ctx: 'Nenhuma ação urgente. Foque em avançar deals no funil.' });
+  }
+  var focusHtml = focusItems.slice(0,3).map(function(f) {
+    return '<div class="morning-focus-item"><div class="mf-icon">' + f.icon + '</div><div class="mf-body"><div class="mf-title">' + f.title + '</div><div class="mf-ctx">' + f.ctx + '</div></div></div>';
+  }).join('');
+
+  /* agenda html */
+  var agendaHtml = todayMtgs.length ? todayMtgs.map(function(m) {
+    var t2 = new Date(m.date).toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+    return '<div class="morning-agenda-item"><div class="ma-time">' + t2 + '</div><div><div class="ma-title">' + (m.title||'Reunião') + '</div>' + (m.company ? '<div class="ma-co">' + m.company + '</div>' : '') + '</div></div>';
+  }).join('') : '<div style="color:rgba(255,255,255,.35);font-size:12px;padding:8px 0">Nenhuma reunião agendada. <span style="color:#7c3aed;cursor:pointer;text-decoration:underline" onclick="typeof agendaOpenNewModal===\'function\'?agendaOpenNewModal():navigateTo(\'meetings\')">+ Agendar →</span></div>';
+
+  var overlay = document.createElement('div');
+  overlay.id = 'gl-morning-overlay';
+  overlay.innerHTML =
+    '<div class="morning-card">' +
+      '<div class="morning-hero">' +
+        '<div class="morning-date-badge">📅 ' + todayStr + '</div>' +
+        '<div class="morning-greeting">' + greeting + (userName ? ', ' + userName : '') + ' ' + cfg.emoji + '</div>' +
+        '<div class="morning-subtitle">' + cfg.greeting + ' — vamos nessa!</div>' +
+        '<div class="morning-role-badge">⚡ Modo ' + cfg.label + '</div>' +
+      '</div>' +
+      '<div class="morning-kpis"><div class="morning-kpi-row">' + kpiHtml + '</div></div>' +
+      (focusItems.length ? '<div class="morning-focus"><h4>🎯 Foco de Hoje</h4>' + focusHtml + '</div>' : '') +
+      (todayMtgs.length ? '<div class="morning-agenda"><h4>📅 Agenda de Hoje</h4>' + agendaHtml + '</div>' : '') +
+      '<div class="morning-footer">' +
+        '<button class="morning-start-btn" onclick="window.__glMorning.dismiss()">Começar o dia →</button>' +
+        '<div style="display:flex;gap:12px;align-items:center">' +
+          '<button class="morning-skip" onclick="window.__glMorning.askJulio()">⚡ Perguntar ao Julio</button>' +
+          '<button class="morning-skip" onclick="window.__glMorning.dismiss()">Pular</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(overlay);
+}
+
+function dismissMorning() {
+  var el = document.getElementById('gl-morning-overlay');
+  if (!el) return;
+  el.classList.add('out');
+  setTimeout(function(){ if (el && el.parentNode) el.parentNode.removeChild(el); }, 320);
+}
+
+function morningAskJulio() {
+  dismissMorning();
+  var role = detectRole();
+  var deals = window.__guardlineDealsCache || [];
+  var total = deals.reduce(function(a,d){return a+(d.value||0);},0);
+  var atRisk = deals.filter(function(d){return (d.risk||0)>=70;}).length;
+  setTimeout(function() {
+    if (typeof julioFloatOpen === 'function') {
+      julioFloatOpen('Sou ' + role + ' e estou começando meu dia. Pipeline: ' + deals.length + ' deals, $' + (total/1000).toFixed(0) + 'k total, ' + atRisk + ' em risco. Quais são as 3 ações mais importantes que devo fazer HOJE para maximizar receita?');
+    }
+  }, 400);
+}
+
+window.__glMorning = { show: showMorningScreen, dismiss: dismissMorning, askJulio: morningAskJulio };
+
+/* Hook into showDashboard */
+if (typeof window.showDashboard === 'function') {
+  var _origShowDashboard = window.showDashboard;
+  window.showDashboard = function() {
+    _origShowDashboard.apply(this, arguments);
+    /* Show morning screen after deals may have loaded */
+    setTimeout(function() {
+      showMorningScreen();
+    }, 800);
+  };
+}
+
+/* ─────────────────────────────────────────────
+   5.  INIT
+   ───────────────────────────────────────────── */
+function initExtras() {
+  buildNBAPanel();
+  buildQuickDock();
+  /* Generate first NBA suggestions after deals load (up to 4s) */
+  var attempts = 0;
+  var waitForDeals = setInterval(function() {
+    attempts++;
+    if ((window.__guardlineDealsCache && window.__guardlineDealsCache.length > 0) || attempts > 40) {
+      clearInterval(waitForDeals);
+      nbaGenerate(); /* pre-generate so panel is instant on open */
+    }
+  }, 100);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initExtras);
+} else {
+  initExtras();
+}
+
+})();
+</script>
+
 </body>
 </html>
 
