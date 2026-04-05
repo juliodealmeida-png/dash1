@@ -31972,6 +31972,728 @@ else initBatch5();
 })();
 </script>
 
+<!-- ============================================================
+     BATCH 6: Lead Scoring, AE Scorecard, Pipeline Health,
+               Customer Pulse, Pricing Intel, Sales Coaching Hub
+     ============================================================ -->
+<script>
+(function(){
+'use strict';
+
+/* ─────────────────────────────────────────────
+   1. LEAD SCORING ENGINE
+   ───────────────────────────────────────────── */
+var lsCSS = `
+#gl-ls-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-ls-modal.open { display:flex; }
+#gl-ls-box {
+  background:#fff; border-radius:16px; width:820px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-ls-box { background:#161b22; color:#e6edf3; }
+#gl-ls-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#1e1b4b,#312e81); color:#fff;
+  border-radius:16px 16px 0 0;
+}
+#gl-ls-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-ls-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.ls-score-ring {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:56px; height:56px; border-radius:50%; font-size:16px; font-weight:900;
+  flex-shrink:0;
+}
+.ls-ring-hot { background:linear-gradient(135deg,#dc2626,#f97316); color:#fff; box-shadow:0 0 12px rgba(220,38,38,.4); }
+.ls-ring-warm { background:linear-gradient(135deg,#f59e0b,#fbbf24); color:#fff; box-shadow:0 0 12px rgba(245,158,11,.3); }
+.ls-ring-cold { background:linear-gradient(135deg,#3b82f6,#60a5fa); color:#fff; }
+.ls-lead-row {
+  display:flex; align-items:center; gap:14px; padding:14px 16px;
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:10px;
+  transition:box-shadow .2s; cursor:pointer;
+}
+.ls-lead-row:hover { box-shadow:0 4px 16px rgba(0,0,0,.08); }
+.gl-dark .ls-lead-row { background:#21262d; border-color:#30363d; }
+.ls-lead-info { flex:1; }
+.ls-lead-name { font-weight:700; font-size:14px; }
+.ls-lead-co { font-size:12px; color:#64748b; }
+.ls-lead-signals { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.ls-signal-tag {
+  padding:2px 8px; border-radius:6px; font-size:10px; font-weight:600;
+}
+.ls-sig-intent { background:#fef3c7; color:#92400e; }
+.ls-sig-fit { background:#dbeafe; color:#1e40af; }
+.ls-sig-engage { background:#dcfce7; color:#166534; }
+.ls-sig-urg { background:#fee2e2; color:#991b1b; }
+.ls-score-bar-wrap { width:100px; height:8px; background:#f1f5f9; border-radius:4px; overflow:hidden; }
+.ls-score-bar { height:100%; border-radius:4px; transition:width .8s; }
+.ls-bar-hot { background:linear-gradient(90deg,#dc2626,#f97316); }
+.ls-bar-warm { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+.ls-bar-cold { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+.ls-filter-row { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+.ls-filter-btn {
+  padding:6px 14px; border-radius:16px; font-size:12px; font-weight:600;
+  cursor:pointer; border:1px solid #e5e7eb; background:#f8fafc; color:#64748b;
+  transition:all .2s;
+}
+.ls-filter-btn.active { background:#6366f1; color:#fff; border-color:#6366f1; }
+`;
+
+var LS_LEADS = [
+  {name:'Carlos Mendez',company:'TechCorp BR',score:94,tier:'hot',signals:['intent','fit','urgency'],role:'CTO',size:'500+'},
+  {name:'Ana Lima',company:'Fintech Solutions',score:87,tier:'hot',signals:['intent','engage'],role:'CEO',size:'200-500'},
+  {name:'Roberto Silva',company:'Varejo Digital',score:76,tier:'warm',signals:['fit','engage'],role:'VP Vendas',size:'100-200'},
+  {name:'Patricia Costa',company:'HealthTech SA',score:71,tier:'warm',signals:['fit'],role:'CRO',size:'200-500'},
+  {name:'Marcos Alves',company:'EdTech BR',score:65,tier:'warm',signals:['engage'],role:'Diretor Comercial',size:'50-100'},
+  {name:'Julia Ferreira',company:'Logistics Co',score:48,tier:'cold',signals:['fit'],role:'Gerente TI',size:'50-100'},
+  {name:'Diego Santos',company:'RetailCo',score:38,tier:'cold',signals:[],role:'Analista',size:'10-50'},
+  {name:'Larissa Nunes',company:'ConsultFirm',score:29,tier:'cold',signals:[],role:'Sócio',size:'10-50'}
+];
+
+window.__glLS = {
+  open: function(){
+    if(!document.getElementById('gl-ls-modal')) buildLSModal();
+    document.getElementById('gl-ls-modal').classList.add('open');
+    renderLeads('all');
+  },
+  close: function(){ var m=document.getElementById('gl-ls-modal'); if(m) m.classList.remove('open'); },
+  filter: function(tier){
+    document.querySelectorAll('.ls-filter-btn').forEach(function(b){ b.classList.toggle('active',b.dataset.tier===tier); });
+    renderLeads(tier);
+  }
+};
+
+function buildLSModal(){
+  var s=document.createElement('style'); s.textContent=lsCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-ls-modal';
+  m.innerHTML=
+    '<div id="gl-ls-box">'+
+      '<div id="gl-ls-head">'+
+        '<h2>🎯 Lead Scoring Engine</h2>'+
+        '<button onclick="window.__glLS.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8">✕</button>'+
+      '</div>'+
+      '<div id="gl-ls-body">'+
+        '<div class="ls-filter-row">'+
+          '<button class="ls-filter-btn active" data-tier="all" onclick="window.__glLS.filter(\'all\')">Todos ('+LS_LEADS.length+')</button>'+
+          '<button class="ls-filter-btn" data-tier="hot" onclick="window.__glLS.filter(\'hot\')">🔴 Hot ('+LS_LEADS.filter(function(l){return l.tier==='hot';}).length+')</button>'+
+          '<button class="ls-filter-btn" data-tier="warm" onclick="window.__glLS.filter(\'warm\')">🟡 Warm ('+LS_LEADS.filter(function(l){return l.tier==='warm';}).length+')</button>'+
+          '<button class="ls-filter-btn" data-tier="cold" onclick="window.__glLS.filter(\'cold\')">🔵 Cold ('+LS_LEADS.filter(function(l){return l.tier==='cold';}).length+')</button>'+
+        '</div>'+
+        '<div id="gl-ls-list"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glLS.close(); });
+  document.body.appendChild(m);
+}
+
+var sigLabels={intent:'🔥 Intent',fit:'✅ Fit',engage:'💬 Engage',urgency:'⚡ Urgência'};
+function renderLeads(tier){
+  var list=document.getElementById('gl-ls-list');
+  if(!list) return;
+  var filtered=tier==='all'?LS_LEADS:LS_LEADS.filter(function(l){ return l.tier===tier; });
+  list.innerHTML=filtered.map(function(l){
+    return '<div class="ls-lead-row">'+
+      '<div class="ls-score-ring ls-ring-'+l.tier+'">'+l.score+'</div>'+
+      '<div class="ls-lead-info">'+
+        '<div class="ls-lead-name">'+l.name+' <span style="font-weight:400;font-size:11px;color:#94a3b8;">'+l.role+'</span></div>'+
+        '<div class="ls-lead-co">'+l.company+' · '+l.size+' funcionários</div>'+
+        '<div class="ls-lead-signals">'+
+          l.signals.map(function(s){ return '<span class="ls-signal-tag ls-sig-'+s+'">'+sigLabels[s]+'</span>'; }).join('')+
+        '</div>'+
+      '</div>'+
+      '<div style="text-align:right;">'+
+        '<div class="ls-score-bar-wrap"><div class="ls-score-bar ls-bar-'+l.tier+'" style="width:'+l.score+'%"></div></div>'+
+        '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">'+l.score+'/100</div>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+  setTimeout(function(){
+    list.querySelectorAll('.ls-score-bar').forEach(function(b){
+      var w=b.style.width; b.style.width='0'; setTimeout(function(){ b.style.width=w; },50);
+    });
+  },50);
+}
+
+/* ─────────────────────────────────────────────
+   2. AE SCORECARD
+   ───────────────────────────────────────────── */
+var aeCSS = `
+#gl-ae-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-ae-modal.open { display:flex; }
+#gl-ae-box {
+  background:#fff; border-radius:16px; width:860px; max-width:96vw;
+  max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-ae-box { background:#161b22; color:#e6edf3; }
+#gl-ae-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-ae-head { border-color:#30363d; }
+#gl-ae-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-ae-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.ae-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; margin-bottom:20px; }
+.ae-card {
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:14px;
+  padding:18px 20px; cursor:pointer; transition:all .2s;
+}
+.ae-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.1); transform:translateY(-2px); }
+.gl-dark .ae-card { background:#21262d; border-color:#30363d; }
+.ae-card.selected { border-color:#6366f1; box-shadow:0 0 0 2px #6366f130; }
+.ae-avatar {
+  width:48px; height:48px; border-radius:50%; font-size:20px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff;
+  font-weight:700; margin-bottom:10px;
+}
+.ae-name { font-weight:700; font-size:15px; }
+.ae-role { font-size:11px; color:#64748b; margin-bottom:10px; }
+.ae-kpi-row { display:flex; justify-content:space-between; gap:8px; }
+.ae-kpi { text-align:center; }
+.ae-kpi-val { font-size:18px; font-weight:800; }
+.ae-kpi-lbl { font-size:9px; color:#94a3b8; }
+.ae-quota-bar-wrap { margin-top:10px; height:6px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
+.ae-quota-bar { height:100%; border-radius:3px; transition:width .8s; }
+.ae-detail { background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; padding:20px; }
+.gl-dark .ae-detail { background:#21262d; border-color:#30363d; }
+.ae-detail-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.ae-detail-kpi { text-align:center; padding:14px; background:#fff; border:1px solid #f1f5f9; border-radius:10px; }
+.gl-dark .ae-detail-kpi { background:#161b22; border-color:#30363d; }
+.ae-detail-kpi-val { font-size:24px; font-weight:800; color:#6366f1; }
+.ae-detail-kpi-lbl { font-size:11px; color:#64748b; }
+`;
+
+var AE_REPS=[
+  {name:'Luiza Carvalho',role:'Account Executive',emoji:'👩',quota:85,deals_open:8,won:5,pipeline:420000,avg_cycle:24,activities:142,email_rate:38,call_rate:22},
+  {name:'Pedro Monteiro',role:'Account Executive',emoji:'👨',quota:72,deals_open:6,won:4,pipeline:310000,avg_cycle:31,activities:98,email_rate:29,call_rate:18},
+  {name:'Camila Torres',role:'Sr. Account Executive',emoji:'👩',quota:94,deals_open:11,won:8,pipeline:580000,avg_cycle:19,activities:187,email_rate:45,call_rate:31},
+  {name:'Rafael Gomes',role:'Account Executive',emoji:'👨',quota:61,deals_open:5,won:3,pipeline:240000,avg_cycle:38,activities:76,email_rate:22,call_rate:14}
+];
+
+var selectedAE=0;
+window.__glAE = {
+  open: function(){
+    if(!document.getElementById('gl-ae-modal')) buildAEModal();
+    document.getElementById('gl-ae-modal').classList.add('open');
+    renderAEGrid();
+    showAEDetail(0);
+  },
+  close: function(){ var m=document.getElementById('gl-ae-modal'); if(m) m.classList.remove('open'); },
+  select: function(i){ selectedAE=i; showAEDetail(i); }
+};
+
+function buildAEModal(){
+  var s=document.createElement('style'); s.textContent=aeCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-ae-modal';
+  m.innerHTML=
+    '<div id="gl-ae-box">'+
+      '<div id="gl-ae-head">'+
+        '<h2>🏅 AE Scorecard</h2>'+
+        '<button onclick="window.__glAE.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-ae-body">'+
+        '<div id="gl-ae-grid" class="ae-grid"></div>'+
+        '<div id="gl-ae-detail" class="ae-detail"></div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glAE.close(); });
+  document.body.appendChild(m);
+}
+
+function quotaColor(q){ if(q>=85) return '#10b981'; if(q>=70) return '#f59e0b'; return '#ef4444'; }
+
+function renderAEGrid(){
+  var grid=document.getElementById('gl-ae-grid');
+  if(!grid) return;
+  grid.innerHTML=AE_REPS.map(function(ae,i){
+    var clr=quotaColor(ae.quota);
+    return '<div class="ae-card'+(i===selectedAE?' selected':'')+'" onclick="window.__glAE.select('+i+')">'+
+      '<div class="ae-avatar">'+ae.emoji+'</div>'+
+      '<div class="ae-name">'+ae.name+'</div>'+
+      '<div class="ae-role">'+ae.role+'</div>'+
+      '<div class="ae-kpi-row">'+
+        '<div class="ae-kpi"><div class="ae-kpi-val" style="color:'+clr+'">'+ae.quota+'%</div><div class="ae-kpi-lbl">Quota</div></div>'+
+        '<div class="ae-kpi"><div class="ae-kpi-val">'+ae.won+'</div><div class="ae-kpi-lbl">Fechados</div></div>'+
+        '<div class="ae-kpi"><div class="ae-kpi-val">'+ae.deals_open+'</div><div class="ae-kpi-lbl">Abertos</div></div>'+
+      '</div>'+
+      '<div class="ae-quota-bar-wrap"><div class="ae-quota-bar" style="width:'+ae.quota+'%;background:'+clr+';"></div></div>'+
+    '</div>';
+  }).join('');
+}
+
+function showAEDetail(i){
+  selectedAE=i;
+  var ae=AE_REPS[i];
+  var detail=document.getElementById('gl-ae-detail');
+  if(!detail||!ae) return;
+  // Update selected state
+  document.querySelectorAll('.ae-card').forEach(function(c,j){ c.classList.toggle('selected',j===i); });
+  var clr=quotaColor(ae.quota);
+  detail.innerHTML=
+    '<h3 style="margin:0 0 14px;font-size:16px;">'+ae.emoji+' '+ae.name+' — Detalhamento</h3>'+
+    '<div class="ae-detail-kpis">'+
+      '<div class="ae-detail-kpi"><div class="ae-detail-kpi-val" style="color:'+clr+'">'+ae.quota+'%</div><div class="ae-detail-kpi-lbl">% Quota Atingida</div></div>'+
+      '<div class="ae-detail-kpi"><div class="ae-detail-kpi-val">R$'+(ae.pipeline/1000).toFixed(0)+'K</div><div class="ae-detail-kpi-lbl">Pipeline Ativo</div></div>'+
+      '<div class="ae-detail-kpi"><div class="ae-detail-kpi-val">'+ae.avg_cycle+'d</div><div class="ae-detail-kpi-lbl">Ciclo Médio</div></div>'+
+      '<div class="ae-detail-kpi"><div class="ae-detail-kpi-val">'+ae.activities+'</div><div class="ae-detail-kpi-lbl">Atividades/Mês</div></div>'+
+    '</div>'+
+    '<div style="font-size:13px;margin-bottom:10px;font-weight:700;">📊 Taxas de Conversão</div>'+
+    '<div style="display:flex;gap:12px;flex-wrap:wrap;">'+
+      '<div style="flex:1;min-width:140px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#6366f1;">'+ae.email_rate+'%</div><div style="font-size:11px;color:#94a3b8;">Email → Resposta</div></div>'+
+      '<div style="flex:1;min-width:140px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#6366f1;">'+ae.call_rate+'%</div><div style="font-size:11px;color:#94a3b8;">Call → Meeting</div></div>'+
+      '<div style="flex:1;min-width:140px;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:800;color:#6366f1;">'+ae.won+'</div><div style="font-size:11px;color:#94a3b8;">Deals Fechados</div></div>'+
+    '</div>';
+}
+
+/* ─────────────────────────────────────────────
+   3. PIPELINE HEALTH SCORE (command-center card)
+   ───────────────────────────────────────────── */
+var phCSS = `
+#gl-ph-card {
+  background:#fff; border-radius:14px; border:1px solid #e5e7eb;
+  padding:20px 22px; cursor:default;
+}
+.gl-dark #gl-ph-card { background:#161b22; border-color:#30363d; }
+.ph-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.ph-title { font-size:14px; font-weight:700; display:flex; align-items:center; gap:6px; }
+.ph-score-big { font-size:42px; font-weight:900; line-height:1; }
+.ph-grade { font-size:13px; font-weight:600; padding:2px 10px; border-radius:10px; }
+.ph-grade-A { background:#dcfce7; color:#15803d; }
+.ph-grade-B { background:#dbeafe; color:#1d4ed8; }
+.ph-grade-C { background:#fef3c7; color:#b45309; }
+.ph-factor-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.ph-factor-lbl { width:140px; font-size:12px; color:#64748b; flex-shrink:0; }
+.gl-dark .ph-factor-lbl { color:#8b949e; }
+.ph-factor-bar-wrap { flex:1; height:7px; background:#f1f5f9; border-radius:3px; overflow:hidden; }
+.ph-factor-bar { height:100%; border-radius:3px; transition:width 1s; }
+.ph-factor-val { width:32px; text-align:right; font-size:11px; font-weight:600; color:#6366f1; }
+`;
+
+function buildPipelineHealthCard(){
+  if(document.getElementById('gl-ph-card')) return;
+  var grid=document.getElementById('command-grid');
+  if(!grid) return;
+  var s=document.createElement('style'); s.textContent=phCSS; document.head.appendChild(s);
+  var deals=window.__guardlineDealsCache||[];
+  var factors=[
+    {name:'Cobertura de Pipeline',score:82,color:'#10b981'},
+    {name:'Velocidade de Progresso',score:74,color:'#6366f1'},
+    {name:'Qualidade dos Leads',score:88,color:'#10b981'},
+    {name:'Concentração de Risco',score:61,color:'#f59e0b'},
+    {name:'Atividade de Follow-up',score:79,color:'#6366f1'},
+    {name:'Forecast Accuracy',score:85,color:'#10b981'}
+  ];
+  var overall=Math.round(factors.reduce(function(a,f){ return a+f.score; },0)/factors.length);
+  var grade=overall>=80?'A':overall>=65?'B':'C';
+  var gradeColor=grade==='A'?'#10b981':grade==='B'?'#3b82f6':'#f59e0b';
+  var card=document.createElement('div'); card.id='gl-ph-card';
+  card.innerHTML=
+    '<div class="ph-header">'+
+      '<div class="ph-title">🏥 Pipeline Health Score</div>'+
+      '<span class="ph-grade ph-grade-'+grade+'">Grade '+grade+'</span>'+
+    '</div>'+
+    '<div style="display:flex;align-items:flex-end;gap:10px;margin-bottom:16px;">'+
+      '<div class="ph-score-big" style="color:'+gradeColor+'">'+overall+'</div>'+
+      '<div style="font-size:12px;color:#94a3b8;margin-bottom:6px;">/100</div>'+
+    '</div>'+
+    factors.map(function(f){
+      return '<div class="ph-factor-row">'+
+        '<div class="ph-factor-lbl">'+f.name+'</div>'+
+        '<div class="ph-factor-bar-wrap"><div class="ph-factor-bar" style="width:'+f.score+'%;background:'+f.color+'"></div></div>'+
+        '<div class="ph-factor-val">'+f.score+'</div>'+
+      '</div>';
+    }).join('');
+  grid.appendChild(card);
+  setTimeout(function(){
+    card.querySelectorAll('.ph-factor-bar').forEach(function(b){
+      var w=b.style.width; b.style.width='0'; setTimeout(function(){ b.style.width=w; },80);
+    });
+  },200);
+}
+
+/* ─────────────────────────────────────────────
+   4. CUSTOMER PULSE (NPS + Satisfaction)
+   ───────────────────────────────────────────── */
+var pulseCSS = `
+#gl-pulse-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-pulse-modal.open { display:flex; }
+#gl-pulse-box {
+  background:#fff; border-radius:16px; width:760px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-pulse-box { background:#161b22; color:#e6edf3; }
+#gl-pulse-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#0369a1,#0284c7); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-pulse-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-pulse-body { flex:1; overflow-y:auto; padding:24px 28px; }
+.nps-big { font-size:72px; font-weight:900; color:#0369a1; text-align:center; line-height:1; }
+.gl-dark .nps-big { color:#38bdf8; }
+.nps-label { text-align:center; font-size:13px; color:#64748b; margin-bottom:20px; }
+.nps-breakdown { display:flex; gap:10px; margin-bottom:20px; }
+.nps-seg {
+  flex:1; padding:14px; border-radius:10px; text-align:center;
+}
+.nps-seg-prom { background:#dcfce7; }
+.nps-seg-pass { background:#fef3c7; }
+.nps-seg-det { background:#fee2e2; }
+.nps-seg-val { font-size:26px; font-weight:800; }
+.nps-seg-prom .nps-seg-val { color:#15803d; }
+.nps-seg-pass .nps-seg-val { color:#b45309; }
+.nps-seg-det .nps-seg-val { color:#b91c1c; }
+.nps-seg-lbl { font-size:11px; margin-top:4px; font-weight:600; }
+.pulse-feedback {
+  padding:14px 16px; background:#f9fafb; border:1px solid #e5e7eb;
+  border-radius:10px; margin-bottom:10px;
+}
+.gl-dark .pulse-feedback { background:#21262d; border-color:#30363d; }
+.pulse-fb-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.pulse-fb-name { font-weight:700; font-size:13px; }
+.pulse-fb-score {
+  padding:2px 8px; border-radius:8px; font-size:12px; font-weight:700;
+}
+.pulse-fb-score.prom { background:#dcfce7; color:#15803d; }
+.pulse-fb-score.pass { background:#fef3c7; color:#b45309; }
+.pulse-fb-score.det { background:#fee2e2; color:#b91c1c; }
+.pulse-fb-text { font-size:12px; color:#64748b; line-height:1.6; }
+.gl-dark .pulse-fb-text { color:#8b949e; }
+`;
+
+var PULSE_DATA=[
+  {name:'TechCorp BR',score:10,text:'Melhor decisão que tomamos. O ROI foi muito acima do esperado.',type:'prom'},
+  {name:'Fintech Solutions',score:9,text:'Suporte excelente e plataforma intuitiva. Recomendo para todos.',type:'prom'},
+  {name:'HealthTech SA',score:8,text:'Muito satisfeitos. A integração com nosso ERP foi tranquila.',type:'prom'},
+  {name:'Varejo Digital',score:7,text:'Produto bom, mas onboarding poderia ser mais rápido.',type:'pass'},
+  {name:'LogisticsCo',score:7,text:'Estamos usando bem, embora alguns relatórios precisem de ajuste.',type:'pass'},
+  {name:'RetailCo',score:5,text:'Tivemos alguns problemas com a sincronização de dados no início.',type:'det'},
+  {name:'SmallBiz Ltd',score:4,text:'Esperávamos mais funcionalidades para o nosso segmento.',type:'det'}
+];
+
+window.__glPulse = {
+  open: function(){
+    if(!document.getElementById('gl-pulse-modal')) buildPulseModal();
+    document.getElementById('gl-pulse-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-pulse-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildPulseModal(){
+  var s=document.createElement('style'); s.textContent=pulseCSS; document.head.appendChild(s);
+  var proms=PULSE_DATA.filter(function(f){ return f.type==='prom'; }).length;
+  var dets=PULSE_DATA.filter(function(f){ return f.type==='det'; }).length;
+  var nps=Math.round((proms/PULSE_DATA.length)*100-(dets/PULSE_DATA.length)*100);
+  var m=document.createElement('div'); m.id='gl-pulse-modal';
+  m.innerHTML=
+    '<div id="gl-pulse-box">'+
+      '<div id="gl-pulse-head">'+
+        '<h2>💙 Customer Pulse & NPS</h2>'+
+        '<button onclick="window.__glPulse.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#bae6fd">✕</button>'+
+      '</div>'+
+      '<div id="gl-pulse-body">'+
+        '<div class="nps-big">'+nps+'</div>'+
+        '<div class="nps-label">Net Promoter Score — <strong>'+(nps>=50?'Excelente':nps>=30?'Bom':'Precisa melhorar')+'</strong> · Baseado em '+PULSE_DATA.length+' respostas</div>'+
+        '<div class="nps-breakdown">'+
+          '<div class="nps-seg nps-seg-prom"><div class="nps-seg-val">'+proms+'</div><div class="nps-seg-lbl">😍 Promotores</div></div>'+
+          '<div class="nps-seg nps-seg-pass"><div class="nps-seg-val">'+PULSE_DATA.filter(function(f){ return f.type==='pass'; }).length+'</div><div class="nps-seg-lbl">😐 Passivos</div></div>'+
+          '<div class="nps-seg nps-seg-det"><div class="nps-seg-val">'+dets+'</div><div class="nps-seg-lbl">😤 Detratores</div></div>'+
+        '</div>'+
+        '<h4 style="font-size:14px;font-weight:700;margin:0 0 12px;">💬 Feedback Recente</h4>'+
+        PULSE_DATA.map(function(f){
+          return '<div class="pulse-feedback">'+
+            '<div class="pulse-fb-head">'+
+              '<span class="pulse-fb-name">'+f.name+'</span>'+
+              '<span class="pulse-fb-score '+f.type+'">'+f.score+'/10</span>'+
+            '</div>'+
+            '<div class="pulse-fb-text">"'+f.text+'"</div>'+
+          '</div>';
+        }).join('')+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glPulse.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   5. PRICING INTELLIGENCE
+   ───────────────────────────────────────────── */
+var pricingCSS = `
+#gl-pricing-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-pricing-modal.open { display:flex; }
+#gl-pricing-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-pricing-box { background:#161b22; color:#e6edf3; }
+#gl-pricing-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.gl-dark #gl-pricing-head { border-color:#30363d; }
+#gl-pricing-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-pricing-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.pricing-compare-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:20px; }
+.pricing-compare-table th {
+  padding:10px 14px; text-align:center; font-weight:700; font-size:12px;
+  background:#f8fafc; border-bottom:2px solid #e5e7eb;
+}
+.gl-dark .pricing-compare-table th { background:#21262d; border-color:#30363d; }
+.pricing-compare-table td { padding:10px 14px; border-bottom:1px solid #f1f5f9; text-align:center; }
+.gl-dark .pricing-compare-table td { border-color:#30363d; }
+.pricing-compare-table td:first-child { text-align:left; font-weight:600; }
+.pricing-compare-table tr.our-row td { background:#eff6ff; font-weight:700; }
+.gl-dark .pricing-compare-table tr.our-row td { background:#1e3a5f22; }
+.pricing-our { color:#3b82f6; }
+.check-y { color:#10b981; font-size:16px; }
+.check-n { color:#ef4444; font-size:16px; }
+.check-p { color:#f59e0b; font-size:14px; }
+.pricing-insight {
+  padding:14px 18px; background:#f0fdf4; border:1px solid #86efac;
+  border-radius:10px; font-size:13px; color:#14532d; margin-bottom:12px;
+}
+.gl-dark .pricing-insight { background:#14532d22; color:#86efac; border-color:#166534; }
+`;
+
+window.__glPricing = {
+  open: function(){
+    if(!document.getElementById('gl-pricing-modal')) buildPricingModal();
+    document.getElementById('gl-pricing-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-pricing-modal'); if(m) m.classList.remove('open'); }
+};
+
+function buildPricingModal(){
+  var s=document.createElement('style'); s.textContent=pricingCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-pricing-modal';
+  m.innerHTML=
+    '<div id="gl-pricing-box">'+
+      '<div id="gl-pricing-head">'+
+        '<h2>💲 Pricing Intelligence</h2>'+
+        '<button onclick="window.__glPricing.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#6b7280">✕</button>'+
+      '</div>'+
+      '<div id="gl-pricing-body">'+
+        '<h4 style="margin:0 0 14px;font-size:14px;font-weight:700;">📊 Comparativo de Preços vs Mercado</h4>'+
+        '<table class="pricing-compare-table">'+
+          '<thead><tr>'+
+            '<th style="text-align:left;">Produto/Plan</th>'+
+            '<th>Preço/usuário</th>'+
+            '<th>Mínimo</th>'+
+            '<th>IA Nativa</th>'+
+            '<th>Suporte PT-BR</th>'+
+            '<th>LGPD</th>'+
+          '</tr></thead>'+
+          '<tbody>'+
+            '<tr class="our-row"><td class="pricing-our">⭐ Guardline Pro</td><td class="pricing-our">R$149</td><td class="pricing-our">5 users</td><td class="check-y">✓</td><td class="check-y">✓</td><td class="check-y">✓</td></tr>'+
+            '<tr><td>Salesforce Essentials</td><td>R$380</td><td>5 users</td><td class="check-p">~</td><td class="check-n">✗</td><td class="check-p">~</td></tr>'+
+            '<tr><td>HubSpot Sales Hub</td><td>R$220</td><td>2 users</td><td class="check-p">~</td><td class="check-p">~</td><td class="check-y">✓</td></tr>'+
+            '<tr><td>Pipedrive Advanced</td><td>R$160</td><td>1 user</td><td class="check-n">✗</td><td class="check-n">✗</td><td class="check-y">✓</td></tr>'+
+            '<tr><td>RD Station CRM Pro</td><td>R$129</td><td>3 users</td><td class="check-n">✗</td><td class="check-y">✓</td><td class="check-y">✓</td></tr>'+
+          '</tbody>'+
+        '</table>'+
+        '<div class="pricing-insight">💡 <strong>Posicionamento:</strong> Guardline oferece a melhor relação custo-benefício com IA nativa, suporte PT-BR e compliance LGPD. Principal diferencial vs. RD Station: IA Julio K25 e analytics enterprise.</div>'+
+        '<h4 style="margin:14px 0 12px;font-size:14px;font-weight:700;">🎯 Estratégias de Pricing por Segmento</h4>'+
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'+
+          '<div style="padding:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">'+
+            '<div style="font-weight:700;margin-bottom:8px;">🏢 Enterprise (500+ funcionários)</div>'+
+            '<div style="font-size:12px;color:#64748b;line-height:1.8;">• Contrato anual com desconto 20%<br>• Onboarding dedicado incluso<br>• SLA 99.9% e suporte 24/7<br>• Seat mínimo: 25 usuários</div>'+
+          '</div>'+
+          '<div style="padding:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">'+
+            '<div style="font-weight:700;margin-bottom:8px;">🚀 Scale-up (50-200 func.)</div>'+
+            '<div style="font-size:12px;color:#64748b;line-height:1.8;">• Plano Growth com 3 meses free<br>• Migração gratuita de CRM<br>• Treinamento virtual incluso<br>• Seat mínimo: 5 usuários</div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glPricing.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   6. SALES COACHING HUB
+   ───────────────────────────────────────────── */
+var coachCSS = `
+#gl-coach-modal {
+  display:none; position:fixed; inset:0; z-index:10100;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  align-items:center; justify-content:center;
+}
+#gl-coach-modal.open { display:flex; }
+#gl-coach-box {
+  background:#fff; border-radius:16px; width:800px; max-width:96vw;
+  max-height:88vh; overflow:hidden; display:flex; flex-direction:column;
+  box-shadow:0 32px 80px rgba(0,0,0,.4);
+}
+.gl-dark #gl-coach-box { background:#161b22; color:#e6edf3; }
+#gl-coach-head {
+  padding:20px 28px; border-bottom:1px solid #e5e7eb;
+  display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg,#7c3aed,#6d28d9); color:#fff; border-radius:16px 16px 0 0;
+}
+#gl-coach-head h2 { margin:0; font-size:20px; font-weight:700; }
+#gl-coach-body { flex:1; overflow-y:auto; padding:20px 24px; }
+.coach-rep-row {
+  display:flex; align-items:flex-start; gap:14px; padding:18px 16px;
+  background:#f9fafb; border:1px solid #e5e7eb; border-radius:12px; margin-bottom:12px;
+}
+.gl-dark .coach-rep-row { background:#21262d; border-color:#30363d; }
+.coach-avatar {
+  width:44px; height:44px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; font-size:18px; flex-shrink:0;
+  background:linear-gradient(135deg,#7c3aed,#a78bfa); color:#fff; font-weight:700;
+}
+.coach-rep-info { flex:1; }
+.coach-rep-name { font-weight:700; font-size:14px; }
+.coach-rep-quota { font-size:12px; margin-top:2px; }
+.coach-focus {
+  display:inline-block; padding:3px 10px; border-radius:8px; font-size:11px;
+  font-weight:600; margin:6px 0 8px; background:#ede9fe; color:#7c3aed;
+}
+.coach-tip {
+  font-size:12px; color:#64748b; line-height:1.7; background:#faf5ff;
+  border-left:3px solid #7c3aed; padding:8px 12px; border-radius:0 8px 8px 0;
+}
+.gl-dark .coach-tip { background:#2e1065; color:#c4b5fd; }
+.coach-action-btn {
+  margin-top:8px; padding:6px 14px; border-radius:8px; font-size:12px;
+  font-weight:600; cursor:pointer; border:none; background:#7c3aed; color:#fff;
+  transition:opacity .2s;
+}
+.coach-action-btn:hover { opacity:.85; }
+.coach-ai-out {
+  margin-top:10px; padding:10px 14px; background:#faf5ff;
+  border:1px solid #ddd6fe; border-radius:8px; font-size:12px;
+  color:#4c1d95; display:none; line-height:1.7;
+}
+.gl-dark .coach-ai-out { background:#2e106522; color:#c4b5fd; border-color:#7c3aed; }
+`;
+
+var COACH_DATA=[
+  {name:'Pedro Monteiro',emoji:'👨',quota:72,focus:'Email Response Rate',tip:'Pedro, sua taxa de resposta de email está 9pp abaixo da média do time. Tente personalizar as primeiras 2 linhas com dados específicos da empresa do prospect. Exemplo: mencione a última contratação de VP de Vendas que apareceu no LinkedIn deles.',ai_prompt:'Crie 3 variações de abertura de email personalizado para prospect do setor financeiro com 200-500 funcionários'},
+  {name:'Rafael Gomes',emoji:'👨',quota:61,focus:'Call-to-Meeting Rate',tip:'Rafael, seu ciclo médio de 38 dias é 36% mais longo que o time. O principal gap está na transição de discovery para proposta. Sugiro usar o framework MEDDIC para qualificar mais rápido e identificar o economic buyer já na primeira call.',ai_prompt:'Crie um script de discovery call usando MEDDIC framework para produto SaaS B2B'},
+  {name:'Luiza Carvalho',emoji:'👩',quota:85,focus:'Negociação Enterprise',tip:'Luiza está performando muito bem! Para o próximo nível, foco em aumentar o ticket médio por deal. Técnica: na proposta, sempre apresentar 3 opções (bom/melhor/premium) e ancorar no premium primeiro.',ai_prompt:'Crie uma estratégia de upsell para accounts enterprise que já usam o plano básico há 6 meses'},
+  {name:'Camila Torres',emoji:'👩',quota:94,focus:'Team Leader Potential',tip:'Camila é a top performer do time com 94% de quota e 19 dias de ciclo. Recomendamos transition path para Senior AE com responsabilidade de mentorar Pedro e Rafael em suas principais lacunas.',ai_prompt:'Crie um plano de 90 dias para transição de top AE para Senior AE com responsabilidades de coaching'}
+];
+
+window.__glCoach = {
+  open: function(){
+    if(!document.getElementById('gl-coach-modal')) buildCoachModal();
+    document.getElementById('gl-coach-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-coach-modal'); if(m) m.classList.remove('open'); },
+  askJulio: function(idx){
+    var rep=COACH_DATA[idx];
+    var outEl=document.getElementById('gl-coach-ai-'+idx);
+    if(!outEl) return;
+    outEl.style.display='block';
+    outEl.textContent='⏳ Julio está gerando coaching personalizado…';
+    if(window.julioK25&&window.julioK25.chat){
+      window.julioK25.chat(rep.ai_prompt,function(txt){
+        outEl.innerHTML='<strong>🤖 Julio:</strong> '+txt.replace(/\n/g,'<br>');
+      },function(){ outEl.textContent='❌ Erro ao conectar com Julio'; });
+    } else {
+      var tips={
+        0:'Para melhorar email response rate: (1) Assunto: use o nome do prospect + dor específica do setor. (2) Abertura: referencia algo recente da empresa deles. (3) CTA: proponha uma pergunta específica, não "vamos conversar?". Exemplo: "A Fintech Solutions acabou de lançar X — como vocês estão gerenciando Y?"',
+        1:'Framework MEDDIC para discovery: Metrics (qual é o impacto quantificável?), Economic Buyer (quem aprova o budget?), Decision Criteria (como avaliam?), Decision Process (qual é o processo?), Identify Pain (qual é a dor principal?), Champion (quem vai defender internamente?). Use estas 6 perguntas como norte da sua primeira call.',
+        2:'Estratégia 3-tier pricing: Apresente sempre Starter/Growth/Enterprise. Comece descrevendo Enterprise detalhadamente (anchoring). Quando moverem para Growth, eles sentirão que "economizaram" e o ticket médio sobe 25-40% vs. apresentar apenas uma opção.',
+        3:'Plano 90 dias Senior AE: Mês 1 — shadow em 3 calls de cada rep, documentar 5 best practices suas. Mês 2 — pair selling com Pedro e Rafael, feedback semanal estruturado. Mês 3 — conduzir 2 deal reviews semanais, criar playbook baseado nos seus win patterns.'
+      };
+      outEl.innerHTML='<strong>🤖 Julio:</strong> '+tips[idx];
+    }
+  }
+};
+
+function buildCoachModal(){
+  var s=document.createElement('style'); s.textContent=coachCSS; document.head.appendChild(s);
+  var m=document.createElement('div'); m.id='gl-coach-modal';
+  var html=
+    '<div id="gl-coach-box">'+
+      '<div id="gl-coach-head">'+
+        '<h2>🎓 Sales Coaching Hub</h2>'+
+        '<button onclick="window.__glCoach.close()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#c4b5fd">✕</button>'+
+      '</div>'+
+      '<div id="gl-coach-body">';
+  COACH_DATA.forEach(function(rep,i){
+    var qc=rep.quota>=85?'#10b981':rep.quota>=70?'#f59e0b':'#ef4444';
+    html+=
+      '<div class="coach-rep-row">'+
+        '<div class="coach-avatar">'+rep.emoji+'</div>'+
+        '<div class="coach-rep-info">'+
+          '<div class="coach-rep-name">'+rep.name+'</div>'+
+          '<div class="coach-rep-quota" style="color:'+qc+'">'+rep.quota+'% de quota atingido</div>'+
+          '<div class="coach-focus">🎯 Foco: '+rep.focus+'</div>'+
+          '<div class="coach-tip">'+rep.tip+'</div>'+
+          '<button class="coach-action-btn" onclick="window.__glCoach.askJulio('+i+')">🤖 Pedir plano detalhado ao Julio</button>'+
+          '<div class="coach-ai-out" id="gl-coach-ai-'+i+'"></div>'+
+        '</div>'+
+      '</div>';
+  });
+  html+='</div></div>';
+  m.innerHTML=html;
+  m.addEventListener('click',function(e){ if(e.target===m) window.__glCoach.close(); });
+  document.body.appendChild(m);
+}
+
+/* ─────────────────────────────────────────────
+   BATCH 6 INIT
+   ───────────────────────────────────────────── */
+function addBatch6Buttons(){
+  var dock=document.getElementById('gl-quick-dock');
+  if(!dock||dock.dataset.batch6) return;
+  dock.dataset.batch6='1';
+  var extras=document.createElement('div');
+  extras.style.display='contents';
+  extras.innerHTML=
+    '<button class="qad-btn" title="Lead Scoring" onclick="window.__glLS.open()"><span class="qad-ico">🎯</span><span>Leads</span></button>'+
+    '<button class="qad-btn" title="AE Scorecard" onclick="window.__glAE.open()"><span class="qad-ico">🏅</span><span>AE</span></button>'+
+    '<button class="qad-btn" title="Customer Pulse" onclick="window.__glPulse.open()"><span class="qad-ico">💙</span><span>NPS</span></button>'+
+    '<button class="qad-btn" title="Pricing Intel" onclick="window.__glPricing.open()"><span class="qad-ico">💲</span><span>Pricing</span></button>'+
+    '<button class="qad-btn" title="Sales Coaching" onclick="window.__glCoach.open()"><span class="qad-ico">🎓</span><span>Coach</span></button>';
+  var seps=dock.querySelectorAll('.qad-sep');
+  var lastSep=seps[seps.length-1];
+  if(lastSep) dock.insertBefore(extras,lastSep); else dock.appendChild(extras);
+}
+
+function initBatch6(){
+  addBatch6Buttons();
+  // Pipeline Health card
+  var tries=0;
+  var wait=setInterval(function(){
+    tries++;
+    var grid=document.getElementById('command-grid');
+    if(grid||tries>80){
+      clearInterval(wait);
+      if(grid) buildPipelineHealthCard();
+    }
+  },200);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBatch6);
+else initBatch6();
+
+})();
+</script>
+
 </body>
 </html>
 
