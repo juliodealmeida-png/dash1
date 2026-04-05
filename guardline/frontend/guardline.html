@@ -29905,6 +29905,595 @@ else initBatch2();
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════
+     BATCH 3: Pipeline Replay · Deal Room · Win/Loss Deep Dive
+              Talk Track Generator · Revenue Dashboard v2 · Stakeholder Map
+     ═══════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+function _h(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+/* ══════════════════════════════════════════════════════
+   1. PIPELINE REPLAY — time-machine slider
+   ══════════════════════════════════════════════════════ */
+var PR_CSS = `
+#gl-pr-bar {
+  position:fixed; top:0; left:0; right:0; z-index:99800;
+  background:rgba(8,8,14,0.97); border-bottom:1px solid rgba(124,58,237,.3);
+  padding:10px 20px; display:none; align-items:center; gap:14px;
+  backdrop-filter:blur(12px); box-shadow:0 4px 24px rgba(0,0,0,.5);
+}
+#gl-pr-bar.active { display:flex; }
+#gl-pr-label { font-size:11px; font-weight:700; color:#c084fc; white-space:nowrap; }
+#gl-pr-slider { flex:1; min-width:120px; accent-color:#7c3aed; cursor:pointer; }
+#gl-pr-date { font-size:13px; font-weight:800; color:#fff; min-width:110px; text-align:center;
+  background:rgba(124,58,237,.15); border:1px solid rgba(124,58,237,.3); border-radius:8px; padding:4px 10px; }
+#gl-pr-count { font-size:11px; color:rgba(255,255,255,.5); white-space:nowrap; }
+#gl-pr-exit { background:rgba(239,68,68,.2); border:1px solid rgba(239,68,68,.4); border-radius:8px;
+  color:#fca5a5; font-size:11px; font-weight:700; padding:5px 12px; cursor:pointer; white-space:nowrap; }
+#gl-pr-exit:hover { background:rgba(239,68,68,.4); }
+.gl-pr-ghost { opacity:.35 !important; filter:grayscale(60%); pointer-events:none; }
+.gl-pr-new { box-shadow:0 0 0 2px #22c55e !important; }
+`;
+var prStyle = document.createElement('style'); prStyle.textContent = PR_CSS; document.head.appendChild(prStyle);
+
+var _prActive = false;
+var _prDays = 0; // 0 = today, 30 = 30 days ago
+
+function buildPRBar(){
+  if(document.getElementById('gl-pr-bar')) return;
+  var bar = document.createElement('div'); bar.id = 'gl-pr-bar';
+  bar.innerHTML =
+    '<span class="gl-pr-label">⏪ PIPELINE REPLAY</span>' +
+    '<input type="range" id="gl-pr-slider" min="0" max="90" step="1" value="0" />' +
+    '<div id="gl-pr-date">Hoje</div>' +
+    '<span id="gl-pr-count">—</span>' +
+    '<button id="gl-pr-exit" onclick="window.__glPR.exit()">✕ Sair do Replay</button>';
+  document.body.appendChild(bar);
+  document.getElementById('gl-pr-slider').addEventListener('input', function(){
+    _prDays = parseInt(this.value, 10);
+    window.__glPR.render();
+  });
+}
+
+function prDateLabel(daysAgo){
+  if(daysAgo === 0) return 'Hoje';
+  var d = new Date(); d.setDate(d.getDate() - daysAgo);
+  return d.toLocaleDateString('pt-BR', {day:'2-digit', month:'short', year:'numeric'});
+}
+
+function prRender(){
+  var deals = window.__guardlineDealsCache || [];
+  var daysAgo = _prDays;
+  var dateEl = document.getElementById('gl-pr-date');
+  var countEl = document.getElementById('gl-pr-count');
+  if(dateEl) dateEl.textContent = prDateLabel(daysAgo);
+
+  // simulate historical state: deals entered > daysAgo days ago are "existing", newer ones are "new"
+  var existing = deals.filter(function(d){ return (d.daysNoContact || 0) <= (90 - daysAgo); });
+  var ghost    = deals.filter(function(d){ return (d.daysNoContact || 0) > (90 - daysAgo); });
+  var totalVal = existing.reduce(function(a,d){ return a+(d.value||0); }, 0);
+
+  if(countEl) countEl.textContent = existing.length + ' deals · $' + (totalVal/1000).toFixed(0) + 'k';
+
+  // visually dim cards that "didn't exist" yet
+  document.querySelectorAll('.deal-card[data-deal-id]').forEach(function(card){
+    var id = card.getAttribute('data-deal-id');
+    var deal = deals.find(function(d){ return String(d.id)===String(id); });
+    if(!deal) return;
+    var isGhost = ghost.some(function(g){ return String(g.id)===String(id); });
+    card.classList.toggle('gl-pr-ghost', isGhost);
+    card.classList.toggle('gl-pr-new', !isGhost && daysAgo > 0 && (deal.daysNoContact||0) > (60 - daysAgo));
+  });
+
+  // update column headers
+  document.querySelectorAll('.kanban-col').forEach(function(col){
+    var stage = col.querySelector('.stage-name');
+    if(!stage) return;
+    var stageName = stage.textContent.trim();
+    var colDeals = existing.filter(function(d){ return d.stage === stageName; });
+    var colVal = colDeals.reduce(function(a,d){ return a+(d.value||0); }, 0);
+    var valEl = col.querySelector('.stage-value');
+    if(valEl) valEl.textContent = colVal >= 1e6 ? '$'+(colVal/1e6).toFixed(1)+'M' : '$'+(colVal/1000).toFixed(0)+'k';
+  });
+}
+
+window.__glPR = {
+  open: function(){
+    buildPRBar();
+    _prActive = true;
+    _prDays = 30;
+    document.getElementById('gl-pr-slider').value = 30;
+    document.getElementById('gl-pr-bar').classList.add('active');
+    document.querySelector('.main-content, #content-area') && (document.querySelector('.main-content, #content-area').style.marginTop = '52px');
+    // navigate to pipeline if not there
+    if(window.currentScreen !== 'pipeline'){ if(typeof navigateTo==='function') navigateTo('pipeline'); }
+    setTimeout(prRender, 400);
+  },
+  exit: function(){
+    _prActive = false;
+    var bar = document.getElementById('gl-pr-bar');
+    if(bar) bar.classList.remove('active');
+    var mc = document.querySelector('.main-content, #content-area');
+    if(mc) mc.style.marginTop = '';
+    document.querySelectorAll('.gl-pr-ghost,.gl-pr-new').forEach(function(el){ el.classList.remove('gl-pr-ghost','gl-pr-new'); });
+  },
+  render: prRender
+};
+
+/* ══════════════════════════════════════════════════════
+   2. DEAL ROOM — per-deal collaborative hub
+   ══════════════════════════════════════════════════════ */
+var DR_CSS = `
+#gl-dr-modal { position:fixed;inset:0;z-index:99850;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:none;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto; }
+#gl-dr-modal.open { display:flex; }
+#gl-dr-inner { width:100%;max-width:900px;background:rgba(10,10,18,1);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,.8);margin:auto; }
+#gl-dr-head { display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08); background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(6,182,212,.08));border-radius:20px 20px 0 0; }
+#gl-dr-head h2 { margin:0;font-size:16px;font-weight:800;color:#fff;flex:1; }
+.dr-tabs { display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08);padding:0 24px; }
+.dr-tab { padding:12px 18px;font-size:12px;font-weight:700;color:rgba(255,255,255,.45);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit; }
+.dr-tab:hover { color:rgba(255,255,255,.8); }
+.dr-tab.active { color:#7c3aed;border-bottom-color:#7c3aed; }
+.dr-body { padding:20px 24px;min-height:300px; }
+.dr-kpi-row { display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:20px; }
+.dr-kpi { background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px; }
+.dr-kpi .dk-l { font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px; }
+.dr-kpi .dk-v { font-size:1.3rem;font-weight:800;color:#fff; }
+.dr-kpi .dk-s { font-size:10px;margin-top:2px; }
+.dr-note-list { display:flex;flex-direction:column;gap:8px;margin-bottom:14px; }
+.dr-note { background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px 14px; }
+.dr-note .dn-meta { font-size:10px;color:rgba(255,255,255,.35);margin-bottom:4px; }
+.dr-note .dn-text { font-size:13px;color:rgba(255,255,255,.85);line-height:1.5; }
+.dr-note-input { width:100%;padding:10px 12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:#e0e0ff;font-size:13px;font-family:inherit;outline:none;resize:vertical; }
+.dr-note-input:focus { border-color:rgba(124,58,237,.5); }
+.dr-sh-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px; }
+.dr-sh-card { background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px; }
+.dr-sh-av { width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7c3aed,#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#fff;margin-bottom:8px; }
+.dr-sh-name { font-size:13px;font-weight:700;color:#fff;margin-bottom:2px; }
+.dr-sh-role { font-size:11px;color:rgba(255,255,255,.4); }
+.dr-sh-inf { margin-top:8px;font-size:10px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block; }
+`;
+var drStyle = document.createElement('style'); drStyle.textContent = DR_CSS; document.head.appendChild(drStyle);
+
+var _drDeal = null;
+var _drTab = 'overview';
+var _drNotes = {};
+
+function buildDRModal(){
+  if(document.getElementById('gl-dr-modal')) return;
+  var el = document.createElement('div'); el.id = 'gl-dr-modal';
+  el.innerHTML = '<div id="gl-dr-inner"><div id="gl-dr-head"><span style="font-size:22px">🏠</span><h2 id="gl-dr-title">Deal Room</h2><button style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;padding:0" onclick="window.__glDR.close()">×</button></div><div class="dr-tabs" id="gl-dr-tabs"></div><div class="dr-body" id="gl-dr-body"></div></div>';
+  el.addEventListener('click', function(e){ if(e.target===el) window.__glDR.close(); });
+  document.body.appendChild(el);
+}
+
+function renderDR(){
+  var deal = _drDeal;
+  if(!deal) return;
+  var titleEl = document.getElementById('gl-dr-title');
+  if(titleEl) titleEl.textContent = '🏠 Deal Room — ' + (deal.company||'Deal');
+  var tabs = document.getElementById('gl-dr-tabs');
+  var body = document.getElementById('gl-dr-body');
+  if(!tabs || !body) return;
+
+  var tabDefs = [{id:'overview',label:'📊 Overview'},{id:'notes',label:'📝 Notas'},{id:'stakeholders',label:'👥 Stakeholders'},{id:'julio',label:'⚡ Julio AI'}];
+  tabs.innerHTML = tabDefs.map(function(t){ return '<button class="dr-tab'+(_drTab===t.id?' active':'')+'" onclick="window.__glDR.tab(\''+t.id+'\')">'+t.label+'</button>'; }).join('');
+
+  var key = String(deal.id);
+  var notes = _drNotes[key] || [];
+
+  if(_drTab === 'overview'){
+    var riskColor = deal.risk >= 75 ? '#ef4444' : deal.risk >= 55 ? '#f59e0b' : '#22c55e';
+    body.innerHTML =
+      '<div class="dr-kpi-row">' +
+        '<div class="dr-kpi"><div class="dk-l">Valor</div><div class="dk-v">$'+Number(deal.value||0).toLocaleString('en-US')+'</div></div>' +
+        '<div class="dr-kpi"><div class="dk-l">Risco</div><div class="dk-v" style="color:'+riskColor+'">'+deal.risk+'%</div></div>' +
+        '<div class="dr-kpi"><div class="dk-l">Estágio</div><div class="dk-v" style="font-size:1rem">'+_h(deal.stage||'—')+'</div></div>' +
+        '<div class="dr-kpi"><div class="dk-l">Sem contato</div><div class="dk-v">'+(deal.daysNoContact||0)+'d</div><div class="dk-s" style="color:'+(deal.daysNoContact>=7?'#ef4444':'#22c55e')+'">'+( deal.daysNoContact>=7 ? '⚠ urgente' : '✓ ok')+'</div></div>' +
+        '<div class="dr-kpi"><div class="dk-l">Responsável</div><div class="dk-v" style="font-size:1rem">'+_h(deal.ownerInitials||'—')+'</div></div>' +
+      '</div>' +
+      '<div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-bottom:16px">' +
+        '<div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:10px">Próxima ação</div>' +
+        '<div style="font-size:14px;color:#fff;font-weight:600">'+_h(deal.nextAction||'—')+'</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<button style="padding:8px 16px;background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(6,182,212,.2));border:1px solid rgba(124,58,237,.4);border-radius:10px;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glDR.askJulio(\'analyze\')">⚡ Analisar com Julio</button>' +
+        '<button style="padding:8px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glDR.askJulio(\'email\')">✉️ Redigir email</button>' +
+        '<button style="padding:8px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:rgba(255,255,255,.7);font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glDR.askJulio(\'script\')">📞 Script de ligação</button>' +
+        '<button style="padding:8px 16px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:10px;color:#86efac;font-size:12px;font-weight:700;cursor:pointer" onclick="typeof openDealDetail===\'function\'&&(window.__glDR.close(),openDealDetail(\''+String(deal.id)+'\'))">🔍 Ver deal completo</button>' +
+      '</div>';
+  } else if(_drTab === 'notes'){
+    body.innerHTML =
+      '<div class="dr-note-list" id="gl-dr-note-list">' +
+        (notes.length ? notes.map(function(n){ return '<div class="dr-note"><div class="dn-meta">'+_h(n.date)+' · '+_h(n.author)+'</div><div class="dn-text">'+_h(n.text)+'</div></div>'; }).join('') : '<div style="color:rgba(255,255,255,.3);font-size:12px;padding:8px 0">Nenhuma nota ainda.</div>') +
+      '</div>' +
+      '<textarea class="dr-note-input" id="gl-dr-note-input" rows="3" placeholder="Adicionar nota…"></textarea>' +
+      '<div style="display:flex;gap:8px;margin-top:8px">' +
+        '<button style="padding:8px 16px;background:rgba(124,58,237,.25);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glDR.addNote()">+ Salvar nota</button>' +
+        '<button style="padding:8px 16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:rgba(255,255,255,.6);font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glDR.askJulio(\'summarize_notes\')">⚡ Julio: resumir notas</button>' +
+      '</div>';
+  } else if(_drTab === 'stakeholders'){
+    var stakeholders = deal.stakeholders || [
+      {name: deal.contact || 'Contato Principal', role:'Champion', influence:'High', mapped:true},
+      {name:'CFO / Financeiro', role:'Economic Buyer', influence:'Critical', mapped:false},
+      {name:'TI / Segurança', role:'Technical Buyer', influence:'Medium', mapped:false},
+      {name:'CEO / Decisor', role:'Decision Maker', influence:'Critical', mapped:false},
+    ];
+    var infColors = {Critical:'#ef4444', High:'#f59e0b', Medium:'#06b6d4', Low:'#22c55e'};
+    body.innerHTML =
+      '<div style="margin-bottom:12px;display:flex;align-items:center;justify-content:space-between">' +
+        '<div style="font-size:12px;color:rgba(255,255,255,.5)">'+stakeholders.filter(function(s){return s.mapped;}).length+'/'+stakeholders.length+' mapeados</div>' +
+        '<button style="padding:6px 14px;background:rgba(124,58,237,.2);border:1px solid rgba(124,58,237,.4);border-radius:8px;color:#c084fc;font-size:11px;font-weight:700;cursor:pointer" onclick="window.__glDR.askJulio(\'stakeholders\')">⚡ Estratégia de stakeholders</button>' +
+      '</div>' +
+      '<div class="dr-sh-grid">' +
+        stakeholders.map(function(s){
+          var ic = infColors[s.influence] || '#94a3b8';
+          var ini = (s.name||'?').trim().split(/\s+/).slice(0,2).map(function(w){return w[0];}).join('').toUpperCase();
+          return '<div class="dr-sh-card" style="border-color:'+(s.mapped?'rgba(34,197,94,.2)':'rgba(255,255,255,.07)')+'">' +
+            '<div class="dr-sh-av" style="background:'+(s.mapped?'linear-gradient(135deg,#059669,#06b6d4)':'linear-gradient(135deg,rgba(255,255,255,.1),rgba(255,255,255,.05))')+'">'+ini+'</div>' +
+            '<div class="dr-sh-name">'+_h(s.name)+'</div>' +
+            '<div class="dr-sh-role">'+_h(s.role)+'</div>' +
+            '<span class="dr-sh-inf" style="background:'+ic+'22;color:'+ic+'">'+_h(s.influence)+'</span>' +
+            (s.mapped ? '' : '<div style="font-size:10px;color:#f59e0b;margin-top:6px">⚠ Não mapeado</div>') +
+          '</div>';
+        }).join('') +
+      '</div>';
+  } else if(_drTab === 'julio'){
+    body.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">' +
+        ['⚡ Analisar deal completo', '📧 Email de follow-up', '📞 Script de ligação', '🎯 Estratégia de fechamento', '⚠️ Pontos de risco', '🏆 Caso de sucesso similar'].map(function(label,i){
+          var prompts = [
+            'Analise o deal '+deal.company+', estágio '+deal.stage+', risco '+deal.risk+'%, $'+Number(deal.value||0).toLocaleString('en-US')+'. Quais são os 5 pontos mais importantes para fechar este deal?',
+            'Escreva um email de follow-up para '+deal.company+' (contato: '+deal.contact+'). Estágio: '+deal.stage+'. Tom profissional, direto, com CTA claro.',
+            'Crie um script de ligação para '+deal.company+'. Objetivo: avançar de '+deal.stage+' para o próximo estágio. Inclua abertura, perguntas-chave e fechamento da call.',
+            'Crie uma estratégia detalhada para fechar o deal '+deal.company+' nos próximos 30 dias. Valor: $'+Number(deal.value||0).toLocaleString('en-US')+', estágio atual: '+deal.stage+'.',
+            'Quais são os principais riscos para perder o deal '+deal.company+'? Risk score: '+deal.risk+'%, '+deal.daysNoContact+' dias sem contato. Como mitigar?',
+            'Crie um caso de sucesso fictício mas realista para compartilhar com '+deal.company+'. Similar ao segmento deles, mostrando ROI e resultados concretos.',
+          ];
+          return '<button style="padding:10px 14px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;color:rgba(255,255,255,.8);font-size:12px;font-weight:600;cursor:pointer;text-align:left;transition:all .2s;font-family:inherit" onmouseover="this.style.background=\'rgba(124,58,237,.15)\'" onmouseout="this.style.background=\'rgba(255,255,255,.04)\'" onclick="window.__glDR.askJulio(\'custom\','+i+')">'+label+'</button>';
+        }).join('') +
+      '</div>' +
+      '<div id="gl-dr-julio-out" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.7;min-height:80px;white-space:pre-wrap">Selecione uma ação acima para Julio analisar este deal.</div>';
+    // store prompts for access
+    body._julioPrompts = ['Analise o deal '+deal.company+', estágio '+deal.stage+', risco '+deal.risk+'%, $'+Number(deal.value||0).toLocaleString('en-US')+'. Quais são os 5 pontos mais importantes para fechar este deal?','Escreva um email de follow-up para '+deal.company+' (contato: '+deal.contact+'). Estágio: '+deal.stage+'. Tom profissional, direto, com CTA claro.','Crie um script de ligação para '+deal.company+'. Objetivo: avançar de '+deal.stage+' para o próximo estágio. Inclua abertura, perguntas-chave e fechamento da call.','Crie uma estratégia detalhada para fechar o deal '+deal.company+' nos próximos 30 dias. Valor: $'+Number(deal.value||0).toLocaleString('en-US')+', estágio atual: '+deal.stage+'.','Quais são os principais riscos para perder o deal '+deal.company+'? Risk score: '+deal.risk+'%, '+deal.daysNoContact+' dias sem contato. Como mitigar?','Crie um caso de sucesso fictício mas realista para compartilhar com '+deal.company+'. Similar ao segmento deles, mostrando ROI e resultados concretos.'];
+  }
+}
+
+window.__glDR = {
+  open: function(deal){
+    buildDRModal();
+    _drDeal = deal || (window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0];
+    _drTab = 'overview';
+    renderDR();
+    document.getElementById('gl-dr-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-dr-modal'); if(m) m.classList.remove('open'); },
+  tab: function(t){ _drTab=t; renderDR(); },
+  addNote: function(){
+    var inp = document.getElementById('gl-dr-note-input');
+    if(!inp || !inp.value.trim()) return;
+    var key = String(_drDeal.id);
+    if(!_drNotes[key]) _drNotes[key] = [];
+    _drNotes[key].unshift({text:inp.value.trim(), date:new Date().toLocaleString('pt-BR'), author:'Você'});
+    inp.value = '';
+    renderDR();
+    if(typeof showToast==='function') showToast('success','Deal Room','Nota salva!');
+  },
+  askJulio: function(type, idx){
+    var deal = _drDeal;
+    var prompts = {
+      analyze: 'Analise o deal '+deal.company+', estágio '+deal.stage+', risco '+deal.risk+'%, $'+Number(deal.value||0).toLocaleString('en-US')+'. Quais são os 5 pontos mais importantes para fechar este deal?',
+      email: 'Escreva um email de follow-up para '+deal.company+'. Estágio: '+deal.stage+'. Tom profissional, CTA claro.',
+      script: 'Crie um script de ligação para avançar o deal '+deal.company+' de '+deal.stage+'. Inclua abertura, perguntas e fechamento da call.',
+      summarize_notes: 'Resuma estas notas do deal '+deal.company+': '+JSON.stringify((_drNotes[String(deal.id)]||[]).map(function(n){return n.text;})),
+      stakeholders: 'Crie uma estratégia de engajamento de stakeholders para fechar '+deal.company+'. Quem devo contatar primeiro e como?',
+    };
+    var prompt = type==='custom' ? (document.getElementById('gl-dr-body')._julioPrompts||[])[idx||0] : prompts[type];
+    if(!prompt) return;
+    if(type==='custom'){
+      var out = document.getElementById('gl-dr-julio-out');
+      if(out){ out.textContent='⏳ Julio analisando…'; }
+      if(window.julioK25&&typeof window.julioK25.chat==='function'){
+        window.julioK25.chat(prompt,'instant').then(function(r){ if(out) out.textContent=r; }).catch(function(){ if(out) out.textContent='Erro. Tente novamente.'; });
+      } else { if(typeof julioFloatOpen==='function') julioFloatOpen(prompt); }
+    } else {
+      window.__glDR.close();
+      if(typeof julioFloatOpen==='function') julioFloatOpen(prompt);
+    }
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   3. WIN/LOSS DEEP DIVE
+   ══════════════════════════════════════════════════════ */
+var WL_CSS = `
+#gl-wl-modal { position:fixed;inset:0;z-index:99860;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:20px; }
+#gl-wl-modal.open { display:flex; }
+#gl-wl-inner { width:100%;max-width:780px;max-height:90vh;overflow-y:auto;background:rgba(10,10,18,1);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,.8); }
+.wl-tab-bar { display:flex;gap:0;border-bottom:1px solid rgba(255,255,255,.08);padding:0 22px; }
+.wl-tab { padding:12px 16px;font-size:12px;font-weight:700;color:rgba(255,255,255,.4);cursor:pointer;border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;transition:all .2s; }
+.wl-tab.active { color:#7c3aed;border-bottom-color:#7c3aed; }
+.wl-bar { display:flex;align-items:center;gap:10px;margin-bottom:8px; }
+.wl-bar-label { font-size:11px;color:rgba(255,255,255,.6);min-width:140px;text-align:right; }
+.wl-bar-track { flex:1;height:18px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden; }
+.wl-bar-fill { height:100%;border-radius:4px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff;transition:width .8s ease; }
+.wl-bar-pct { font-size:11px;font-weight:700;min-width:34px;text-align:right;color:rgba(255,255,255,.6); }
+`;
+var wlStyle = document.createElement('style'); wlStyle.textContent = WL_CSS; document.head.appendChild(wlStyle);
+var _wlTab = 'reasons';
+
+var WL_REASONS_WON = [
+  {label:'ROI claro e demonstrado', pct:72, color:'#22c55e'},
+  {label:'Champion forte interno', pct:68, color:'#22c55e'},
+  {label:'Demo personalizada', pct:61, color:'#22c55e'},
+  {label:'Resposta rápida ao lead', pct:54, color:'#06b6d4'},
+  {label:'Preço competitivo', pct:48, color:'#06b6d4'},
+];
+var WL_REASONS_LOST = [
+  {label:'Sem urgência / timing', pct:45, color:'#ef4444'},
+  {label:'Preço percebido alto', pct:38, color:'#f59e0b'},
+  {label:'Concorrente ganhou', pct:32, color:'#f59e0b'},
+  {label:'Sem champion identificado', pct:28, color:'#ef4444'},
+  {label:'Deal travado no técnico', pct:21, color:'#ef4444'},
+];
+var WL_VELOCITY = [
+  {stage:'Qualification',won:4,lost:9},{stage:'Active Pursuit',won:11,lost:18},{stage:'Proposal',won:21,lost:35},{stage:'Negotiate',won:8,lost:14},
+];
+
+function buildWLModal(){
+  if(document.getElementById('gl-wl-modal')) return;
+  var el = document.createElement('div'); el.id='gl-wl-modal';
+  el.innerHTML = '<div id="gl-wl-inner"><div style="display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(135deg,rgba(239,68,68,.1),rgba(34,197,94,.06));border-radius:20px 20px 0 0"><span style="font-size:22px">🔍</span><h2 style="margin:0;font-size:16px;font-weight:800;color:#fff;flex:1">Win/Loss Deep Dive</h2><button style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;padding:0" onclick="window.__glWL.close()">×</button></div><div class="wl-tab-bar" id="gl-wl-tabs"></div><div style="padding:22px" id="gl-wl-body"></div></div>';
+  el.addEventListener('click', function(e){ if(e.target===el) window.__glWL.close(); });
+  document.body.appendChild(el);
+  renderWL();
+}
+
+function renderWL(){
+  var tabs = document.getElementById('gl-wl-tabs');
+  var body = document.getElementById('gl-wl-body');
+  if(!tabs||!body) return;
+  var tabDefs = [{id:'reasons',label:'📊 Razões W/L'},{id:'velocity',label:'⏱ Velocity'},{id:'patterns',label:'🧠 Padrões IA'}];
+  tabs.innerHTML = tabDefs.map(function(t){ return '<button class="wl-tab'+(_wlTab===t.id?' active':'')+'" onclick="window.__glWL.tab(\''+t.id+'\')">'+t.label+'</button>'; }).join('');
+  var deals = window.__guardlineDealsCache||[];
+  var wonDeals = deals.filter(function(d){return d.stage==='Won';});
+  var lostDeals = deals.filter(function(d){return d.stage==='Lost';});
+  var totalWon = wonDeals.reduce(function(a,d){return a+(d.value||0);},0);
+  var totalLost = lostDeals.reduce(function(a,d){return a+(d.value||0);},0);
+  var winRate = deals.length ? Math.round(wonDeals.length/(wonDeals.length+lostDeals.length+0.001)*100) : 47;
+
+  var kpis = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">'+
+    [['Win Rate','#22c55e',winRate+'%'],['Won MTD','#06b6d4','$'+(totalWon/1000).toFixed(0)+'k'],['Lost MTD','#ef4444','$'+(totalLost/1000).toFixed(0)+'k'],['Avg Cycle','#7c3aed','34d']].map(function(k){
+      return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px"><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px">'+k[0]+'</div><div style="font-size:1.4rem;font-weight:800;color:'+k[1]+'">'+k[2]+'</div></div>';
+    }).join('')+'</div>';
+
+  if(_wlTab==='reasons'){
+    body.innerHTML = kpis +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">' +
+        '<div><div style="font-size:12px;font-weight:700;color:#22c55e;margin-bottom:12px;display:flex;align-items:center;gap:6px">🏆 Por que Ganhamos</div>'+WL_REASONS_WON.map(function(r){return '<div class="wl-bar"><div class="wl-bar-label">'+_h(r.label)+'</div><div class="wl-bar-track"><div class="wl-bar-fill" style="width:'+r.pct+'%;background:'+r.color+'">'+r.pct+'%</div></div></div>';}).join('')+'</div>' +
+        '<div><div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:12px;display:flex;align-items:center;gap:6px">💔 Por que Perdemos</div>'+WL_REASONS_LOST.map(function(r){return '<div class="wl-bar"><div class="wl-bar-label">'+_h(r.label)+'</div><div class="wl-bar-track"><div class="wl-bar-fill" style="width:'+r.pct+'%;background:'+r.color+'">'+r.pct+'%</div></div></div>';}).join('')+'</div>' +
+      '</div>';
+  } else if(_wlTab==='velocity'){
+    body.innerHTML = kpis +
+      '<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:12px">Dias médios por estágio</div>' +
+      WL_VELOCITY.map(function(v){
+        return '<div style="display:grid;grid-template-columns:130px 1fr 1fr;align-items:center;gap:12px;margin-bottom:12px">' +
+          '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,.6)">'+_h(v.stage)+'</div>' +
+          '<div><div style="font-size:10px;color:#22c55e;margin-bottom:3px">Won: '+v.won+'d</div><div style="height:8px;background:rgba(34,197,94,.15);border-radius:4px"><div style="height:100%;width:'+Math.min(100,v.won*2)+'%;background:#22c55e;border-radius:4px"></div></div></div>' +
+          '<div><div style="font-size:10px;color:#ef4444;margin-bottom:3px">Lost: '+v.lost+'d</div><div style="height:8px;background:rgba(239,68,68,.15);border-radius:4px"><div style="height:100%;width:'+Math.min(100,v.lost*2)+'%;background:#ef4444;border-radius:4px"></div></div></div>' +
+        '</div>';
+      }).join('') +
+      '<div style="padding:12px 14px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:10px;font-size:12px;color:#fde68a;margin-top:8px">💡 Insight: deals que ficam mais de 18d em "Proposal" têm 73% de chance de perda.</div>';
+  } else {
+    body.innerHTML = kpis +
+      '<div style="text-align:center;padding:20px 0"><div style="font-size:40px;margin-bottom:12px">🧠</div><div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:8px">Análise de Padrões com Julio AI</div><div style="font-size:12px;color:rgba(255,255,255,.5);margin-bottom:20px">Julio analisa seu histórico e identifica padrões ocultos de win/loss.</div>' +
+      '<button style="padding:12px 24px;background:linear-gradient(135deg,#7c3aed,#06b6d4);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer" onclick="window.__glWL.analyze()">⚡ Analisar com Julio AI</button>' +
+      '<div id="gl-wl-ai-out" style="margin-top:16px;text-align:left;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.7;display:none;white-space:pre-wrap"></div></div>';
+  }
+}
+
+window.__glWL = {
+  open: function(){ buildWLModal(); document.getElementById('gl-wl-modal').classList.add('open'); renderWL(); },
+  close: function(){ var m=document.getElementById('gl-wl-modal'); if(m) m.classList.remove('open'); },
+  tab: function(t){ _wlTab=t; renderWL(); },
+  analyze: function(){
+    var deals = window.__guardlineDealsCache||[];
+    var prompt = 'Analise estes dados de win/loss do pipeline: '+deals.length+' deals ativos, razões de perda mais comuns: timing, preço, sem champion. Identifique: 1) padrão mais importante a corrigir, 2) perfil de cliente ideal baseado nos wins, 3) ação mais impactante para melhorar win rate nos próximos 30 dias.';
+    var out = document.getElementById('gl-wl-ai-out');
+    if(out){ out.style.display='block'; out.textContent='⏳ Julio analisando padrões…'; }
+    if(window.julioK25&&typeof window.julioK25.chat==='function'){
+      window.julioK25.chat(prompt,'thinking').then(function(r){ if(out) out.textContent=r; }).catch(function(){ if(out) out.textContent='Erro. Tente novamente.'; });
+    } else { if(typeof julioFloatOpen==='function') julioFloatOpen(prompt); window.__glWL.close(); }
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   4. TALK TRACK GENERATOR
+   ══════════════════════════════════════════════════════ */
+var TT_CSS = `
+#gl-tt-modal { position:fixed;inset:0;z-index:99870;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:20px; }
+#gl-tt-modal.open { display:flex; }
+#gl-tt-inner { width:100%;max-width:720px;max-height:90vh;overflow-y:auto;background:rgba(10,10,18,1);border:1px solid rgba(255,255,255,.1);border-radius:20px;box-shadow:0 40px 100px rgba(0,0,0,.8); }
+.tt-stage-chip { padding:7px 14px;border-radius:100px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);color:rgba(255,255,255,.6);cursor:pointer;transition:all .2s; }
+.tt-stage-chip.active { background:rgba(124,58,237,.2);border-color:#7c3aed;color:#c084fc; }
+.tt-section { background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:16px;margin-bottom:12px; }
+.tt-section h4 { margin:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.4); }
+.tt-item { display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.5; }
+.tt-item:last-child { margin-bottom:0; }
+.tt-bullet { width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:7px;background:#7c3aed; }
+`;
+var ttStyle = document.createElement('style'); ttStyle.textContent = TT_CSS; document.head.appendChild(ttStyle);
+var _ttStage = 'Qualification';
+var TT_STAGES = ['Qualification','Active Pursuit','Proposal','Negotiate','Commit & Signing'];
+var TT_CONTENT = {
+  'Qualification':{ goal:'Confirmar fit, descobrir dor principal e critérios de decisão', open:'Obrigado pelo seu tempo. Queria entender melhor os desafios que vocês enfrentam hoje com [ÁREA]. O que te levou a explorar soluções agora?', questions:['Qual é o maior obstáculo no seu processo de vendas hoje?','Quem mais está envolvido nessa decisão além de você?','Se resolvêssemos [DOR], qual seria o impacto para o negócio?','Qual é o prazo ideal para você ter uma solução em produção?'], dos:['Confirmar budget disponível','Identificar todos os stakeholders','Agendar próxima reunião com decision maker'], donts:['Fazer pitch antes de entender a dor','Pular etapas de qualificação MEDDPICC','Assumir que o contato inicial é o decisor'] },
+  'Active Pursuit':{ goal:'Aprofundar solução, demonstrar valor e construir champion', open:'Na última conversa, você mencionou [DOR]. Preparei uma demonstração específica para isso. Antes de começar — algo mudou desde nossa última conversa?', questions:['Qual funcionalidade faria mais diferença para você agora?','Como você mediria sucesso nessa implementação?','O que poderia travar essa decisão do lado de vocês?','Quem precisaria aprovar o investimento?'], dos:['Customizar demo para a dor específica','Conectar com o CFO/economic buyer','Enviar caso de sucesso do mesmo segmento'], donts:['Demo genérica sem personalização','Ignorar objeções técnicas','Deixar sair da reunião sem próximo passo claro'] },
+  'Proposal':{ goal:'Apresentar proposta de valor clara e avançar para decisão', open:'Baseado em tudo que conversamos, preparei uma proposta específica para o momento de vocês. Posso caminhar por ela com você?', questions:['A proposta cobre o que você precisava?','Existe algo que poderia impedir a aprovação internamente?','Qual é o processo de aprovação de contratos na empresa?','Qual o prazo para tomar a decisão?'], dos:['Ter proposta clara e visual','Incluir ROI calculado com dados deles','Dar prazo de validade na proposta'], donts:['Proposta muito longa ou complexa','Não perguntar sobre o processo de aprovação','Enviar por email sem apresentar ao vivo'] },
+  'Negotiate':{ goal:'Fechar as últimas objeções e chegar ao acordo final', open:'Estamos muito próximos de fechar. Para garantir que seja um ótimo negócio para os dois lados, queria entender o que ainda precisa ser resolvido do lado de vocês.', questions:['O que está impedindo fecharmos hoje?','Se ajustarmos [X], você está pronto para seguir?','Quem precisa dar o ok final?','Qual é o prazo real para a decisão?'], dos:['Ter autoridade para dar desconto limitado','Propor alternativas criativas (prazo, fase, escopo)','Criar urgência legítima (preço, disponibilidade)'], donts:['Dar descontos sem contrapartida','Deixar negociação aberta sem prazo','Reduzir preço na primeira objeção'] },
+  'Commit & Signing':{ goal:'Garantir assinatura e início do onboarding', open:'Ótima notícia — temos tudo alinhado! Queria confirmar os próximos passos para garantir que vocês comecem no prazo planejado.', questions:['Quem assina o contrato do lado de vocês?','O jurídico precisa revisar?','Quando você quer que o onboarding comece?','Tem alguma data interna que precisamos respeitar?'], dos:['Enviar contrato imediatamente via TrustSign','Confirmar data de kick-off','Introduzir equipe de onboarding'], donts:['Atrasar o envio do contrato','Não confirmar quem assina','Deixar momentum cair após verbal confirm'] }
+};
+
+function buildTTModal(){
+  if(document.getElementById('gl-tt-modal')) return;
+  var el = document.createElement('div'); el.id='gl-tt-modal';
+  el.innerHTML='<div id="gl-tt-inner"><div style="display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid rgba(255,255,255,.08);background:linear-gradient(135deg,rgba(6,182,212,.12),rgba(124,58,237,.08));border-radius:20px 20px 0 0"><span style="font-size:22px">🎯</span><h2 style="margin:0;font-size:16px;font-weight:800;color:#fff;flex:1">Talk Track Generator</h2><button style="background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;padding:0" onclick="window.__glTT.close()">×</button></div><div style="padding:16px 22px;border-bottom:1px solid rgba(255,255,255,.06);display:flex;gap:8px;flex-wrap:wrap" id="gl-tt-stages"></div><div style="padding:20px 22px" id="gl-tt-body"></div></div>';
+  el.addEventListener('click', function(e){ if(e.target===el) window.__glTT.close(); });
+  document.body.appendChild(el);
+  renderTT();
+}
+
+function renderTT(){
+  var stagesEl = document.getElementById('gl-tt-stages');
+  var body = document.getElementById('gl-tt-body');
+  if(!stagesEl||!body) return;
+  stagesEl.innerHTML = TT_STAGES.map(function(s){ return '<button class="tt-stage-chip'+(_ttStage===s?' active':'')+'" onclick="window.__glTT.pick(\''+s+'\')">'+_h(s)+'</button>'; }).join('');
+  var tt = TT_CONTENT[_ttStage];
+  if(!tt) return;
+  var deal = (window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0];
+  var ctx = deal ? tt.open.replace('[DOR]', 'os desafios em '+deal.stage).replace('[ÁREA]','vendas').replace('[X]','pagamento') : tt.open.replace('[DOR]','suas dores').replace('[ÁREA]','vendas').replace('[X]','condições');
+  body.innerHTML =
+    '<div style="background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(6,182,212,.06));border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:14px 16px;margin-bottom:14px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9d5cf5;margin-bottom:6px">🎯 Objetivo do Estágio</div><div style="font-size:13px;color:#fff;font-weight:600">'+_h(tt.goal)+'</div></div>' +
+    '<div class="tt-section"><h4>💬 Abertura sugerida</h4><div style="font-size:13px;color:rgba(255,255,255,.85);line-height:1.7;font-style:italic">"'+_h(ctx)+'"</div></div>' +
+    '<div class="tt-section"><h4>❓ Perguntas-chave</h4>'+tt.questions.map(function(q){ return '<div class="tt-item"><div class="tt-bullet"></div><span>'+_h(q)+'</span></div>'; }).join('')+'</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">' +
+      '<div class="tt-section"><h4 style="color:#22c55e">✅ Faça</h4>'+tt.dos.map(function(d){ return '<div class="tt-item"><div class="tt-bullet" style="background:#22c55e"></div><span style="font-size:12px">'+_h(d)+'</span></div>'; }).join('')+'</div>' +
+      '<div class="tt-section"><h4 style="color:#ef4444">❌ Evite</h4>'+tt.donts.map(function(d){ return '<div class="tt-item"><div class="tt-bullet" style="background:#ef4444"></div><span style="font-size:12px">'+_h(d)+'</span></div>'; }).join('')+'</div>' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:14px">' +
+      '<button style="flex:1;padding:10px;background:linear-gradient(135deg,rgba(124,58,237,.3),rgba(6,182,212,.2));border:1px solid rgba(124,58,237,.4);border-radius:10px;color:#c084fc;font-size:12px;font-weight:700;cursor:pointer" onclick="window.__glTT.customize()">⚡ Personalizar para deal atual com Julio</button>' +
+    '</div>';
+}
+
+window.__glTT = {
+  open: function(stage){
+    buildTTModal();
+    if(stage) _ttStage = stage;
+    else {
+      var deal = (window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0];
+      if(deal && TT_CONTENT[deal.stage]) _ttStage = deal.stage;
+    }
+    renderTT();
+    document.getElementById('gl-tt-modal').classList.add('open');
+  },
+  close: function(){ var m=document.getElementById('gl-tt-modal'); if(m) m.classList.remove('open'); },
+  pick: function(s){ _ttStage=s; renderTT(); },
+  customize: function(){
+    var deal = (window.__guardlineDealsCache||[]).sort(function(a,b){return(b.risk||0)-(a.risk||0);})[0]||{company:'Prospect',stage:_ttStage};
+    window.__glTT.close();
+    if(typeof julioFloatOpen==='function') julioFloatOpen('Crie um talk track personalizado para a reunião com '+deal.company+', estágio "'+_ttStage+'", valor $'+Number(deal.value||0).toLocaleString('en-US')+'. Inclua: abertura, 5 perguntas específicas para o contexto deles, como lidar com as objeções mais prováveis e como fechar a call com próximo passo claro.');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   5. REVENUE DASHBOARD v2 — CEO/CRO card
+   ══════════════════════════════════════════════════════ */
+function buildRevDashCard(){
+  if(document.getElementById('gl-rev-dash-card')) return;
+  var grid = document.getElementById('command-grid');
+  if(!grid) return;
+  var card = document.createElement('div');
+  card.id = 'gl-rev-dash-card';
+  card.className = 'card';
+  card.style.cssText = 'grid-column:1/-1;animation:slide-up .4s ease;';
+  card.innerHTML = '<div class="card-header" style="display:flex;align-items:center;justify-content:space-between"><div><span class="card-title">📈 Revenue Dashboard</span><span class="card-subtitle" style="margin-left:8px">Visão CEO/CRO · tempo real</span></div><button style="padding:4px 12px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:6px;color:#c084fc;font-size:10px;font-weight:700;cursor:pointer" onclick="window.__glRevDash.refresh()">↻ Atualizar</button></div><div id="gl-rev-dash-body" style="padding:14px 16px 16px"></div>';
+  /* insert before waterfall */
+  var wf = document.getElementById('gl-waterfall-card');
+  if(wf) grid.insertBefore(card, wf);
+  else grid.appendChild(card);
+  renderRevDash();
+}
+
+function renderRevDash(){
+  var body = document.getElementById('gl-rev-dash-body');
+  if(!body) return;
+  var deals = window.__guardlineDealsCache||[];
+  var active = deals.filter(function(d){return d.stage!=='Won'&&d.stage!=='Lost';});
+  var won    = deals.filter(function(d){return d.stage==='Won';});
+  var lost   = deals.filter(function(d){return d.stage==='Lost';});
+  var atRisk = active.filter(function(d){return(d.risk||0)>=75;});
+  var totalPipe = active.reduce(function(a,d){return a+(d.value||0);},0);
+  var wonVal   = won.reduce(function(a,d){return a+(d.value||0);},0);
+  var lostVal  = lost.reduce(function(a,d){return a+(d.value||0);},0);
+  var winRate  = (won.length+lost.length) ? Math.round(won.length/(won.length+lost.length)*100) : 47;
+  var avgDeal  = active.length ? Math.round(totalPipe/active.length) : 0;
+  var forecast = Math.round(totalPipe * (winRate/100) * 1.1);
+
+  var fmt = function(v){ return v>=1e6?'$'+(v/1e6).toFixed(1)+'M':v>=1000?'$'+(v/1000).toFixed(0)+'k':'$'+v; };
+
+  body.innerHTML =
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px">' +
+      [
+        {l:'Pipeline Total',   v:fmt(totalPipe), s:active.length+' deals', c:'#7c3aed'},
+        {l:'Won MTD',          v:fmt(wonVal),    s:won.length+' fechados',  c:'#22c55e'},
+        {l:'Lost MTD',         v:fmt(lostVal),   s:lost.length+' perdidos', c:'#ef4444'},
+        {l:'Win Rate',         v:winRate+'%',    s:'histórico',             c:winRate>=50?'#22c55e':'#f59e0b'},
+        {l:'Deal Médio',       v:fmt(avgDeal),   s:'valor médio',           c:'#06b6d4'},
+        {l:'Em Risco',         v:atRisk.length,  s:'risk ≥75%',             c:atRisk.length>3?'#ef4444':'#f59e0b'},
+        {l:'Forecast 30d',     v:fmt(forecast),  s:'projeção ajustada',     c:'#9d5cf5'},
+      ].map(function(k){
+        return '<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;border-top:2px solid '+k.c+'30">' +
+          '<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:4px">'+_h(k.l)+'</div>' +
+          '<div style="font-size:1.25rem;font-weight:800;color:'+k.c+'">'+_h(String(k.v))+'</div>' +
+          '<div style="font-size:10px;color:rgba(255,255,255,.4);margin-top:2px">'+_h(k.s)+'</div>' +
+        '</div>';
+      }).join('') +
+    '</div>' +
+    '<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:10px;flex-wrap:wrap">' +
+      '<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.4)">Ações rápidas CEO:</div>' +
+      '<button style="padding:5px 12px;background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);border-radius:6px;color:#c084fc;font-size:11px;font-weight:700;cursor:pointer" onclick="window.__glWL&&window.__glWL.open()">🔍 Win/Loss Analysis</button>' +
+      '<button style="padding:5px 12px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:6px;color:#86efac;font-size:11px;font-weight:700;cursor:pointer" onclick="typeof navigateTo===\'function\'&&navigateTo(\'forecast\')">📊 Forecast detalhado</button>' +
+      '<button style="padding:5px 12px;background:rgba(6,182,212,.1);border:1px solid rgba(6,182,212,.25);border-radius:6px;color:#67e8f9;font-size:11px;font-weight:700;cursor:pointer" onclick="window.__glRevDash.boardReport()">📋 Board Report</button>' +
+    '</div>';
+}
+
+window.__glRevDash = {
+  refresh: renderRevDash,
+  boardReport: function(){
+    var deals = window.__guardlineDealsCache||[];
+    var totalPipe = deals.filter(function(d){return d.stage!=='Won'&&d.stage!=='Lost';}).reduce(function(a,d){return a+(d.value||0);},0);
+    var won = deals.filter(function(d){return d.stage==='Won';});
+    if(typeof julioFloatOpen==='function') julioFloatOpen('Crie um Board Report executivo para hoje com os seguintes dados: Pipeline total $'+(totalPipe/1000).toFixed(0)+'k, '+(deals.length)+' deals ativos, '+won.length+' deals fechados. Inclua: resumo executivo, principais riscos, oportunidades e recomendações estratégicas. Tom executivo, máximo 1 página.');
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   WIRE BATCH 3 TO DOCK + INIT
+   ══════════════════════════════════════════════════════ */
+function addBatch3DockButtons(){
+  var dock = document.getElementById('gl-quick-dock');
+  if(!dock || dock.getAttribute('data-batch3')) return;
+  dock.setAttribute('data-batch3','1');
+  var extras = document.createElement('div');
+  extras.style.cssText = 'display:contents';
+  extras.innerHTML =
+    '<div class="qad-sep"></div>' +
+    '<button class="qad-btn" title="Deal Room" onclick="window.__glDR.open()"><span class="qad-ico">🏠</span><span>Deal Room</span></button>' +
+    '<button class="qad-btn" title="Talk Track" onclick="window.__glTT.open()"><span class="qad-ico">🎯</span><span>Talk Track</span></button>' +
+    '<button class="qad-btn" title="Win/Loss Deep Dive" onclick="window.__glWL.open()"><span class="qad-ico">🔍</span><span>W/L</span></button>' +
+    '<button class="qad-btn" title="Pipeline Replay" onclick="window.__glPR.open()"><span class="qad-ico">⏪</span><span>Replay</span></button>';
+  var lastSep = dock.querySelectorAll('.qad-sep'); lastSep = lastSep[lastSep.length-1];
+  if(lastSep) dock.insertBefore(extras, lastSep); else dock.appendChild(extras);
+}
+
+function initBatch3(){
+  addBatch3DockButtons();
+  var tries=0;
+  var wait=setInterval(function(){
+    tries++;
+    if((document.getElementById('command-grid')&&window.__guardlineDealsCache&&window.__guardlineDealsCache.length)||tries>50){
+      clearInterval(wait);
+      buildRevDashCard();
+    }
+  },120);
+}
+
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initBatch3);
+else initBatch3();
+
+})();
+</script>
+
 </body>
 </html>
 
