@@ -22,52 +22,78 @@
   function getGroqKey() { return window.GROQ_API_KEY || localStorage.getItem('groq_api_key') || ''; }
   var GROQ_KEY = getGroqKey();
   var GROQ_URL   = 'https://api.groq.com/openai/v1/chat/completions';
-  var MODEL_FAST = 'moonshotai/kimi-k2-instruct';   // ⚡ Instant + Agent
-  var MODEL_DEEP = 'moonshotai/kimi-k2-instruct';   // 🧠 Thinking + Research
-  var MODEL_TOOL = 'llama3-groq-70b-8192-tool-use-preview'; // 🔧 Tool calling
+  var MODEL      = 'moonshotai/kimi-k2-instruct'; // Kimi K2 — nativo em todos os modos
+  var MODEL_FAST = MODEL;
+  var MODEL_DEEP = MODEL;
+  var MODEL_TOOL = MODEL; // Kimi K2 tem tool calling nativo
 
+  // Kimi K2 no Groq: context 131k tokens, output até 16k
   var MODES = {
-    instant:  { id: 'instant',  label: '⚡ Instant',      model: MODEL_FAST, maxTokens: 2048,  temp: 0.7 },
-    thinking: { id: 'thinking', label: '🧠 Thinking',     model: MODEL_DEEP, maxTokens: 8192,  temp: 0.5 },
-    agent:    { id: 'agent',    label: '🤖 Agent',         model: MODEL_TOOL, maxTokens: 4096,  temp: 0.6 },
-    swarm:    { id: 'swarm',    label: '🐝 Swarm',         model: MODEL_FAST, maxTokens: 2048,  temp: 0.7 },
-    research: { id: 'research', label: '🔬 Deep Research', model: MODEL_DEEP, maxTokens: 12000, temp: 0.4 },
+    instant:  { id: 'instant',  label: '⚡ Instant',      model: MODEL, maxTokens: 8192,  temp: 0.7 },
+    thinking: { id: 'thinking', label: '🧠 Thinking',     model: MODEL, maxTokens: 16000, temp: 0.4 },
+    agent:    { id: 'agent',    label: '🤖 Agent',         model: MODEL, maxTokens: 16000, temp: 0.5 },
+    swarm:    { id: 'swarm',    label: '🐝 Swarm',         model: MODEL, maxTokens: 8192,  temp: 0.6 },
+    research: { id: 'research', label: '🔬 Deep Research', model: MODEL, maxTokens: 16000, temp: 0.3 },
+    news:     { id: 'news',     label: '📰 News & Intel',  model: MODEL, maxTokens: 16000, temp: 0.4 },
   };
 
   // ═══════════════════════════════════════════════════════════════════
   // SYSTEM PROMPTS
   // ═══════════════════════════════════════════════════════════════════
 
+  var TODAY = new Date().toLocaleDateString('pt-BR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
   var BASE_SYSTEM = [
-    'Você é JULIO, o Revenue Intelligence AI da Guardline.',
-    'Especialidades:',
-    '• Sales Pipeline B2B LATAM — Qualification, Scope & Validate, Active Pursuit, Proposal, Negotiate, Commit & Signing',
-    '• MEDDPICC Framework (Metrics, Economic Buyer, Decision Criteria, Decision Process, Paper Process, Implicate Pain, Champion, Competition)',
-    '• Forecast 90d, Risk Score, Deal Intelligence, Win/Loss Analysis',
-    '• Automação de vendas, geração de documentos, análise competitiva',
-    '• Código: HTML/CSS/JS, Python, SQL, React',
+    '# JULIO — Revenue Intelligence AI · Guardline Revenue OS',
+    'Você é JULIO, powered by Kimi K2 (131k context). Você é o copiloto de vendas B2B mais avançado do mercado.',
+    'Data de hoje: ' + TODAY,
     '',
-    'Regras:',
-    '• Responda sempre em Português (BR)',
-    '• Seja direto, executivo e acionável',
-    '• Use **negrito** para termos-chave, listas com • para itens',
-    '• Nunca invente dados de clientes reais; use os dados fornecidos no contexto',
-    '• Quando houver dados do pipeline, use-os na análise',
-    '• Ao gerar código, inclua comentários e seja completo',
+    '## Expertise Total',
+    '### Pipeline & Revenue',
+    '• Sales Pipeline B2B LATAM — 6 estágios: Qualification → Scope & Validate → Active Pursuit → Proposal → Negotiate → Commit & Signing',
+    '• MEDDPICC: Metrics, Economic Buyer, Decision Criteria, Decision Process, Paper Process, Implicate Pain, Champion, Competition',
+    '• Forecast 90d: Committed / Best Case / Worst Case / Pipeline Coverage Ratio',
+    '• Risk Scoring: Dias sem contato, velocidade de estágio, sinais de churn, champion engajamento',
+    '• Win/Loss Analysis: Padrões de vitória, razões de perda, competitive displacement',
+    '',
+    '### Inteligência de Mercado & Notícias',
+    '• Acompanhe notícias de mercado B2B SaaS Brasil/LATAM: funding rounds, M&A, expansão, regulatório',
+    '• Monitoramento competitivo: movimentos de concorrentes, pricing, novos produtos, conquistas de clientes',
+    '• Sinais de mercado: contratações de VP Sales, expansão de times, stack tecnológico dos prospects',
+    '• Economia: câmbio BRL/USD, SELIC, inflação, impacto nos budgets de TI enterprise',
+    '• Inteligência de Conta (ICP): LinkedIn insights, notícias da empresa, eventos gatilho de compra',
+    '',
+    '### Capacidades Técnicas',
+    '• Geração de código: HTML/CSS/JS/React/Python/SQL — sempre código completo, funcional e comentado',
+    '• Documentos: emails, propostas comerciais, playbooks, battlecards, relatórios executivos',
+    '• Análise de dados: interprete métricas, identifique padrões, crie projeções',
+    '• Automação: sugira workflows n8n, integrações HubSpot/Pipedrive, scripts de outbound',
+    '',
+    '## Regras de Comportamento',
+    '• **Sempre responda em Português (BR)** — fluente, executivo e preciso',
+    '• Seja direto e acionável — foque em insights de alta alavancagem',
+    '• Use **negrito** para termos-chave, listas com • para estrutura, ### para seções',
+    '• Quando houver dados do pipeline no contexto, use-os — nunca invente dados reais',
+    '• Para notícias: indique claramente que são baseadas em conhecimento até sua data de corte',
+    '• Para código: sempre entregue versão completa e funcional',
+    '• Se a pergunta for ambígua, interprete da forma mais útil possível — não peça clarificação desnecessária',
+    '• Pense em escala: suas respostas devem ser dignas de um VP de Sales ou CRO',
   ].join('\n');
 
   function systemForMode(mode, pipelineCtx) {
     var extra = '';
     if (mode === 'thinking') {
-      extra = '\n\nMODO THINKING ATIVO:\nAntes de responder, pense passo a passo:\n1. Entenda o problema\n2. Reúna os dados relevantes do contexto\n3. Raciocine sobre as implicações\n4. Formule a resposta final\nMostre seu raciocínio de forma explícita antes da resposta final.';
+      extra = '\n\n## MODO THINKING ATIVO\nUse seu máximo poder de raciocínio. Pense passo a passo:\n1. **Entenda** o problema em profundidade — identifique o que está sendo realmente perguntado\n2. **Reúna** todos os dados disponíveis no contexto\n3. **Raciocine** explicitamente sobre implicações, trade-offs e cenários\n4. **Valide** sua lógica antes de concluir\n5. **Entregue** resposta estruturada com raciocínio visível\nNão tenha pressa. Profundidade e precisão > velocidade.';
     } else if (mode === 'agent') {
-      extra = '\n\nMODO AGENT ATIVO:\nVocê pode usar ferramentas (tools) para buscar dados do pipeline em tempo real.\nUsando as ferramentas disponíveis, colete informações e execute ações autonomamente.\nRelate cada etapa: "Buscando dados... → Analisando... → Executando..."';
+      extra = '\n\n## MODO AGENT ATIVO\nVocê tem acesso a ferramentas (tools) para buscar dados reais do dashboard em tempo real.\nFlow esperado:\n→ Receba a solicitação\n→ Chame as ferramentas necessárias para coletar dados\n→ Analise os dados retornados\n→ Execute ações ou entregue insights baseados em dados reais\n→ Reporte cada etapa: "📊 Buscando pipeline... → 🔍 Analisando riscos... → ✅ Conclusão"\nSeja completamente autônomo — não peça confirmação para usar tools.';
     } else if (mode === 'swarm') {
-      extra = '\n\nMODO AGENT SWARM ATIVO:\nVocê coordena múltiplos subagentes especializados em paralelo.\nEstruture sua resposta em seções por subagente:\n[Subagente 1 — Análise de Pipeline]\n[Subagente 2 — Análise de Risco]\n[Subagente 3 — Forecast]\n[Síntese Executiva do Orquestrador]';
+      extra = '\n\n## MODO AGENT SWARM ATIVO\nVocê orquestra 6 subagentes especializados em paralelo, cada um com perspectiva única.\nEntregue análise em seções:\n### 🎯 [Pipeline Analyst] — estágios, velocidade, cobertura\n### ⚠️ [Risk Analyst] — risk scores, alertas críticos, churn signals\n### 📈 [Forecast Analyst] — committed, best case, timing\n### 🏆 [MEDDPICC Analyst] — gaps de qualificação, champion, decision process\n### 🌐 [Market Intel] — contexto de mercado, competidores, notícias relevantes\n### 💡 [Action Planner] — top 5 ações de maior impacto com owner e prazo\n### 🎖️ [Síntese Executiva] — conclusão consolidada para tomada de decisão';
     } else if (mode === 'research') {
-      extra = '\n\nMODO DEEP RESEARCH ATIVO:\nExecute análise exaustiva:\n1. Mapeie todos os ângulos do problema\n2. Analise dados históricos e tendências\n3. Identifique padrões, contradições e outliers\n4. Crie síntese executiva com conclusões e recomendações prioritizadas\nForneça raciocínio completo e transparente.';
+      extra = '\n\n## MODO DEEP RESEARCH ATIVO\nEntregue análise exaustiva e abrangente. Não economize em profundidade:\n1. **Mapeamento completo** — todos os ângulos, perspectivas e dimensões do problema\n2. **Dados e evidências** — cite métricas, benchmarks, padrões do setor\n3. **Análise temporal** — tendências, momentum, projeções\n4. **Outliers e contradições** — identifique o que está fora do padrão\n5. **Implicações práticas** — o que isso significa para B2B SaaS LATAM especificamente\n6. **Síntese executiva** — conclusões priorizadas por impacto\n7. **Plano de ação** — próximos passos concretos com owners e prazos\nUse todo o seu contexto window. Seja exaustivo.';
+    } else if (mode === 'news') {
+      extra = '\n\n## MODO NEWS & MARKET INTEL ATIVO\nFoco em inteligência de mercado e atualizações:\n• **Notícias relevantes**: funding rounds, M&A, expansões, regulatório, demissões em massa, pivots\n• **Sinais competitivos**: novos produtos, pricing changes, conquistas de clientes, perdas de clientes\n• **Gatilhos de compra**: contratações de VP Sales/CTO/CPO, expansão geográfica, nova rodada\n• **Macroeconomia**: impacto de SELIC, câmbio, cortes de budget em TI enterprise\n• **LATAM watch**: mercados Brasil, México, Colômbia, Argentina — nuances locais\nContextualize todas as informações com impacto direto na estratégia de vendas da Guardline.\nSempre indique: "ℹ️ Baseado em conhecimento até [data de corte]" quando relevante.';
     }
-    var ctx = pipelineCtx ? '\n\n[CONTEXTO DO PIPELINE]\n' + pipelineCtx : '';
+    var ctx = pipelineCtx ? '\n\n---\n## Contexto do Pipeline (dados ao vivo)\n' + pipelineCtx : '';
     return BASE_SYSTEM + extra + ctx;
   }
 
@@ -141,6 +167,58 @@
           },
           required: ['dealName', 'purpose'],
         },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_dashboard_context',
+        description: 'Retorna contexto completo do dashboard: pipeline, alertas, deals, métricas, tela ativa.',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_active_alerts',
+        description: 'Retorna alertas ativos do dashboard: deals em risco, follow-ups vencidos, propostas sem resposta.',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_won_lost_analysis',
+        description: 'Retorna análise de deals ganhos e perdidos: razões, padrões, win rate por estágio.',
+        parameters: {
+          type: 'object',
+          properties: {
+            period: { type: 'string', description: 'Período: 30d, 90d, 180d (default: 90d)' },
+          },
+          required: [],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'search_company_intel',
+        description: 'Busca inteligência sobre uma empresa: contexto de mercado, stack tecnológico provável, sinais de compra.',
+        parameters: {
+          type: 'object',
+          properties: {
+            company: { type: 'string', description: 'Nome da empresa' },
+          },
+          required: ['company'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'get_sdr_performance',
+        description: 'Retorna métricas de performance do SDR Hub: leads, cadências, taxas de conversão.',
+        parameters: { type: 'object', properties: {}, required: [] },
       },
     },
   ];
@@ -228,6 +306,77 @@
         template: 'Email gerado para ' + args.dealName + ' — objetivo: ' + args.purpose,
         subject: 'Próximos passos — ' + args.dealName,
         body: 'Por favor, use o prompt no chat para gerar o email completo com contexto.',
+      });
+    }
+
+    if (name === 'get_dashboard_context') {
+      var screenName = window.currentScreen || 'command';
+      var metrics = {};
+      try { if (window.__guardlineMetricsCache) metrics = window.__guardlineMetricsCache; } catch(e) {}
+      var alerts = [];
+      try { if (window.__guardlineAlertsCache) alerts = window.__guardlineAlertsCache; } catch(e) {}
+      return JSON.stringify({
+        activeScreen: screenName,
+        totalDeals: deals.length,
+        totalPipelineValue: deals.reduce(function(a,d){return a+(d.value||0);},0),
+        dealsAtRisk: deals.filter(function(d){return(d.risk||0)>=70;}).length,
+        activeAlerts: alerts.length,
+        metrics: metrics,
+        stages: (function(){
+          var s={};
+          deals.forEach(function(d){s[d.stage||'?']=(s[d.stage||'?']||0)+1;});
+          return s;
+        })(),
+      });
+    }
+
+    if (name === 'get_active_alerts') {
+      var alertsList = [];
+      try { if (window.__guardlineAlertsCache) alertsList = window.__guardlineAlertsCache; } catch(e) {}
+      // Generate from deals if no cache
+      if (!alertsList.length) {
+        deals.forEach(function(d) {
+          if ((d.risk||0) >= 80) alertsList.push({ type: 'critical_risk', deal: d.company, risk: d.risk, value: d.value });
+          if ((d.daysNoContact||0) > 14) alertsList.push({ type: 'no_contact', deal: d.company, days: d.daysNoContact });
+          if (d.stage === 'Proposal' && (d.daysInStage||0) > 21) alertsList.push({ type: 'stalled_proposal', deal: d.company, daysStalled: d.daysInStage });
+        });
+      }
+      return JSON.stringify({ count: alertsList.length, alerts: alertsList.slice(0,20) });
+    }
+
+    if (name === 'get_won_lost_analysis') {
+      var won = deals.filter(function(d){return d.stage==='Won'||d.outcome==='won';});
+      var lost = deals.filter(function(d){return d.stage==='Lost'||d.outcome==='lost';});
+      var winRate = (won.length+lost.length) ? Math.round((won.length/(won.length+lost.length))*100) : 0;
+      return JSON.stringify({
+        won: won.length,
+        lost: lost.length,
+        winRate: winRate,
+        avgWonValue: won.length ? Math.round(won.reduce(function(a,d){return a+(d.value||0);},0)/won.length) : 0,
+        lostReasons: lost.slice(0,5).map(function(d){return{company:d.company,reason:d.lostReason||'Não informado',value:d.value};}),
+        wonPatterns: won.slice(0,5).map(function(d){return{company:d.company,value:d.value,stage:d.stage};}),
+      });
+    }
+
+    if (name === 'search_company_intel') {
+      var co = args.company || '';
+      var found = deals.filter(function(d){return(d.company||'').toLowerCase().includes(co.toLowerCase());});
+      return JSON.stringify({
+        company: co,
+        inPipeline: found.length > 0,
+        deals: found.map(function(d){return{company:d.company,value:d.value,stage:d.stage,contact:d.contact,risk:d.risk};}),
+        note: 'Para inteligência externa (LinkedIn, Crunchbase, news), use o modo Deep Research ou News & Intel.',
+      });
+    }
+
+    if (name === 'get_sdr_performance') {
+      var sdrData = {};
+      try { if (window.__guardlineSdrCache) sdrData = window.__guardlineSdrCache; } catch(e) {}
+      var leads = deals.filter(function(d){return d.stage==='Qualification'||d.source==='sdr';});
+      return JSON.stringify({
+        leadsInQualification: leads.length,
+        conversionToActive: leads.length ? Math.round((deals.filter(function(d){return d.stage==='Active Pursuit';}).length/leads.length)*100)+'%' : '0%',
+        sdrCache: sdrData,
       });
     }
 
@@ -330,14 +479,14 @@
     opts = opts || {};
     var messages = [{ role: 'system', content: systemMsg }, { role: 'user', content: userMsg }];
     var steps = [];
-    var MAX_TURNS = 5;
+    var MAX_TURNS = 8;
     var toolsUsed = [];
 
     for (var turn = 0; turn < MAX_TURNS; turn++) {
       var result = await groqStream(messages, {
-        model: MODEL_TOOL,
-        maxTokens: 4096,
-        temperature: 0.5,
+        model: MODEL,
+        maxTokens: 16000,
+        temperature: 0.4,
         stream: false,
         tools: JULIO_TOOLS,
       });
@@ -432,6 +581,23 @@
           return await this._runSwarm(prompt, pipelineCtx, opts);
         }
 
+        if (mode === 'news') {
+          // News mode: enrich prompt with dashboard context then deep research
+          var newsPrompt = prompt;
+          if (pipelineCtx) newsPrompt = prompt + '\n\n[Dashboard Context]\n' + pipelineCtx;
+          var messages0 = [
+            { role: 'system', content: systemForMode('news', pipelineCtx) },
+            { role: 'user', content: newsPrompt },
+          ];
+          if (opts.history && opts.history.length) {
+            opts.history.slice(-6).forEach(function(h) { messages0.splice(-1, 0, { role: h.role, content: h.content }); });
+          }
+          return await groqStream(messages0, {
+            model: MODEL, maxTokens: 16000, temperature: 0.4, stream: true,
+            onChunk: opts.onChunk, onDone: opts.onDone, onError: opts.onError,
+          });
+        }
+
         var messages = [{ role: 'system', content: systemMsg }];
 
         // Thread history
@@ -466,11 +632,12 @@
       if (opts.onStep) opts.onStep('🐝 Iniciando Agent Swarm...');
 
       var subTasks = [
-        { name: 'Pipeline Analyst',  prompt: 'Como especialista em pipeline B2B, analise: ' + userPrompt + '\nFoco: estágios, velocidade, cobertura.' },
-        { name: 'Risk Analyst',      prompt: 'Como especialista em risk management, analise: ' + userPrompt + '\nFoco: risk scores, alertas, deals críticos.' },
-        { name: 'Forecast Analyst',  prompt: 'Como especialista em forecast de receita, analise: ' + userPrompt + '\nFoco: probabilidades, committed vs best case, timing.' },
-        { name: 'MEDDPICC Analyst',  prompt: 'Como especialista em MEDDPICC, analise: ' + userPrompt + '\nFoco: gaps de qualificação, champion identification, decision process.' },
-        { name: 'Action Planner',    prompt: 'Como coach de vendas executivo, analise: ' + userPrompt + '\nFoco: top 3 ações imediatas com maior impacto no resultado.' },
+        { name: 'Pipeline Analyst',  prompt: 'Como especialista em pipeline B2B LATAM, faça análise profunda: ' + userPrompt + '\nFoco: estágios, velocidade de ciclo, cobertura por etapa, deals parados.' },
+        { name: 'Risk Analyst',      prompt: 'Como especialista em risk management de vendas B2B, analise: ' + userPrompt + '\nFoco: risk scores, alertas críticos, sinais de churn, champion engagement.' },
+        { name: 'Forecast Analyst',  prompt: 'Como especialista em forecast e revenue operations, analise: ' + userPrompt + '\nFoco: committed vs best case vs worst case, probabilidades, timing de fechamento.' },
+        { name: 'MEDDPICC Analyst',  prompt: 'Como especialista em qualification frameworks MEDDPICC, analise: ' + userPrompt + '\nFoco: gaps de qualificação por deal, champion identification, decision process gaps.' },
+        { name: 'Market Intel',      prompt: 'Como analista de inteligência de mercado B2B SaaS LATAM, contextualize: ' + userPrompt + '\nFoco: tendências de mercado, movimentos competitivos, sinais externos que impactam este pipeline.' },
+        { name: 'Action Planner',    prompt: 'Como CRO / coach de vendas executivo, baseado em: ' + userPrompt + '\nEntregue top 5 ações de maior impacto com: owner, prazo, métrica de sucesso.' },
       ];
 
       var systemBase = BASE_SYSTEM + (pipelineCtx ? '\n\n[PIPELINE]\n' + pipelineCtx : '');
@@ -478,7 +645,7 @@
       var promises = subTasks.map(function(task, idx) {
         return groqStream(
           [{ role: 'system', content: systemBase }, { role: 'user', content: '[' + task.name + '] ' + task.prompt }],
-          { model: MODEL_FAST, maxTokens: 1024, temperature: 0.6, stream: false }
+          { model: MODEL, maxTokens: 4096, temperature: 0.5, stream: false }
         ).then(function(r) {
           return { agent: task.name, result: r.text || '' };
         }).catch(function(e) {
@@ -499,7 +666,7 @@
 
       var consolidated = await groqStream(
         [{ role: 'system', content: BASE_SYSTEM }, { role: 'user', content: consolidatePrompt }],
-        { model: MODEL_DEEP, maxTokens: 4096, temperature: 0.4, stream: true, onChunk: opts.onChunk, onDone: opts.onDone, onError: opts.onError }
+        { model: MODEL, maxTokens: 16000, temperature: 0.3, stream: true, onChunk: opts.onChunk, onDone: opts.onDone, onError: opts.onError }
       );
 
       return { ok: true, text: consolidated.text, swarmResults: results };
