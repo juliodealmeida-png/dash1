@@ -24567,6 +24567,8 @@ function _demoLeadAnalyticsData() {
     window.renderDocumentsScreen = async function() {
       await _origRenderDocs.apply(this, arguments);
       setTimeout(_injectTrustSignButton, 120);
+      /* inject TrustSign Engine admin panel (only on docs screen) */
+      setTimeout(function(){ if(typeof _adminPanel==='function') _adminPanel(); }, 250);
     };
     window.renderDocumentsScreen.__tsPatched = true;
   }
@@ -27382,18 +27384,29 @@ TSE._wf14=function(){
 };
 
 /* Inject admin panel via observer — no wrapping to avoid call-stack overflow */
+function _isDocsScreen(){
+  /* primary: window.currentScreen set by navigateTo() */
+  if(window.currentScreen==='documents')return true;
+  /* secondary: active nav item */
+  var active=document.querySelector('.nav-item.active[data-screen]');
+  if(active&&active.getAttribute('data-screen')==='documents')return true;
+  /* tertiary: URL hash */
+  if(location.hash&&location.hash.indexOf('documents')>=0)return true;
+  return false;
+}
+
 var _adminObs=null;
 function _patchAdmin(){
   if(_adminObs)return;
   _adminObs=new MutationObserver(function(){
     var area=document.getElementById('content-area');
-    if(area&&area.querySelector('.pipeline-page-wrap')&&!area.querySelector('.tse-ap')){
+    if(area&&area.querySelector('.pipeline-page-wrap')&&!area.querySelector('.tse-ap')&&_isDocsScreen()){
       _adminPanel();
     }
   });
   if(document.body)_adminObs.observe(document.body,{childList:true,subtree:true});
   /* also try immediately in case documents screen is already rendered */
-  setTimeout(_adminPanel,300);
+  setTimeout(function(){if(_isDocsScreen())_adminPanel();},300);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -28286,6 +28299,311 @@ console.log('[TrustSign Engine V2] ✅ Parts 1-3 loaded');
 })();
 </script>
 
+<!-- ════════════════════════════════════════════════════════
+     TRUSTSIGN GLOBAL MODAL — acessível de qualquer tela
+     ════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+
+/* ── CSS ── */
+var css = `
+#gl-ts-modal-backdrop {
+  position:fixed; inset:0; z-index:99990;
+  background:rgba(0,0,0,.7); backdrop-filter:blur(6px);
+  display:none; align-items:center; justify-content:center; padding:20px;
+}
+#gl-ts-modal-backdrop.open { display:flex; }
+#gl-ts-modal {
+  width:100%; max-width:760px; max-height:90vh; overflow-y:auto;
+  background:rgba(12,12,18,0.99); border:1px solid rgba(255,255,255,.1);
+  border-radius:18px; box-shadow:0 32px 80px rgba(0,0,0,.8);
+  animation:tsm-in .3s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes tsm-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+#gl-ts-modal-head {
+  display:flex; align-items:center; gap:12px; padding:18px 22px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(6,182,212,.08));
+  position:sticky; top:0; z-index:2; border-radius:18px 18px 0 0;
+}
+#gl-ts-modal-head .tsm-icon { font-size:22px; }
+#gl-ts-modal-head h2 { margin:0; font-size:15px; font-weight:800; color:#fff; flex:1; }
+#gl-ts-modal-head .tsm-close {
+  background:none; border:none; color:rgba(255,255,255,.5); font-size:22px;
+  cursor:pointer; line-height:1; padding:0 4px; transition:color .2s;
+}
+#gl-ts-modal-head .tsm-close:hover { color:#fff; }
+#gl-ts-modal-body { padding:22px; }
+
+/* Template picker strip */
+.tsm-tmpl-strip {
+  display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px;
+}
+.tsm-tmpl-chip {
+  padding:6px 14px; border-radius:100px; font-size:11px; font-weight:700;
+  border:1px solid rgba(255,255,255,.1); background:rgba(255,255,255,.05);
+  color:rgba(255,255,255,.7); cursor:pointer; transition:all .2s; white-space:nowrap;
+}
+.tsm-tmpl-chip:hover { border-color:rgba(124,58,237,.5); color:#fff; }
+.tsm-tmpl-chip.active { background:rgba(124,58,237,.2); border-color:#7c3aed; color:#c084fc; }
+
+/* Section heading */
+.tsm-sec { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+  color:rgba(255,255,255,.4); margin:0 0 10px; display:flex; align-items:center; gap:6px; }
+
+/* Signer form row */
+.tsm-signer-row {
+  display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; margin-bottom:10px;
+}
+.tsm-signer-row input {
+  padding:9px 12px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1);
+  border-radius:8px; color:#e0e0ff; font-size:12px; font-family:inherit; outline:none;
+}
+.tsm-signer-row input:focus { border-color:rgba(124,58,237,.5); }
+.tsm-signer-row input::placeholder { color:#4a4a6a; }
+.tsm-add-btn {
+  padding:9px 16px; background:rgba(124,58,237,.25); border:1px solid rgba(124,58,237,.4);
+  border-radius:8px; color:#c084fc; font-size:12px; font-weight:700; cursor:pointer;
+  transition:all .2s; white-space:nowrap;
+}
+.tsm-add-btn:hover { background:rgba(124,58,237,.4); color:#fff; }
+
+/* Signer list card */
+.tsm-signer-card {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.07);
+  border-radius:10px; margin-bottom:8px;
+}
+.tsm-signer-card .tsm-av {
+  width:34px; height:34px; border-radius:8px; flex-shrink:0;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-weight:800; font-size:12px;
+}
+.tsm-signer-card .tsm-info { flex:1; min-width:0; }
+.tsm-signer-card .tsm-name { font-size:12px; font-weight:700; color:#e0e0ff; }
+.tsm-signer-card .tsm-meta { font-size:11px; color:#64748b; margin-top:1px; }
+.tsm-signer-card .tsm-pin { font-size:10px; background:rgba(124,58,237,.15); color:#9d5cf5; padding:2px 7px; border-radius:4px; margin-left:6px; }
+.tsm-rm { background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:4px 8px; border-radius:6px; transition:background .2s; }
+.tsm-rm:hover { background:rgba(239,68,68,.1); }
+
+/* Config toggles */
+.tsm-toggle-row {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 14px; background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.06); border-radius:10px; margin-bottom:8px;
+}
+.tsm-toggle-row .tsm-tl { font-size:13px; font-weight:600; color:#e0e0ff; }
+.tsm-toggle-row .tsm-td { font-size:11px; color:#64748b; margin-top:2px; }
+/* reuse tse-sw class already defined */
+
+/* Send button */
+.tsm-send-btn {
+  width:100%; padding:15px; margin-top:20px;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5); border:none; border-radius:12px;
+  color:#fff; font-size:15px; font-weight:800; cursor:pointer; transition:all .3s;
+  font-family:inherit;
+}
+.tsm-send-btn:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(124,58,237,.4); }
+.tsm-send-btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+.tsm-empty { text-align:center; padding:14px; background:rgba(255,255,255,.02); border-radius:8px; color:#64748b; font-size:12px; }
+`;
+var s = document.createElement('style');
+s.textContent = css;
+document.head.appendChild(s);
+
+/* ── State (shares TSE state when available) ── */
+var MS = {
+  template: null,
+  signers: [],
+  signingMode: 'simultaneous',
+  requirePin: true,
+};
+
+function _ini(n){ var p=(n||'').trim().split(/\s+/); return p.length>1?(p[0][0]+p[p.length-1][0]).toUpperCase():p[0].slice(0,2).toUpperCase(); }
+function _e(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+var TEMPLATES = [
+  {id:'nda',     name:'NDA',               full:'NDA — Acordo de Confidencialidade'},
+  {id:'contrato',name:'Contrato Serviços',  full:'Contrato de Prestação de Serviços'},
+  {id:'proposta',name:'Proposta Comercial', full:'Proposta Comercial'},
+  {id:'aditivo', name:'Aditivo',            full:'Aditivo Contratual'},
+  {id:'aceite',  name:'Termo de Aceite',    full:'Termo de Aceite'},
+  {id:'custom',  name:'Personalizado',      full:'Documento Personalizado'},
+];
+
+/* ── Build DOM ── */
+function buildModal() {
+  if (document.getElementById('gl-ts-modal-backdrop')) return;
+  var bd = document.createElement('div');
+  bd.id = 'gl-ts-modal-backdrop';
+  bd.innerHTML =
+    '<div id="gl-ts-modal">' +
+      '<div id="gl-ts-modal-head">' +
+        '<span class="tsm-icon">🛡️</span>' +
+        '<h2>Preparar Envio — TrustSign</h2>' +
+        '<button class="tsm-close" onclick="window.__glTSModal.close()">×</button>' +
+      '</div>' +
+      '<div id="gl-ts-modal-body"></div>' +
+    '</div>';
+  /* close on backdrop click */
+  bd.addEventListener('click', function(e){ if (e.target === bd) window.__glTSModal.close(); });
+  document.body.appendChild(bd);
+}
+
+function renderModal() {
+  var body = document.getElementById('gl-ts-modal-body');
+  if (!body) return;
+
+  /* sync from TSE if available */
+  if (window.TrustSignEngine) {
+    if (window.TrustSignEngine.signers && window.TrustSignEngine.signers.length) MS.signers = window.TrustSignEngine.signers;
+    MS.signingMode = window.TrustSignEngine.signingMode || MS.signingMode;
+    MS.requirePin  = window.TrustSignEngine.requirePin != null ? window.TrustSignEngine.requirePin : MS.requirePin;
+    if (window.TrustSignEngine.currentTemplate) MS.template = window.TrustSignEngine.currentTemplate;
+  }
+
+  var tmpl = TEMPLATES.find(function(t){ return t.id === MS.template; }) || null;
+
+  /* template chips */
+  var chips = TEMPLATES.map(function(t) {
+    return '<button class="tsm-tmpl-chip' + (MS.template === t.id ? ' active' : '') + '" onclick="window.__glTSModal._selTmpl(\'' + t.id + '\')">' + _e(t.name) + '</button>';
+  }).join('');
+
+  /* signers list */
+  var sigList = MS.signers.length ? MS.signers.map(function(s, i) {
+    return '<div class="tsm-signer-card">' +
+      '<div class="tsm-av">' + _ini(s.name) + '</div>' +
+      '<div class="tsm-info">' +
+        '<div class="tsm-name">' + _e(s.name) + (s.pin ? '<span class="tsm-pin">PIN ' + _e(s.pin) + '</span>' : '') + '</div>' +
+        '<div class="tsm-meta">' + _e(s.email) + (s.whatsapp ? ' · ' + _e(s.whatsapp) : '') + '</div>' +
+      '</div>' +
+      '<button class="tsm-rm" onclick="window.__glTSModal._rmSig(' + i + ')">✕</button>' +
+    '</div>';
+  }).join('') : '<div class="tsm-empty">Nenhum signatário adicionado</div>';
+
+  body.innerHTML =
+    /* template */
+    '<div style="margin-bottom:20px">' +
+      '<div class="tsm-sec">📄 Modelo de Documento</div>' +
+      '<div class="tsm-tmpl-strip">' + chips + '</div>' +
+      (tmpl ? '<div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:-10px;margin-bottom:4px">' + _e(tmpl.full) + '</div>' : '') +
+    '</div>' +
+    /* signers */
+    '<div style="margin-bottom:20px">' +
+      '<div class="tsm-sec">👥 Signatários</div>' +
+      '<div class="tsm-signer-row">' +
+        '<input type="text"  id="tsm-nn" placeholder="Nome completo" />' +
+        '<input type="email" id="tsm-ne" placeholder="Email" />' +
+        '<input type="text"  id="tsm-nw" placeholder="WhatsApp (opcional)" />' +
+        '<button class="tsm-add-btn" onclick="window.__glTSModal._addSig()">+ Adicionar</button>' +
+      '</div>' +
+      '<div id="tsm-signer-list">' + sigList + '</div>' +
+    '</div>' +
+    /* config */
+    '<div style="margin-bottom:20px">' +
+      '<div class="tsm-sec">⚙️ Configurações</div>' +
+      '<div class="tsm-toggle-row">' +
+        '<div><div class="tsm-tl">Modo de Assinatura</div><div class="tsm-td">' + (MS.signingMode === 'sequential' ? 'Sequencial — um por vez' : 'Simultânea — todos ao mesmo tempo') + '</div></div>' +
+        '<label class="tse-sw"><input type="checkbox"' + (MS.signingMode === 'sequential' ? ' checked' : '') + ' onchange="window.__glTSModal._togMode(this.checked)" /><span class="sl"></span></label>' +
+      '</div>' +
+      '<div class="tsm-toggle-row">' +
+        '<div><div class="tsm-tl">Exigir PIN de 4 dígitos</div><div class="tsm-td">Cada signatário precisará informar um PIN</div></div>' +
+        '<label class="tse-sw"><input type="checkbox"' + (MS.requirePin ? ' checked' : '') + ' onchange="window.__glTSModal._togPin(this.checked)" /><span class="sl"></span></label>' +
+      '</div>' +
+    '</div>' +
+    /* send */
+    '<button class="tsm-send-btn" id="tsm-send-btn"' + (MS.signers.length === 0 ? ' disabled' : '') + ' onclick="window.__glTSModal._send()">' +
+      '🚀 Enviar para Assinatura' +
+    '</button>' +
+    '<p style="text-align:center;font-size:11px;color:#475569;margin-top:10px">Powered by Guardline TrustSign Level 2 · Hash SHA-256</p>';
+}
+
+/* ── Actions ── */
+window.__glTSModal = {
+  open: function(templateId) {
+    buildModal();
+    if (templateId) MS.template = templateId;
+    renderModal();
+    var bd = document.getElementById('gl-ts-modal-backdrop');
+    if (bd) bd.classList.add('open');
+  },
+  close: function() {
+    var bd = document.getElementById('gl-ts-modal-backdrop');
+    if (bd) bd.classList.remove('open');
+    /* sync state back to TSE */
+    if (window.TrustSignEngine) {
+      window.TrustSignEngine.signers = MS.signers;
+      window.TrustSignEngine.signingMode = MS.signingMode;
+      window.TrustSignEngine.requirePin = MS.requirePin;
+      if (MS.template) window.TrustSignEngine.currentTemplate = MS.template;
+    }
+  },
+  _selTmpl: function(id) {
+    MS.template = id;
+    if (window.TrustSignEngine) window.TrustSignEngine.currentTemplate = id;
+    renderModal();
+  },
+  _addSig: function() {
+    var n = (document.getElementById('tsm-nn') || {}).value || '';
+    var e = (document.getElementById('tsm-ne') || {}).value || '';
+    var w = (document.getElementById('tsm-nw') || {}).value || '';
+    if (!n.trim() || !e.trim() || e.indexOf('@') < 1) {
+      if (typeof showToast === 'function') showToast('error', 'Signatários', 'Nome e email válido são obrigatórios');
+      return;
+    }
+    var pin = MS.requirePin ? String(1000 + Math.floor(Math.random() * 9000)) : '';
+    MS.signers.push({ name: n.trim(), email: e.trim(), whatsapp: w.trim(), pin: pin });
+    if (typeof showToast === 'function') showToast('success', 'Signatários', n.trim() + ' adicionado' + (pin ? ' · PIN: ' + pin : ''));
+    renderModal();
+  },
+  _rmSig: function(i) {
+    MS.signers.splice(i, 1);
+    renderModal();
+  },
+  _togMode: function(v) {
+    MS.signingMode = v ? 'sequential' : 'simultaneous';
+    if (window.TrustSignEngine) window.TrustSignEngine.signingMode = MS.signingMode;
+    renderModal();
+  },
+  _togPin: function(v) {
+    MS.requirePin = v;
+    if (window.TrustSignEngine) window.TrustSignEngine.requirePin = v;
+    if (v) MS.signers.forEach(function(s){ if (!s.pin) s.pin = String(1000 + Math.floor(Math.random() * 9000)); });
+    renderModal();
+  },
+  _send: function() {
+    if (!MS.signers.length) { if (typeof showToast === 'function') showToast('error', 'TrustSign', 'Adicione pelo menos 1 signatário'); return; }
+    /* sync to TSE and delegate to TSE._wf14 if available */
+    if (window.TrustSignEngine) {
+      window.TrustSignEngine.signers = MS.signers;
+      window.TrustSignEngine.signingMode = MS.signingMode;
+      window.TrustSignEngine.requirePin = MS.requirePin;
+      if (MS.template) window.TrustSignEngine.currentTemplate = MS.template;
+      if (typeof window.TrustSignEngine._wf14 === 'function') {
+        window.__glTSModal.close();
+        window.TrustSignEngine._wf14();
+        return;
+      }
+    }
+    /* fallback */
+    var btn = document.getElementById('tsm-send-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Enviando…'; }
+    setTimeout(function() {
+      window.__glTSModal.close();
+      if (typeof showToast === 'function') showToast('success', 'TrustSign', 'Documento enviado para ' + MS.signers.length + ' signatário(s)!');
+    }, 1500);
+  }
+};
+
+/* build modal DOM eagerly */
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildModal);
+else buildModal();
+
+})();
+</script>
+
 <!-- ═══════════════════════════════════════════════════════════════
      DEAL PULSE  |  NEXT BEST ACTION ENGINE  |  QUICK ACTIONS DOCK
      ═══════════════════════════════════════════════════════════════ -->
@@ -28589,9 +28907,11 @@ function buildQuickDock() {
     '<div class="qad-sep"></div>' +
     '<button class="qad-btn" title="Novo deal" onclick="window.__glQAD.newDeal()"><span class="qad-ico">➕</span><span>Deal</span></button>' +
     '<div class="qad-sep"></div>' +
+    '<button class="qad-btn" title="Preparar & Enviar Documento" onclick="window.__glTSModal.open()"><span class="qad-ico">🛡️</span><span>Documento</span></button>' +
+    '<div class="qad-sep"></div>' +
     '<button class="qad-btn qad-julio-btn qad-nba-glow" title="Próximas ações + Julio AI" onclick="window.__glQAD.askJulio()"><span class="qad-ico">⚡</span><span>Julio AI</span></button>' +
     '<div class="qad-sep"></div>' +
-    '<button class="qad-btn" title="Buscar tudo (⌘K)" style="padding:7px 9px" onclick="typeof openCommandPalette===\'function\'&&openCommandPalette()" title="⌘K"><span class="qad-ico">🔍</span></button>';
+    '<button class="qad-btn" title="Buscar tudo (⌘K)" style="padding:7px 9px" onclick="typeof openCommandPalette===\'function\'&&openCommandPalette()"><span class="qad-ico">🔍</span></button>';
   document.body.appendChild(dock);
 
   /* hide dock when typing in inputs */
