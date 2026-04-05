@@ -1,0 +1,1191 @@
+/*
+ * GUARDLINE Revenue OS — Design Improvements
+ * Generated from full UI audit — all 27 screens + 16 global rules
+ * Loaded as last stylesheet so all rules override defaults.
+ *
+ * Sections:
+ *   1. Design tokens (variables)
+ *   2. Global resets & scrollbar
+ *   3. Topbar
+ *   4. Sidebar & nav
+ *   5. KPI command-bar
+ *   6. Cards & command grid
+ *   7. Quick Actions Dock
+ *   8. AI Widget (floating)
+ *   9. Typography system
+ *   10. Tab system (unified pill style)
+ *   11. Empty states
+ *   12. Interactive elements & transitions
+ *   13. Pipeline board
+ *   14. Leads table
+ *   15. Alert / signal feed
+ *   16. MEDDPICC buttons
+ *   17. Forecast screen
+ *   18. Per-screen patches (T2–T27)
+ */
+
+/* ─────────────────────────────────────────────────────────
+   1. DESIGN TOKENS
+   ───────────────────────────────────────────────────────── */
+:root {
+  /* Typography scale */
+  --font-xs:   10px;
+  --font-sm:   11px;
+  --font-base: 13px;
+  --font-md:   14px;
+  --font-lg:   16px;
+  --font-xl:   20px;
+  --font-2xl:  24px;
+  --font-3xl:  30px;
+
+  /* Border radius tokens */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   18px;
+  --radius-full: 9999px;
+
+  /* Semantic colour tokens */
+  --color-critical: #ef4444;
+  --color-warning:  #f59e0b;
+  --color-info:     #06b6d4;
+  --color-success:  #10b981;
+  --color-neutral:  #64748b;
+  --color-accent:   #7c3aed;
+  --color-accent-lt: #c4b5fd;
+
+  /* Surface colours */
+  --surface-0:  #08080c;
+  --surface-1:  #0d0d12;
+  --surface-2:  #111117;
+  --surface-3:  #17171f;
+  --border-0:   rgba(255,255,255,0.05);
+  --border-1:   rgba(255,255,255,0.08);
+  --border-2:   rgba(255,255,255,0.12);
+
+  /* Shadows */
+  --shadow-card:       0 2px 8px  rgba(0,0,0,0.40);
+  --shadow-card-hover: 0 8px 24px rgba(0,0,0,0.55);
+  --shadow-float:      0 20px 60px rgba(0,0,0,0.65);
+  --shadow-dock:       0 16px 48px rgba(0,0,0,0.72);
+}
+
+/* ─────────────────────────────────────────────────────────
+   2. GLOBAL RESETS & SCROLLBAR
+   ───────────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track  { background: transparent; }
+::-webkit-scrollbar-thumb  {
+  background: rgba(255,255,255,0.10);
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.18); }
+
+/* Focus rings — accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid rgba(124,58,237,0.60) !important;
+  outline-offset: 2px !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   3. TOPBAR
+   ───────────────────────────────────────────────────────── */
+#topbar,
+.top-bar,
+header.topbar {
+  background: rgba(10,10,14,0.97) !important;
+  border-bottom: 1px solid var(--border-0) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  box-shadow: none !important;
+}
+
+.live-status,
+[class*="live-status"] {
+  padding: 5px 12px !important;
+  background: rgba(16,185,129,0.08) !important;
+  border: 1px solid rgba(16,185,129,0.18) !important;
+  border-radius: var(--radius-full) !important;
+  font-size: var(--font-xs) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.4px !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   4. SIDEBAR & NAV
+   ───────────────────────────────────────────────────────── */
+#sidebar,
+.nav-sidebar,
+[id="sidebar"] {
+  background: rgba(9,9,12,0.99) !important;
+  border-right: 1px solid var(--border-0) !important;
+}
+
+/* Sidebar scrollbar always visible on hover */
+.sidebar-scroll,
+#sidebar .sidebar-scroll {
+  scrollbar-width: thin !important;
+  overflow-y: auto !important;
+}
+#sidebar:hover .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.14) !important;
+}
+
+/* Nav section labels */
+.nav-section-label,
+[class*="nav-section-label"] {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.6px !important;
+  color: rgba(100,116,139,0.65) !important;
+  padding: 16px 16px 5px !important;
+  text-transform: uppercase !important;
+}
+
+/* Nav items */
+.nav-item,
+[class*="nav-item"]:not(.nav-section-label) {
+  padding: 8px 14px !important;
+  border-radius: var(--radius-md) !important;
+  margin: 1px 8px !important;
+  font-size: var(--font-base) !important;
+  font-weight: 500 !important;
+  color: rgba(148,163,184,0.80) !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.nav-item:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: #e2e8f0 !important;
+}
+.nav-item.active {
+  background: rgba(124,58,237,0.15) !important;
+  color: #c4b5fd !important;
+  font-weight: 600 !important;
+  border-left: 2px solid rgba(124,58,237,0.60) !important;
+}
+
+/* Role toggle — needs stronger visual hierarchy */
+.role-toggle,
+[class*="role-toggle"] {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 4px !important;
+  margin: 8px 10px !important;
+}
+.role-toggle button.active,
+[class*="role-toggle"] button.active,
+.role-toggle .active {
+  box-shadow: 0 2px 8px rgba(124,58,237,0.40) !important;
+}
+
+/* Slim Julio pill (from fix1 — reinforce) */
+.julio-sidebar-box {
+  display: none !important;
+}
+#gl-julio-pill {
+  margin: 6px 10px 4px !important;
+}
+
+/* Integration status dots */
+.integrations-status {
+  padding: 8px 12px 12px !important;
+  opacity: 0.75;
+}
+
+/* ─────────────────────────────────────────────────────────
+   5. KPI COMMAND-BAR
+   ───────────────────────────────────────────────────────── */
+#command-bar {
+  padding: 12px 24px !important;
+  gap: 10px !important;
+  background: rgba(10,10,14,0.96) !important;
+  border-bottom: 1px solid var(--border-0) !important;
+}
+
+.kpi-card {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 13px 18px !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.kpi-card:hover {
+  background: rgba(255,255,255,0.05) !important;
+  border-color: rgba(124,58,237,0.28) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+}
+.kpi-card.warning {
+  border-left: 2px solid var(--color-warning) !important;
+}
+.kpi-card.critical {
+  border-left: 2px solid var(--color-critical) !important;
+}
+
+.kpi-label {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.3px !important;
+  color: rgba(148,163,184,0.65) !important;
+  text-transform: uppercase !important;
+}
+.kpi-value {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  font-feature-settings: "tnum" !important;
+  line-height: 1.15 !important;
+}
+.kpi-delta {
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   6. CARDS & COMMAND GRID
+   ───────────────────────────────────────────────────────── */
+.card,
+[class*="-card"]:not(.kpi-card):not(.deal-card):not(.kpi-card):not([class*="act-btn"]) {
+  background: rgba(17,17,23,0.94) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.36) !important;
+}
+.card:hover {
+  border-color: rgba(255,255,255,0.11) !important;
+}
+
+.card-header,
+[class*="card-header"] {
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 14px !important;
+}
+
+.card-title,
+[class*="card-title"] {
+  font-size: var(--font-md) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em !important;
+  color: #e2e8f0 !important;
+}
+
+.card-subtitle,
+[class*="card-subtitle"] {
+  font-size: var(--font-sm) !important;
+  color: rgba(148,163,184,0.65) !important;
+  margin-top: 2px !important;
+}
+
+/* Progress/score bars — make them thicker */
+[class*="progress-bar"],
+[class*="score-bar"],
+[class*="pipeline-bar"] {
+  height: 5px !important;
+  border-radius: 3px !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   7. QUICK ACTIONS DOCK
+   ───────────────────────────────────────────────────────── */
+#gl-quick-dock {
+  bottom: 16px !important;
+  padding: 7px 10px !important;
+  gap: 4px !important;
+  background: rgba(8,8,12,0.97) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: var(--shadow-dock) !important;
+}
+
+.qad-btn {
+  padding: 6px 10px !important;
+  font-size: 10.5px !important;
+  border-radius: 20px !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  background: transparent !important;
+  color: rgba(148,163,184,0.82) !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.qad-btn:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e2e8f0 !important;
+  transform: translateY(-1px) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+}
+.qad-btn:active {
+  transform: translateY(0) !important;
+}
+.qad-btn .qad-ico {
+  font-size: 13px !important;
+}
+
+.qad-sep {
+  background: rgba(255,255,255,0.09) !important;
+  width: 1px !important;
+  height: 20px !important;
+}
+
+.qad-julio-btn {
+  background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(6,182,212,0.14)) !important;
+  border-color: rgba(124,58,237,0.38) !important;
+  color: #c084fc !important;
+  font-weight: 700 !important;
+}
+.qad-julio-btn:hover {
+  background: linear-gradient(135deg, rgba(124,58,237,0.40), rgba(6,182,212,0.22)) !important;
+  color: #fff !important;
+}
+
+/* More button (from fix2) */
+.qad-more-btn {
+  padding: 6px 11px !important;
+  font-size: 10.5px !important;
+}
+
+/* Overflow panel inside dock */
+.qad-overflow-group {
+  background: rgba(8,8,12,0.98) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  padding: 10px 12px !important;
+}
+.qad-overflow-group .qad-btn {
+  font-size: 10px !important;
+  padding: 5px 9px !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   8. AI FLOATING WIDGET
+   ───────────────────────────────────────────────────────── */
+/* The main widget container */
+.gl-v2-floating-widget,
+#gl-v2-julio-widget {
+  width: min(320px, calc(100vw - 48px)) !important;
+  border-radius: var(--radius-xl) !important;
+  opacity: 0.93;
+  transition: opacity 0.20s ease, box-shadow 0.20s ease !important;
+  box-shadow: var(--shadow-float) !important;
+}
+.gl-v2-floating-widget:hover,
+#gl-v2-julio-widget:hover {
+  opacity: 1;
+  box-shadow: 0 24px 72px rgba(0,0,0,0.70) !important;
+}
+
+.gl-v2-fw-panel,
+[class*="fw-panel"] {
+  border-radius: var(--radius-md) !important;
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  margin-bottom: 6px !important;
+}
+
+/* FAB button — don't collide with dock */
+#julio-fab {
+  bottom: 80px !important;
+  right: 20px !important;
+}
+
+/* Ensure content area has right padding when widget is expanded */
+#content-area {
+  padding-right: 0 !important; /* widget is overlay, managed by z-index */
+}
+
+/* ─────────────────────────────────────────────────────────
+   9. TYPOGRAPHY SYSTEM — global application
+   ───────────────────────────────────────────────────────── */
+/* Section labels across all screens */
+[class*="section-label"],
+[class*="section-title"],
+.wf-section-label,
+.wf11-section-label {
+  font-size: var(--font-xs) !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.4px !important;
+  text-transform: uppercase !important;
+  color: rgba(100,116,139,0.70) !important;
+}
+
+/* Page/screen titles */
+[class*="page-title"],
+[class*="screen-title"],
+.pipeline-page-title,
+h1.title {
+  font-size: var(--font-xl) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  color: #f1f5f9 !important;
+  text-transform: none !important;
+}
+
+/* Numeric values — enable tabular figures */
+[class*="kpi-value"],
+[class*="-amount"],
+[class*="-value"],
+[class*="-count"],
+[class*="-score"] {
+  font-feature-settings: "tnum" !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   10. TAB SYSTEM — unified pill style
+   ───────────────────────────────────────────────────────── */
+/* Catch all common tab button patterns */
+.act-btn,
+[class*="tab-btn"],
+[class*="filter-btn"],
+[class*="segment-btn"],
+button[data-tab],
+[class*="tab-pill"] {
+  border-radius: var(--radius-full) !important;
+  padding: 5px 14px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: rgba(148,163,184,0.82) !important;
+  cursor: pointer !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.act-btn:hover,
+[class*="tab-btn"]:hover,
+[class*="filter-btn"]:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(255,255,255,0.14) !important;
+}
+.act-btn.active,
+.act-btn[class*="active"],
+[class*="tab-btn"].active,
+[class*="filter-btn"].active,
+[class*="tab-pill"].active {
+  background: rgba(124,58,237,0.16) !important;
+  border-color: rgba(124,58,237,0.38) !important;
+  color: #c4b5fd !important;
+  font-weight: 700 !important;
+}
+
+/* Underline tabs — documents etc. — convert to pill */
+[class*="tab-underline"],
+[role="tab"] {
+  border-radius: var(--radius-full) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  padding: 5px 16px !important;
+  font-size: var(--font-sm) !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+[role="tab"][aria-selected="true"],
+[role="tab"].active {
+  background: rgba(124,58,237,0.14) !important;
+  border-color: rgba(124,58,237,0.35) !important;
+  color: #c4b5fd !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   11. EMPTY STATES — global
+   ───────────────────────────────────────────────────────── */
+[class*="empty-state"],
+[class*="no-data"],
+[class*="no-results"],
+[class*="empty-message"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 10px !important;
+  padding: 52px 28px !important;
+  color: rgba(100,116,139,0.55) !important;
+  font-size: var(--font-base) !important;
+  text-align: center !important;
+  line-height: 1.6 !important;
+}
+
+/* Generic text-only empty messages in containers */
+.pipeline-page-wrap > p:only-child,
+#content-area > p:only-child,
+[class*="table-empty"],
+[class*="list-empty"] {
+  padding: 52px 28px !important;
+  text-align: center !important;
+  color: rgba(100,116,139,0.55) !important;
+  font-size: var(--font-base) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   12. INTERACTIVE ELEMENTS & TRANSITIONS
+   ───────────────────────────────────────────────────────── */
+button,
+a,
+input,
+select,
+textarea,
+.nav-item,
+.kpi-card,
+.deal-card {
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+
+/* Primary buttons */
+button[class*="primary"],
+button[class*="btn-primary"],
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+  border: 1px solid rgba(124,58,237,0.50) !important;
+  border-radius: var(--radius-md) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(124,58,237,0.30) !important;
+}
+button[class*="primary"]:hover,
+button[class*="btn-primary"]:hover,
+.btn-primary:hover {
+  background: linear-gradient(135deg, #8b4ff0, #7c3aed) !important;
+  box-shadow: 0 4px 14px rgba(124,58,237,0.45) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Ghost / outline buttons */
+button[class*="ghost"],
+button[class*="btn-outline"],
+.btn-ghost {
+  background: transparent !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  border-radius: var(--radius-md) !important;
+  color: rgba(148,163,184,0.85) !important;
+}
+button[class*="ghost"]:hover,
+button[class*="btn-outline"]:hover {
+  border-color: rgba(124,58,237,0.35) !important;
+  color: #c4b5fd !important;
+  background: rgba(124,58,237,0.06) !important;
+}
+
+/* Inputs */
+input[type="text"],
+input[type="email"],
+input[type="number"],
+input[type="search"],
+input[type="password"],
+select,
+textarea {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: var(--radius-md) !important;
+  color: #e2e8f0 !important;
+  font-size: var(--font-base) !important;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: rgba(124,58,237,0.50) !important;
+  background: rgba(255,255,255,0.05) !important;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important;
+  outline: none !important;
+}
+input::placeholder,
+textarea::placeholder {
+  color: rgba(148,163,184,0.45) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   13. PIPELINE BOARD
+   ───────────────────────────────────────────────────────── */
+/* Kanban columns */
+[class*="kanban-col"],
+[class*="pipeline-col"],
+[class*="stage-col"] {
+  background: rgba(255,255,255,0.02) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 12px 10px !important;
+}
+
+/* Deal cards */
+.deal-card,
+[class*="deal-card"] {
+  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  background: rgba(17,17,23,0.96) !important;
+  padding: 12px 14px !important;
+  margin-bottom: 8px !important;
+}
+.deal-card:hover,
+[class*="deal-card"]:hover {
+  border-color: rgba(124,58,237,0.26) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.46) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Stage badges */
+[class*="stage-badge"],
+[class*="deal-stage"] {
+  border-radius: var(--radius-sm) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  letter-spacing: 0.3px !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   14. LEADS TABLE
+   ───────────────────────────────────────────────────────── */
+.leads-table,
+[id*="leads"] table,
+[class*="leads-table"] {
+  width: 100% !important;
+  border-collapse: collapse !important;
+}
+
+.leads-table thead tr,
+[id*="leads"] table thead tr,
+[class*="leads-table"] thead tr {
+  background: rgba(255,255,255,0.03) !important;
+  border-bottom: 2px solid rgba(255,255,255,0.07) !important;
+}
+
+.leads-table thead th,
+[id*="leads"] table thead th {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  color: rgba(100,116,139,0.80) !important;
+  padding: 10px 14px !important;
+}
+
+.leads-table tbody tr,
+[id*="leads"] table tbody tr {
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+}
+.leads-table tbody tr:hover,
+[id*="leads"] table tbody tr:hover {
+  background: rgba(255,255,255,0.03) !important;
+}
+
+/* Score circles in leads */
+[class*="lead-score"],
+[class*="score-circle"] {
+  min-width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   15. ALERT & SIGNAL FEED
+   ───────────────────────────────────────────────────────── */
+.wf12-alert-item,
+[class*="alert-item"],
+[class*="signal-item"] {
+  border: 1px solid rgba(255,255,255,0.05) !important;
+  border-left: 3px solid var(--color-warning) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 12px 14px !important;
+  margin-bottom: 8px !important;
+  cursor: pointer !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.wf12-alert-item:hover,
+[class*="alert-item"]:hover,
+[class*="signal-item"]:hover {
+  background: rgba(255,255,255,0.04) !important;
+  transform: translateX(2px) !important;
+  border-left-color: rgba(124,58,237,0.70) !important;
+}
+
+/* Alert severity colours */
+[class*="alert-critical"],
+[class*="signal-critical"],
+[class*="severity-critical"] {
+  border-left-color: var(--color-critical) !important;
+}
+[class*="alert-warning"],
+[class*="signal-warning"],
+[class*="severity-warning"] {
+  border-left-color: var(--color-warning) !important;
+}
+[class*="alert-info"],
+[class*="signal-info"],
+[class*="severity-info"] {
+  border-left-color: var(--color-info) !important;
+}
+[class*="alert-success"],
+[class*="signal-positive"],
+[class*="signal-success"] {
+  border-left-color: var(--color-success) !important;
+}
+
+/* Action links inside alerts */
+.wf12-alert-item a,
+[class*="alert-item"] a,
+[class*="alert-action"] {
+  color: #a78bfa !important;
+  font-weight: 600 !important;
+  font-size: var(--font-sm) !important;
+  text-decoration: none !important;
+  padding: 2px 7px !important;
+  border-radius: 4px !important;
+  background: rgba(124,58,237,0.10) !important;
+  border: 1px solid rgba(124,58,237,0.20) !important;
+  transition: all 0.15s ease !important;
+}
+.wf12-alert-item a:hover,
+[class*="alert-action"]:hover {
+  background: rgba(124,58,237,0.20) !important;
+  color: #c4b5fd !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   16. MEDDPICC BUTTONS
+   ───────────────────────────────────────────────────────── */
+.medd-letter-btn,
+[class*="medd-letter"],
+[class*="meddic-letter"] {
+  padding: 10px 8px !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  background: rgba(255,255,255,0.03) !important;
+  color: rgba(71,85,105,0.90) !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  transition: all 0.15s cubic-bezier(0.4,0,0.2,1) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+.medd-letter-btn:hover,
+[class*="medd-letter"]:hover {
+  background: rgba(124,58,237,0.10) !important;
+  border-color: rgba(124,58,237,0.28) !important;
+  color: #a78bfa !important;
+}
+.medd-letter-btn.active,
+[class*="medd-letter"].active {
+  background: rgba(124,58,237,0.20) !important;
+  border-color: rgba(124,58,237,0.44) !important;
+  color: #c4b5fd !important;
+  font-weight: 800 !important;
+}
+
+/* Score circles for MEDDPICC deals — prevent distortion on 3-digit numbers */
+[class*="meddpicc-score"],
+[class*="deal-score-circle"] {
+  min-width: 36px !important;
+  height: 36px !important;
+  border-radius: 999px !important;
+  padding: 0 6px !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-feature-settings: "tnum" !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   17. FORECAST SCREEN — specific fixes
+   ───────────────────────────────────────────────────────── */
+/* Missing dates alert link */
+.forecast-missing-dates-alert a,
+[class*="forecast-alert"] a {
+  color: var(--color-warning) !important;
+  font-weight: 700 !important;
+  text-decoration: none !important;
+}
+
+/* Committed / Best Case / Worst Case labels */
+[class*="forecast-label"],
+.forecast-kpi-label {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.2px !important;
+  text-transform: uppercase !important;
+  color: rgba(148,163,184,0.65) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   18. PER-SCREEN PATCHES
+   ───────────────────────────────────────────────────────── */
+
+/* ── T2. Julio AI screen ── */
+/* Column separator */
+[class*="julio-daily-brief"],
+[class*="julio-left-col"] {
+  border-right: 1px solid rgba(255,255,255,0.05) !important;
+  padding-right: 16px !important;
+}
+
+/* Badges: RISCO / ALERTA / INFO / OPORTUNIDADE */
+[class*="julio-badge"],
+[class*="brief-badge"] {
+  padding: 2px 8px !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+}
+
+/* ── T3. Inbox ── */
+[class*="inbox-col"],
+[class*="inbox-folder"],
+[class*="inbox-list"] {
+  border-right: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Reply textarea container */
+[class*="reply-area"],
+[class*="compose-area"] {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 12px !important;
+}
+
+/* Folder active state */
+[class*="inbox-folder-item"].active,
+[class*="folder-item"].active {
+  background: rgba(124,58,237,0.12) !important;
+  color: #c4b5fd !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ── T5. Alertas ── */
+/* "Marcar todos como lidos" — green is inconsistent, make it outlined */
+button[class*="mark-all"],
+button[class*="mark-read"] {
+  background: transparent !important;
+  border: 1px solid rgba(16,185,129,0.30) !important;
+  color: rgba(16,185,129,0.85) !important;
+  border-radius: var(--radius-full) !important;
+  font-size: var(--font-sm) !important;
+  font-weight: 600 !important;
+}
+button[class*="mark-all"]:hover,
+button[class*="mark-read"]:hover {
+  background: rgba(16,185,129,0.10) !important;
+  color: #10b981 !important;
+}
+
+/* ── T6. Gamification ── */
+/* XP values */
+[class*="xp-value"],
+[class*="gamification-xp"] {
+  letter-spacing: -0.02em !important;
+  font-feature-settings: "tnum" !important;
+}
+
+/* XP progress bars — normalise height */
+[class*="xp-bar"],
+[class*="player-bar"],
+[class*="gamification-bar"] {
+  height: 4px !important;
+  border-radius: 2px !important;
+}
+
+/* ── T8. HubSpot Sync — stage badges ── */
+/* Map HubSpot stage text to dim colours */
+[class*="stage-badge"] {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  padding: 3px 8px !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+/* Active webhook badge */
+[class*="webhook-status"],
+[class*="integration-status"] .active {
+  background: rgba(16,185,129,0.10) !important;
+  border: 1px solid rgba(16,185,129,0.22) !important;
+  color: #10b981 !important;
+  padding: 4px 10px !important;
+  border-radius: var(--radius-full) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+/* ── T9. Won/Lost Analysis ── */
+[class*="won-col"],
+[class*="lost-col"],
+[class*="wonlost-col"] {
+  border-right: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+[class*="won-list"] li,
+[class*="lost-list"] li,
+[class*="deal-list-item"] {
+  border-bottom: 1px solid rgba(255,255,255,0.04) !important;
+  padding: 8px 0 !important;
+}
+
+[class*="deal-amount"],
+[class*="deal-value"] {
+  text-align: right !important;
+  font-feature-settings: "tnum" !important;
+  font-weight: 700 !important;
+}
+
+/* ── T11. Pipeline Funnel ── */
+/* Stage bars — thicker */
+[class*="funnel-bar"],
+[class*="stage-bar"] {
+  height: 10px !important;
+  border-radius: 5px !important;
+}
+
+/* KPI cards in funnel with more contrast */
+[class*="funnel-kpi"],
+.pipeline-funnel-kpi {
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+}
+
+/* Column headers */
+[class*="funnel-col-header"],
+[class*="table-col-header"] {
+  font-size: 9px !important;
+  font-weight: 700 !important;
+  letter-spacing: 1.3px !important;
+  text-transform: uppercase !important;
+  color: rgba(100,116,139,0.65) !important;
+}
+
+/* ── T12. Loss Intelligence ── */
+/* Divider between charts */
+[class*="loss-charts"],
+[class*="loss-grid"] > *:not(:last-child) {
+  border-right: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Donut legend dots — bigger */
+[class*="legend-dot"],
+[class*="chart-legend-item"] span:first-child {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 3px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Critical pattern banner */
+[class*="critical-pattern"],
+[class*="pattern-banner"] {
+  border-radius: var(--radius-md) !important;
+}
+
+/* ── T13. HubSpot Sync ── */
+/* Stage badge colour map by content (CSS attribute selector trick) */
+[class*="stage-badge"][data-stage="qualification"] { background: rgba(124,58,237,0.12) !important; color: #a78bfa !important; border-color: rgba(124,58,237,0.25) !important; }
+[class*="stage-badge"][data-stage="proposal"]      { background: rgba(245,158,11,0.10) !important; color: #fbbf24 !important; border-color: rgba(245,158,11,0.22) !important; }
+[class*="stage-badge"][data-stage="negotiate"],
+[class*="stage-badge"][data-stage="negotiation"]   { background: rgba(239,100,30,0.10) !important; color: #fb923c !important; border-color: rgba(239,100,30,0.22) !important; }
+[class*="stage-badge"][data-stage="commit"],
+[class*="stage-badge"][data-stage="closing"]       { background: rgba(16,185,129,0.10) !important; color: #34d399 !important; border-color: rgba(16,185,129,0.22) !important; }
+
+/* ── T20. Reports / Revenue Analytics ── */
+[class*="revenue-analytics-title"],
+h1.revenue-title,
+.reports-screen h1 {
+  font-size: var(--font-xl) !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.025em !important;
+  color: #f8fafc !important;
+  text-transform: none !important;
+}
+
+/* Chart container spacing */
+[class*="chart-container"] + [class*="chart-container"],
+[class*="chart-section"] + [class*="chart-section"] {
+  margin-top: 24px !important;
+}
+
+/* ── T21. Automações ── */
+/* Section title — reduce uppercase weight */
+[class*="automations-title"],
+.automations-screen h1,
+h1[class*="page-h1"] {
+  text-transform: none !important;
+  font-size: var(--font-xl) !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Fix "Sync HubSpot" full-width button */
+button[class*="sync-hubspot"],
+button[id*="sync-hubspot"],
+.admin-sync-btn {
+  width: auto !important;
+  padding: 10px 24px !important;
+}
+
+/* ── T22. Meeting Copilot ── */
+/* Input + button container */
+[class*="meeting-url-wrap"],
+[class*="meeting-input-row"] {
+  display: flex !important;
+  gap: 12px !important;
+  align-items: center !important;
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: var(--radius-lg) !important;
+  padding: 14px 16px !important;
+}
+
+/* Transcript area */
+[class*="transcript-area"],
+[class*="meeting-transcript"] {
+  background: rgba(0,0,0,0.20) !important;
+  border-radius: var(--radius-md) !important;
+  padding: 12px !important;
+}
+
+/* Realtime analysis placeholder */
+[class*="analysis-value"][class*="empty"],
+[class*="realtime-value"]:empty::after {
+  content: "—";
+  color: rgba(100,116,139,0.50);
+  font-size: var(--font-sm);
+}
+
+/* ── T23. Signal Feed ── */
+/* Semantic colour for action buttons */
+[class*="signal-action-btn"] {
+  border-radius: var(--radius-full) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 5px 14px !important;
+}
+
+/* "Ignorar" button — lower prominence */
+[class*="signal-dismiss"],
+[class*="ignore-btn"] {
+  opacity: 0.60 !important;
+  margin-top: 4px !important;
+  font-size: 10px !important;
+}
+[class*="signal-dismiss"]:hover,
+[class*="ignore-btn"]:hover {
+  opacity: 0.90 !important;
+}
+
+/* ── T24. Investor Pipeline ── */
+/* VC card data hierarchy */
+[class*="vc-card"] [class*="vc-meta"],
+[class*="investor-card"] [class*="meta"] {
+  opacity: 0.70 !important;
+  font-size: var(--font-sm) !important;
+}
+
+/* Follow-up link */
+[class*="vc-action"],
+[class*="investor-action"] {
+  color: #a78bfa !important;
+  font-weight: 600 !important;
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 1px solid rgba(255,255,255,0.06) !important;
+  display: block !important;
+}
+
+/* ── T25. Attribution ── */
+/* When AI widget is present, constrain table */
+.attribution-screen table,
+[class*="attribution-table"] {
+  max-width: calc(100% - 0px) !important; /* Widget is overlay */
+  overflow-x: auto !important;
+}
+
+/* Bar value labels */
+[class*="attribution-bar-wrap"] {
+  position: relative !important;
+}
+[class*="attribution-bar-label"] {
+  position: absolute !important;
+  right: 0 !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: rgba(148,163,184,0.85) !important;
+  margin-left: 6px !important;
+}
+
+/* ── T26. Documents ── */
+/* Blocked-state tabs */
+[class*="docs-tabs"][class*="locked"] button,
+[class*="docs-locked"] [role="tab"] {
+  pointer-events: none !important;
+  opacity: 0.40 !important;
+}
+
+/* ── T27. Admin Panel ── */
+/* Config links */
+[class*="admin-config-link"],
+.admin-screen a[href*="api"],
+.admin-screen a[href*="n8n"],
+.admin-screen a[href*="supabase"] {
+  color: var(--color-info) !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+[class*="admin-config-link"]:hover {
+  text-decoration: underline !important;
+}
+
+/* ── G4. Celebration banner — hide on non-relevant screens ── */
+/* The banner should only appear on command center */
+[class*="celebration-banner"],
+[class*="milestone-banner"],
+[class*="achievement-banner"] {
+  /* Visible by default; JS in fix3 hides it on non-command screens.
+     CSS fallback: make it more subtle everywhere */
+  border-radius: var(--radius-md) !important;
+  background: rgba(124,58,237,0.08) !important;
+  border: 1px solid rgba(124,58,237,0.18) !important;
+  font-size: var(--font-sm) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   19. TOOLTIP IMPROVEMENTS
+   ───────────────────────────────────────────────────────── */
+.kpi-tooltip,
+[class*="tooltip"],
+[class*="popover"] {
+  max-width: 260px !important;
+  border-radius: var(--radius-md) !important;
+  background: rgba(8,8,14,0.97) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  font-size: var(--font-sm) !important;
+  line-height: 1.55 !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.55) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   20. CONTEXT SCREEN TRANSITIONS (smooth navigateTo)
+   ───────────────────────────────────────────────────────── */
+#content-area {
+  transition: opacity 0.18s ease !important;
+}
+
+/* ─────────────────────────────────────────────────────────
+   END design-improvements.css
+   ───────────────────────────────────────────────────────── */
